@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>V2 recorder using JS embed method</title>
+        <!--
+            Below example is for R27. You can compare various versions and get relevant one from
+            https://ziggeo.com/docs/sdks/javascript/version-history
+        -->
+
+        <link rel="stylesheet" href="build/ziggeo.css" /> 
+        <script src="build/ziggeo.js"></script> 
+
+        <!--
+            The below approach helps you define all the header parameters that you want to initialise your
+            V2 application with, as a separate block. More info at
+            https://ziggeo.com/docs/sdks/javascript/browser-integration/header
+        -->
+
+        <script>
+            var _setup = {
+                token: "",  //You need to put your token here
+                cdn: true,
+                webrtc: true,
+                webrtc_streaming: true,
+                resumable: true
+            }; 
+
+            // Application Initialization using the headers defined above.
+
+            var app = new ZiggeoApi.V2.Application( _setup );
+        </script>
+
+        <script>
+            // The below approach loads the recorder when the application is ready. This uses the 'ready' event.
+            // This approach ensures that our application is ready for the recorder to be loaded.
+
+            app.on("ready", function() {
+                var recorder = new ZiggeoApi.V2.Recorder({
+                    element: document.getElementById("replace_me-v2_recorder"),
+                    // Variuos Embedding parameters used below are the presentational, operational,
+                    // video management, security parameters. More info at
+                    //https://ziggeo.com/docs/sdks/javascript/browser-integration/parameters#javascript-revision=v1-r27&javascript-version=v2           
+                    attrs: {
+                        width: 320,
+                        height: 240,
+                        rerecordable: true,
+                        recordings: 2,
+                        autorecord : true,
+                        title : "This is test title",
+                        description : "This is test description"
+                    }
+                });
+
+                // Activating the recorder
+                recorder.activate();
+
+                // Embedding events like processed, uploaded can be used to define the user logic.
+                // More info on available events at https://ziggeo.com/docs/sdks/javascript/browser-interaction/events#javascript-revision=v1-r27&javascript-version=v2        
+                recorder.on("uploaded", function () {
+                    // V2 uses the .get approach instead of data which is used in V1.
+                    alert("The video with token " + recorder.get('video') + " has been uploaded!");
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <div id="replace_me-v2_recorder"></div>
+    </body>
+</html>
