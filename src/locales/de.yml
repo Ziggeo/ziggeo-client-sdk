@@ -1,0 +1,12 @@
+"language:de":
+   application.error_503: Das System wird gerade gewartet. Die Videofunktion ist in Kürze wieder aktiv.
+   application.error_404: Der API Schlüssel wurde nicht gefunden. Bitte überprüfen.
+   application.error_401: Der Zugriff auf die Applikation wurde verweigert.
+   application.error_412: Ihr Account muss bestätigt bzw. für weitere Videos freigeschaltet werden.
+   application.error_unknown: Ein unbekannter Fehler ist aufgetreten. Unser Team wurde darüber informiert und wird das Problem lösen.
+   ziggeoplayer.video-not-found: Das angegebene Video konnte nicht gefunden werden.
+   ziggeoplayer.video-access-forbidden: Der Zugriff auf das angegebene Video wurde verweigert.
+   ziggeoplayer.video-unknown-error: Auf das angegebene Video kann zur Zeit nicht zugegriffen werden. Bitte zu einem späteren Zeitpunkt erneut versuchen.
+   ziggeoplayer.video-rejected: Das Video wurde nicht freigegeben.
+   ziggeoplayer.video-processing: Das Video wird gerade verarbeitet, bitte kurz warten.
+   ziggeoplayer.video-access-error: Das Video wird gerade moderiert, bitte etwas später erneut versuchen.

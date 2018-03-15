@@ -1,0 +1,14 @@
+'language:sk':
+  application.error_503: Túto službu práve vylepšujeme. Možnosť nahrania videoživotopisu bude dostupná už onedlho. Túto službu práve vylepšujeme. Možnosť nahrania videoživotopisu bude opätovne spustená už onedlho.
+  application.error_404: >-
+    Nedarí sa nám rozpoznať Váš API kľúč. Uistite sa, prosím, či ho máte v hlavičke Vášho webu.
+  application.error_401: Nemáte prístup k aplikácii na tejto stránke.
+  application.error_412: Musíte potvrdiť / aktualizovať svoj účet.
+  application.error_unknown: >-
+    Vyskytla sa neznáma chyba. Náš tím bol upozornený a bude tento problém riešiť.
+  ziggeoplayer.video-not-found: Nepodarilo sa nám nájsť zadaný video súbor.
+  ziggeoplayer.video-access-forbidden: K tomuto video súboru nemáte povolený prístup.
+  ziggeoplayer.video-unknown-error: K tomuto videu nemáme momentálne prístup. Skúste neskôr prosím.
+  ziggeoplayer.video-rejected: Video bolo zamietnuté.
+  ziggeoplayer.video-processing: Video sa spracováva.
+  ziggeoplayer.video-access-error: Video je momentálne používané. Kliknutím skúste znova.

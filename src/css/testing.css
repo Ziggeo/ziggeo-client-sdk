@@ -1,0 +1,11 @@
+.ziggeo-v2-testing {
+	height: 24px;
+	background-image: url('testing-watermark.png');
+	background-size: contain;               
+    background-repeat: no-repeat;
+    background-position: center center;
+    position: absolute;
+    bottom: 46px;
+    left: 0;
+    right: 0;   
+}

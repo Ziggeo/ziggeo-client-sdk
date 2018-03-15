@@ -1,0 +1,34 @@
+{
+  "name": "Ziggeo Screen Capture",
+  "short_name": "Ziggeo",
+  "description": "This extension allows Ziggeo to capture the screen on-demand when given the permission.",
+  "version": "2.31.0",
+  "manifest_version": 2,
+  "icons": {
+    "16": "ziggeo-16x16.png",
+    "32": "ziggeo-32x32.png",
+    "48": "ziggeo-48x48.png",
+    "64": "ziggeo-64x64.png",
+    "128": "ziggeo-128x128.png"
+  },
+  "background": {
+    "scripts": [
+      "extension.js"
+    ],
+    "persistent": false
+  },
+  "externally_connectable": {
+    "matches": [
+      "*://localhost/*",
+      "*://ziggeo.io/*",
+      "*://ziggeo.com/*",
+      "*://www-dev.ziggeo.com/*",
+      "*://dev.ziggeo.io/*",
+      "*://eu-west-1.ziggeo.com/*",
+      "*://eu-west-1.ziggeo.io/*"
+    ]
+  },
+  "permissions": [
+    "desktopCapture"
+  ]
+}

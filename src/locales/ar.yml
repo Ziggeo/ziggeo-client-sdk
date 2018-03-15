@@ -1,0 +1,16 @@
+'language:ar':
+  application.error_503: نحن في قيد تطوير خدمتنا. ستعود مقاطع الفيديو قريبا.
+  application.error_404: >-
+    لا يمكننا التعرف على مفتاح واجهة برمجة التطبيقات. الرجاء التأكد من تحديده في
+    عنوان موقعك الإلكتروني.
+  application.error_401: لا يسمح لك بالوصول إلى التطبيق من هذا الموقع.
+  application.error_412: تحتاج إلى تأكيد / ترقية حسابك.
+  application.error_unknown: حدث خطأ غير معروف. تم إعلام فريقنا وسيحل المشكلة.
+  ziggeoplayer.video-not-found: تعذر العثور على ملف الفيديو المحدد.
+  ziggeoplayer.video-access-forbidden: لا يسمح لك بالدخول إلى ملف الفيديو هذا.
+  ziggeoplayer.video-unknown-error: >-
+    لا يمكننا الوصول إلى هذا الفيديو في الوقت الحالي. الرجاء معاودة المحاولة في
+    وقت لاحق.
+  ziggeoplayer.video-rejected: تم رفض الفيديو.
+  ziggeoplayer.video-processing: يتم معالجة الفيديو - الرجاء الانتظار.
+  ziggeoplayer.video-access-error: الفيديو قيد المراجعة حاليا. يمكنك النقر لإعادة المحاولة.

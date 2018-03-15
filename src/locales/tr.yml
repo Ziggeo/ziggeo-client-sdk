@@ -1,0 +1,14 @@
+'language:tr':
+  application.error_503: Biz hizmetimizi sürdürmekteyiz. Videolar geri yakında olacak.
+  application.error_404: >-
+    Biz API anahtarını tanıyamaz. Web sitenizin başlığında bunu belirtmek için
+    emin olun.
+  application.error_401: Bu siteden uygulamaya erişmek için izin verilmez.
+  application.error_412: Sen / onaylamak hesabınızı yükseltmeniz gerekir.
+  application.error_unknown: Bilinmeyen bir hata oluştu. Ekibimiz tebliğ edilmiş ve sorunu çözecektir.
+  ziggeoplayer.video-not-found: Biz Belirtilen video dosyasını bulamadı.
+  ziggeoplayer.video-access-forbidden: Bu görüntülü dosyaya erişmek için izin verilmez.
+  ziggeoplayer.video-unknown-error: Biz şu anda bu videoyu erişemiyor. Lütfen daha sonra tekrar deneyiniz.
+  ziggeoplayer.video-rejected: Video reddedildi.
+  ziggeoplayer.video-processing: Video işleme - bizi izlemeye devam edin.
+  ziggeoplayer.video-access-error: Video ılımlılık aşamasındadır. Tekrar denemek için tıklayabilirsiniz.

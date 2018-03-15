@@ -1,0 +1,14 @@
+'language:pt':
+  application.error_503: O nosso serviço está em manutenção. Os vídeos voltarão em breve.
+  application.error_404: >-
+    Não reconhecemos a sua chave api. Certifique-se de especificá-la no seu cabeçalho do site.
+  application.error_401: Não tem permissões para aceder a esta aplicação.
+  application.error_412: Tem de confirmar / atualizar a sua conta.
+  application.error_unknown: >-
+    Ocorreu um erro desconhecido. A nossa equipa foi notificada e irá resolver o problema.
+  ziggeoplayer.video-not-found: Não foi possível encontrar o vídeo especificado.
+  ziggeoplayer.video-access-forbidden: Não tem permissões para aceder a este vídeo.
+  ziggeoplayer.video-unknown-error: Não conseguimos aceder a este vídeo neste momento. Por favor, tente de novo mais tarde.
+  ziggeoplayer.video-rejected: O vídeo foi rejeitado.
+  ziggeoplayer.video-processing: O vídeo está em processamento - fique atento.
+  ziggeoplayer.video-access-error: O vídeo está atualmente sob moderação. Pode clicar para tentar novamente.

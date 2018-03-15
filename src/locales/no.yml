@@ -1,0 +1,14 @@
+'language:no':
+  application.error_503: Vi opprettholder vår tjeneste. Videoer vil være tilbake snart.
+  application.error_404: >-
+    Vi kan ikke gjenkjenne din API-nøkkel. Vennligst sørg for å spesifisere det
+    i nettstedets spissen.
+  application.error_401: Du har ikke lov til å få tilgang til programmet fra denne siden.
+  application.error_412: Du må bekrefte / oppgradere kontoen din.
+  application.error_unknown: En ukjent feil oppstod. Vårt team har blitt informert og løse problemet.
+  ziggeoplayer.video-not-found: Vi kunne ikke finne den angitte videofilen.
+  ziggeoplayer.video-access-forbidden: Du har ikke tillatelse til å få tilgang til denne videofilen.
+  ziggeoplayer.video-unknown-error: Vi har ikke tilgang til denne videoen i øyeblikket. Prøv igjen senere.
+  ziggeoplayer.video-rejected: Videoen har blitt avvist.
+  ziggeoplayer.video-processing: Videoen behandler - følg med.
+  ziggeoplayer.video-access-error: Videoen er under moderering. Du kan klikke for å prøve igjen.

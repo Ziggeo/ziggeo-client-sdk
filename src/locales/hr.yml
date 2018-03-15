@@ -1,0 +1,18 @@
+'language:hr':
+  application.error_503: Držimo naše usluge. Video će se uskoro vratiti.
+  application.error_404: >-
+    Ne možemo prepoznati svoj API ključ. Obavezno naznačiti to u vaše web
+    stranice napadača.
+  application.error_401: Ne mogu pristupiti aplikacija s ove stranice.
+  application.error_412: Morate potvrditi / nadograditi svoj račun.
+  application.error_unknown: >-
+    Došlo je do nepoznate pogreške. Naš tim je obaviješten i da će riješiti
+    problem.
+  ziggeoplayer.video-not-found: Nismo mogli pronaći navedenu datoteku videozapisa.
+  ziggeoplayer.video-access-forbidden: Ne smiju pristupiti ovom video datoteku.
+  ziggeoplayer.video-unknown-error: >-
+    Ne mogu pristupiti ovaj video u tom trenutku. Molimo pokušajte ponovo
+    kasnije.
+  ziggeoplayer.video-rejected: Video je odbijen.
+  ziggeoplayer.video-processing: Video obrađuje - Stay tuned.
+  ziggeoplayer.video-access-error: Spot je trenutno u umjerenim količinama. Možete kliknuti na ponovni pokušaj.

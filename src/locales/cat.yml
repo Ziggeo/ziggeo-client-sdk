@@ -1,0 +1,18 @@
+'language:cat':
+  application.error_503: Estem mantenint el nostre servei. Vídeos estaran de tornada aviat.
+  application.error_404: >-
+    No podem reconèixer la clau d'API. Si us plau assegureu-vos d'especificar
+    que a la capçalera de la seva pàgina web.
+  application.error_401: No se li permet accedir a l'aplicació des d'aquest lloc.
+  application.error_412: Cal confirmar / actualitzar el seu compte.
+  application.error_unknown: >-
+    S'ha produït un error desconegut. El nostre equip ha estat notificat i
+    resoldrà el problema.
+  ziggeoplayer.video-not-found: No hem trobat el fitxer de vídeo especificat.
+  ziggeoplayer.video-access-forbidden: No se li permet accedir a aquest arxiu de vídeo.
+  ziggeoplayer.video-unknown-error: 'No podem accedir a aquest vídeo en el moment. Siusplau, intenta-ho més tard.'
+  ziggeoplayer.video-rejected: El vídeo ha estat rebutjat.
+  ziggeoplayer.video-processing: El vídeo està processant - estigueu atents.
+  ziggeoplayer.video-access-error: >-
+    El vídeo està actualment a la moderació. Podeu fer clic per tornar a
+    intentar-ho.

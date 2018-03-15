@@ -1,0 +1,20 @@
+'language:ro':
+  application.error_503: Ne menținem serviciul nostru. Videoclipurile vor reveni în curând.
+  application.error_404: >-
+    Noi nu putem recunoaste cheia API-ului. Asigurați-vă că specificați acest
+    lucru în antetul site-ului.
+  application.error_401: Nu aveți permisiunea de a accesa aplicația de pe acest site.
+  application.error_412: Trebuie să confirmați / actualizați contul.
+  application.error_unknown: >-
+    A apărut o eroare necunoscută. Echipa noastră a fost notificată și va
+    rezolva problema.
+  ziggeoplayer.video-not-found: Nu am putut găsi fișierul video specificat.
+  ziggeoplayer.video-access-forbidden: Nu aveți permisiunea de a accesa acest fișier video.
+  ziggeoplayer.video-unknown-error: >-
+    Noi nu putem avea acces la acest video la acest moment. Vă rugăm să
+    încercați din nou mai târziu.
+  ziggeoplayer.video-rejected: Videoclipul a fost respins.
+  ziggeoplayer.video-processing: Videoclipul este de prelucrare - urmăriți.
+  ziggeoplayer.video-access-error: >-
+    Video este în prezent în curs de moderare. Aveți dreptul să faceți clic
+    pentru a încerca din nou.

@@ -1,0 +1,16 @@
+'language:id':
+  application.error_503: Kami menjaga layanan kami. Video akan segera kembali.
+  application.error_404: >-
+    Kami tidak dapat mengenali kunci api Anda. Pastikan untuk menentukannya di
+    header situs web Anda.
+  application.error_401: Anda tidak diizinkan mengakses aplikasi dari situs ini.
+  application.error_412: Anda perlu mengkonfirmasi / meningkatkan akun Anda.
+  application.error_unknown: >-
+    Terjadi kesalahan yang tidak diketahui. Tim kami telah diberi tahu dan akan
+    menyelesaikan masalah ini.
+  ziggeoplayer.video-not-found: Kami tidak dapat menemukan file video yang ditentukan.
+  ziggeoplayer.video-access-forbidden: Anda tidak diizinkan mengakses file video ini.
+  ziggeoplayer.video-unknown-error: Saat ini kami tidak dapat mengakses video ini. Silakan coba lagi nanti.
+  ziggeoplayer.video-rejected: Video telah ditolak
+  ziggeoplayer.video-processing: Video sedang diproses - nantikan.
+  ziggeoplayer.video-access-error: Video saat ini sedang dalam moderasi. Anda bisa mengklik untuk mencoba lagi.

@@ -1,0 +1,16 @@
+'language:sr':
+  application.error_503: Ми смо одржавање наше услуге. Видео ће се вратити ускоро.
+  application.error_404: >-
+    Не можемо препознати кључ АПИ-ја. Уверите се да је наведете у заглављу вашег
+    веб-сајта.
+  application.error_401: Нисте дозвољен приступ апликацију са овог сајта.
+  application.error_412: Потребно је да потврдите / надоградите налог.
+  application.error_unknown: Непознате грешке. Наш тим је обавештен и да ће решити проблем.
+  ziggeoplayer.video-not-found: Нисмо могли наћи наведену видео фајл.
+  ziggeoplayer.video-access-forbidden: Није вам дозвољено да приступе овом видео фајл.
+  ziggeoplayer.video-unknown-error: >-
+    Ми не можемо да приступите овом видео у овом тренутку. Покушајте поново
+    касније.
+  ziggeoplayer.video-rejected: Видео је одбијен.
+  ziggeoplayer.video-processing: Видео обрађује - стаи тунед.
+  ziggeoplayer.video-access-error: Видео је тренутно у фази умерености. Можете да кликнете да поновите.

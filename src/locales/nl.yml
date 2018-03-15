@@ -1,0 +1,18 @@
+'language:nl':
+  application.error_503: Wij handhaven onze service. Video's zullen snel terug zijn.
+  application.error_404: >-
+    We kunnen niet herkent uw API-sleutel. Zorg ervoor om het te specificeren in
+    de header van uw website.
+  application.error_401: Het is niet toegestaan ​​om de toepassing van deze site.
+  application.error_412: Je nodig hebt om te bevestigen / uw account upgraden.
+  application.error_unknown: >-
+    Er is een onbekende fout opgetreden. Ons team is aangemeld en zal het
+    probleem op te lossen.
+  ziggeoplayer.video-not-found: We konden het opgegeven video-bestand niet vinden.
+  ziggeoplayer.video-access-forbidden: U bent niet toegestaan ​​om toegang tot dit videobestand.
+  ziggeoplayer.video-unknown-error: >-
+    We hebben geen toegang tot deze video op dit moment. Probeer het later
+    opnieuw.
+  ziggeoplayer.video-rejected: De video is geweigerd.
+  ziggeoplayer.video-processing: De video wordt verwerkt - stay tuned.
+  ziggeoplayer.video-access-error: De video is momenteel in matiging. U kunt klikken om opnieuw te proberen.

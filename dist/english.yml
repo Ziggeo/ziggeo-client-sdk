@@ -1,0 +1,16 @@
+'language:en':
+  application.error_503: We are maintaining our service. Videos will be back soon.
+  application.error_404: >-
+    We cannot recognize your api key. Please make sure to specify it in your
+    website's header.
+  application.error_401: You are not allowed to access the application from this site.
+  application.error_412: You need to confirm / upgrade your account.
+  application.error_unknown: >-
+    An unknown error occurred. Our team has been notified and will resolve the
+    issue.
+  ziggeoplayer.video-not-found: We could not find the specified video file.
+  ziggeoplayer.video-access-forbidden: You are not permitted to access this video file.
+  ziggeoplayer.video-unknown-error: We cannot access this video at the moment. Please try again later.
+  ziggeoplayer.video-rejected: The video has been rejected.
+  ziggeoplayer.video-processing: The video is processing - stay tuned.
+  ziggeoplayer.video-access-error: The video is currently under moderation. You may click to retry.

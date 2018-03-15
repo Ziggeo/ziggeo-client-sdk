@@ -1,0 +1,14 @@
+'language:zh-tw':
+  application.error_503: 伺服器正在維護中，服務稍後就會恢復。
+  application.error_404: >-
+    我們無法驗證您的 API 金鑰，請確定您有在網站配置參數中正確指定了金鑰。
+  application.error_401: 未經授權的應用，請確認。
+  application.error_412: 您必須確認/更新您的帳號。
+  application.error_unknown: >-
+    發生了未知的錯誤，已通知工作團隊來排除此問題。
+  ziggeoplayer.video-not-found: 無法找到該影片。
+  ziggeoplayer.video-access-forbidden: 未授權存取此影片。
+  ziggeoplayer.video-unknown-error: 暫時無法存取此影片，請稍後再試。
+  ziggeoplayer.video-rejected: 拒絕存取影片。
+  ziggeoplayer.video-processing: 影片處理中，請稍候。
+  ziggeoplayer.video-access-error: 影片正在轉檔中，請稍後再試。

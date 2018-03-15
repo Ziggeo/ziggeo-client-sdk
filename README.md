@@ -1,4 +1,4 @@
-# Ziggeo Client SDK 0.0.30
+# Ziggeo Client SDK 2.31.0
 
 
 Ziggeo API (https://ziggeo.com) allows you to integrate video recording and playback with only
@@ -36,6 +36,14 @@ To embed a player for an existing video, add:
 ``` 
 
 For the full documentation, please visit [ziggeo.com](https://ziggeo.com/docs).
+
+
+## Build yourself
+
+```bash
+npm install
+npm run build
+```
 
 
 ## License

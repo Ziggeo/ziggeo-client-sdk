@@ -1,0 +1,7 @@
+(function () {
+
+var Scoped = this.subScope();
+
+Scoped.extend("module:", function () {
+	return {};
+});

@@ -1,0 +1,8 @@
+(function () {
+
+var oldScoped = null;
+
+try {
+	if ("Scoped" in window)
+		oldScoped = window.Scoped.detach(true);
+} catch (e) {} 

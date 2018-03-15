@@ -1,0 +1,12 @@
+'language:fr':
+  application.error_503: Notre service est en maintenance ou service en maintenance. Les vidéos seront bientôt de retours.
+  application.error_404: Nous ne pouvons lire ou reconnaitre votre clé API. Assurez vous qu’elle soit connectée avec l’entête du site web.
+  application.error_401: Vous n’êtes pas autorisé à accéder à l’application depuis ce site.
+  application.error_412: Vous devez confirmer/ veuillez mettre à jour votre compte.
+  application.error_unknown: Une erreur s’est produite, notre équipe a été prévenue et interviendra dans les meilleurs délais.
+  ziggeoplayer.video-not-found: Nous ne pouvons trouver votre fichier vidéo.
+  ziggeoplayer.video-access-forbidden: Vous n’êtes pas autorisé à accede à ce fichier vidéo.
+  ziggeoplayer.video-unknown-error: Nous ne pouvons pas accéder à cette vidéo pour le moment - Réessayez plus tard.
+  ziggeoplayer.video-rejected: La vidéo a été rejetée.
+  ziggeoplayer.video-processing: La vidéo est en cours de traitement - restez à l'écoute.
+  ziggeoplayer.video-access-error: La vidéo est en cours de modération. Vous pouvez cliquer pour réessayer.

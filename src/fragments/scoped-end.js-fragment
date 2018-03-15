@@ -1,0 +1,6 @@
+Scoped.detach(true);
+
+if (oldScoped)
+	oldScoped.attach();	
+
+}).call(this);

@@ -1,0 +1,20 @@
+'language:pl':
+  application.error_503: Podtrzymujemy naszą usługę. Filmy będą wkrótce.
+  application.error_404: >-
+    Nie możemy rozpoznać swój klucz API. Pamiętaj, aby podać go w nagłówku
+    witryny.
+  application.error_401: 'Nie masz uprawnień, aby uzyskać dostęp do aplikacji z tej strony.'
+  application.error_412: Musisz potwierdzić / upgrade konta.
+  application.error_unknown: >-
+    Wystąpił nieznany błąd. Nasz zespół został powiadomiony i będzie rozwiązać
+    problem.
+  ziggeoplayer.video-not-found: Nie można znaleźć określonego pliku wideo.
+  ziggeoplayer.video-access-forbidden: 'Nie masz wystarczających uprawnień, aby uzyskać dostęp do tego pliku wideo.'
+  ziggeoplayer.video-unknown-error: >-
+    Nie możemy uzyskać dostęp do tego filmu w tym momencie. Spróbuj ponownie
+    później.
+  ziggeoplayer.video-rejected: Film został odrzucony.
+  ziggeoplayer.video-processing: Film jest przetwarzanie - stay tuned.
+  ziggeoplayer.video-access-error: >-
+    Film jest obecnie w umiarkowanych ilościach. Można kliknąć, aby ponowić
+    próbę.

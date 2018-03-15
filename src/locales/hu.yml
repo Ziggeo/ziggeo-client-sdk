@@ -1,0 +1,14 @@
+'language:hu':
+  application.error_503: Mi fenntartása a szolgáltatást. Videó hamarosan visszatér.
+  application.error_404: >-
+    Nem lehet felismerni az API-kulcsot. Kérjük, hogy adja meg a webhely
+    fejlécében.
+  application.error_401: Ön nem jogosult hozzáférni az alkalmazás ezen az oldalon.
+  application.error_412: Meg kell erősítenie / frissítse a számla.
+  application.error_unknown: 'Ismeretlen hiba történt. Csapatunk már bejelentett, és megoldja a problémát.'
+  ziggeoplayer.video-not-found: Nem találtunk a megadott videó fájlt.
+  ziggeoplayer.video-access-forbidden: Ön nem jogosult hozzáférni a videó fájlt.
+  ziggeoplayer.video-unknown-error: 'Nem tudjuk elérni ezt a videót a pillanatban. Kérlek, próbáld újra később.'
+  ziggeoplayer.video-rejected: A videó elutasításra került.
+  ziggeoplayer.video-processing: A videó feldolgozás - a híradásokat.
+  ziggeoplayer.video-access-error: A videó jelenleg a moderálás. Lehet kattintással újra.

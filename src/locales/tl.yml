@@ -1,0 +1,22 @@
+'language:tl':
+  application.error_503: >-
+    Kami ay pinapanatili ang aming serbisyo. Video ay maaaring bumalik sa lalong
+    madaling panahon.
+  application.error_404: >-
+    Hindi namin maaaring makilala ang iyong api key. Mangyaring siguraduhin na
+    tukuyin ito sa header ng iyong website.
+  application.error_401: Hindi ka pinapayagang i-access ang application mula sa site na ito.
+  application.error_412: Kailangan mong kumpirmahin / i-upgrade ang iyong account.
+  application.error_unknown: >-
+    Isang hindi alam na error ang naganap. Ang aming koponan ay aabisuhan at
+    kukumpirmahin malutas ang isyu.
+  ziggeoplayer.video-not-found: Hindi kami makahanap ng ang tinukoy na file na video.
+  ziggeoplayer.video-access-forbidden: Ikaw ay hindi pinapayagan na ma-access ang video file.
+  ziggeoplayer.video-unknown-error: >-
+    Hindi namin ma-access ang video na ito sa sandaling ito. Subukang muli
+    mamaya.
+  ziggeoplayer.video-rejected: Ang video na ito ay tinanggihan.
+  ziggeoplayer.video-processing: Ang video ay pinoproseso - manatiling nakatutok.
+  ziggeoplayer.video-access-error: >-
+    Ang video na ito ay kasalukuyang sumasailalim sa pagmo-moderate. Maaari mong
+    i-click upang subukang muli.

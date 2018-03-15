@@ -1,0 +1,33 @@
+.ziggeo-overlay-background {
+    background-color: white;
+    opacity: 0.85;
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    cursor: default;
+}
+.ziggeo-overlay {
+    background-color: black;
+    opacity: 1;
+    z-index: 10001;
+    padding:4px 4px 0 4px;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    -moz-transform: translate(-50%, -50%);
+    -o-transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+    margin-right: -50%;
+    position: fixed;
+}
+.ziggeo-overlay-inner {
+    width: 100%;
+    height: 100%;
+}
+.ziggeo-overlay-body {
+    overflow: hidden;
+}

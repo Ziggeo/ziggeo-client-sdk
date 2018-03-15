@@ -1,0 +1,14 @@
+'language:zh-cn':
+  application.error_503: 服务器正在维护中，稍后就会恢复。
+  application.error_404: >-
+    我们无法验证您的应用金钥，请确定您有在网站配置参数中正确指定了金钥。
+  application.error_401: 未经授权的应用，请确认。
+  application.error_412: 您必须确认/更新您的帐户。
+  application.error_unknown: >-
+    发生了未知的错误，已通知工作团队来排除此问题。
+  ziggeoplayer.video-not-found: 无法找到该影片。
+  ziggeoplayer.video-access-forbidden: 未授权存取此影片。
+  ziggeoplayer.video-unknown-error: 暂时无法存取此影片，请稍后再试。
+  ziggeoplayer.video-rejected: 拒绝存取影片。
+  ziggeoplayer.video-processing: 影片处理中，请稍候。
+  ziggeoplayer.video-access-error: 影片正在转档中，请稍后再试。

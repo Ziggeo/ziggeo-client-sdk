@@ -1,0 +1,15 @@
+'language:az':
+  application.error_503: Hal hazırda texniki xidmət göstəririk. Video tezliklə geri qaytarılacaq.
+  application.error_404: >-
+    Sizin APİ açarı müəyyən edə bilmədik. Zəhmət olmasa açarı veb səhifənin başlıq hissəsində qeyd edin.
+  application.error_401: Sizin tətbiqə bu veb səhifədən daxil olmanıza icazə yoxdur.
+  application.error_412: Sizə hesabınızı təsdiq etmək / yüksəltmək gərəkdir.
+  application.error_unknown: Bilinməyən səhv baş verdi. Bizim komandaya xəbər verildi və məsələni həll etməyə çalışırıq.
+  ziggeoplayer.video-not-found: Sorğu edilmiş video faylını tapa bilmədik.
+  ziggeoplayer.video-access-forbidden: Sizin bu video fayla daxil olmaq üçün icazəniz yoxdur.
+  ziggeoplayer.video-unknown-error: >-
+    Biz hal-hazırda bu video fayla daxil ola bilmədik. Zəhmət olmasa bir az sonra yenidən cəhd
+    edin.
+  ziggeoplayer.video-rejected: Video rədd edildi.
+  ziggeoplayer.video-processing: Video emal olunur - biraz gözləyin.
+  ziggeoplayer.video-access-error: Video hal hazırda emal olunur. Yenidən yoxlamaq üçün basa bilərsiz.
