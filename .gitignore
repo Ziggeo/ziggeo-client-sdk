@@ -5,3 +5,4 @@ bower_components
 package-lock.json
 temp
 google-translate-creds.json
+demos/credentials.js

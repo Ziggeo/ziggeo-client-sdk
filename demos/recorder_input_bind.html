@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="../build/ziggeo.css" />
+        <script src="credentials.js"></script>
+        <script src="../build/ziggeo.js"></script>
+        <script src="header.js"></script>
+    </head>
+    <body>
+        <form id="form">
+            <input name="token" />
+            <ziggeorecorder ziggeo-theme="modern"
+                            ziggeo-input-bind="token"
+                            ziggeo-form-accept="#form">
+            </ziggeorecorder>
+            <input type="submit" />
+        </form>
+    </body>
+</html>
