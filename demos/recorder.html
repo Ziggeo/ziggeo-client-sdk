@@ -7,7 +7,18 @@
         <script src="header.js"></script>
     </head>
     <body>
-        <ziggeorecorder ziggeo-theme="modern">
+        <ziggeorecorder id="recorder" ziggeo-theme="modern">
         </ziggeorecorder>
+        <script>
+            ZiggeoApi.V2.Application.getDefault().once("ready", function () {
+                var recorder = ZiggeoApi.V2.Recorder.findByElement(document.getElementById("recorder"));
+                recorder.on("processing", function () {
+                    console.log("processing");
+                });
+                recorder.on("processed", function () {
+                    console.log("processed");
+                });
+            });
+        </script>
     </body>
 </html>
