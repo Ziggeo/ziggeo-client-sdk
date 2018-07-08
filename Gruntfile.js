@@ -172,6 +172,7 @@ module.exports = function(grunt) {
         "src/fragments/scoped-end.js-fragment"
     ], 'dist/ziggeo.js')
     .gittagTask()
+    .browserqunitTask(null, 'tests/ui/tests.html', true)
     .uglifyTask('js-uglify', 'dist/ziggeo.js', 'build/ziggeo.js');
 
     gruntHelper.config.shell = gruntHelper.config.shell || {};
