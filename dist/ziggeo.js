@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.32.4 - 2018-07-14
+ziggeo-client-sdk - v2.32.5 - 2018-07-21
 Copyright (c) 
 Proprietary Software License.
 */
@@ -15486,7 +15486,7 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.87"
+    "version": "0.0.88"
 };
 });
 
@@ -20202,9 +20202,9 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                 video = document.createElement("video");
             video.volume = 0;
             video.muted = true;
-            if (video.mozSrcObject !== undefined)
+            if ('mozSrcObject' in video)
                 video.mozSrcObject = stream;
-            else if (Info.isSafari() || (Info.isChrome() && Info.chromeVersion() >= 65))
+            else if ('srcObject' in video)
                 video.srcObject = stream;
             else
                 video.src = this.globals().URL.createObjectURL(stream);
@@ -24916,7 +24916,7 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.109"
+    "version": "0.0.111"
 };
 });
 
@@ -28295,13 +28295,13 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                 remove_on_destroy: true,
 
                 create: function() {
-                    if (Info.isMobile() && (this.get("autoplay") || this.get("playwhenvisible"))) {
+                    if ( /*Info.isMobile() && */ (this.get("autoplay") || this.get("playwhenvisible"))) {
                         this.set("volume", 0.0);
                         this.set("volumeafterinteraction", true);
-                        if (!(Info.isiOS() && Info.iOSversion().major >= 10)) {
-                            this.set("autoplay", false);
-                            this.set("loop", false);
-                        }
+                        //if (!(Info.isiOS() && Info.iOSversion().major >= 10)) {
+                        //this.set("autoplay", false);
+                        //this.set("loop", false);
+                        //}
                     }
 
                     if (this.get("theme") in Assets.playerthemes) {
