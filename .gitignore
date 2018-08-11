@@ -7,3 +7,4 @@ temp
 google-translate-creds.json
 demos/credentials.js
 tests/ui/credentials.js
+tests/qunit/credentials.js

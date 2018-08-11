@@ -7,6 +7,7 @@ chrome.runtime.onMessageExternal.addListener(function (message, sender, sendResp
             });
             break;
         case "acquire":
+            if (message.url) sender.tab.url = message.url;
             chrome.desktopCapture.chooseDesktopMedia(message.sources, sender.tab, function (streamId) {
                 sendResponse(streamId ? {
                     type: 'success',

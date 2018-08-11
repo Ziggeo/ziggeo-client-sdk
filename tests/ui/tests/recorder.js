@@ -12,7 +12,8 @@ QUnit.test("Embed Recorder Via HTML", function(assert) {
             rootElement.innerHTML = "";
             done();
         });
-        recorderInstance.record();
+        if (!QUnit.isMobile)
+            recorderInstance.record();
     });
 });
 
@@ -30,6 +31,7 @@ QUnit.test("Embed Recorder simulate", function(assert) {
             rootElement.innerHTML = "";
             done();
         });
-        recorderInstance.record();
+        if (!QUnit.isMobile)
+            recorderInstance.record();
     });
 });

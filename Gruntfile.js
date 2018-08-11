@@ -173,6 +173,10 @@ module.exports = function(grunt) {
     ], 'dist/ziggeo.js')
     .gittagTask()
     .browserqunitTask(null, 'tests/ui/tests.html', true)
+    .qunitTask("jsdomqunit", 'tests/qunit/credentials.js', grunt.file.expand([
+        "./tests/qunit/qunit.js",
+        "./tests/qunit/tests/*.js"
+    ]), [], {timeout: 1000 * 60 * 60})
     .uglifyTask('js-uglify', 'dist/ziggeo.js', 'build/ziggeo.js');
 
     gruntHelper.config.shell = gruntHelper.config.shell || {};
