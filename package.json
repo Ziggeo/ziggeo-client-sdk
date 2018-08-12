@@ -5,7 +5,13 @@
   "author": "Ziggeo",
   "repository": "https://github.com/Ziggeo/ziggeo-client-sdk.git",
   "license": "Proprietary",
-  "devDependencies": {
+  "scripts": {
+    "build": "grunt",
+    "tests": "grunt browserqunit",
+    "relink": "npm link betajs-scoped && npm link betajs-compile && npm link betajs && npm link betajs-browser && npm link betajs-flash && npm link betajs-dynamics && npm link betajs-shims && npm link betajs-media && npm link betajs-media-components",
+    "pushtags": "grunt gittag && git push origin --tags --force"
+  },
+  "dependencies": {
     "grunt": "",
     "grunt-contrib-concat": "",
     "grunt-contrib-clean": "",
@@ -24,22 +30,14 @@
     "jsdom": "~9.12.0",
     "he": "",
     "betajs-scoped": "",
-    "betajs-compile": "",
     "betajs": "",
     "betajs-browser": "",
     "betajs-flash": "",
     "betajs-dynamics": "",
     "betajs-shims": "",
     "betajs-media": "",
-    "betajs-media-components": ""
-  },
-  "scripts": {
-    "build": "grunt",
-    "tests": "grunt browserqunit",
-    "relink": "npm link betajs-scoped && npm link betajs-compile && npm link betajs && npm link betajs-browser && npm link betajs-flash && npm link betajs-dynamics && npm link betajs-shims && npm link betajs-media && npm link betajs-media-components",
-    "pushtags": "grunt gittag && git push origin --tags --force"
-  },
-  "dependencies": {
+    "betajs-media-components": "",
+    "betajs-compile": "",
     "grunt-contrib-connect": "^1.0.2",
     "grunt-node-qunit": "^2.0.2",
     "grunt-shell": "^2.1.0",
