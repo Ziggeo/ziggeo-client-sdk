@@ -1,4 +1,4 @@
-QUnit.module("deprecated", {
+QUnit.module("ziggeo", {
 	
 	__init: function () {
 		stop();

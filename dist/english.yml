@@ -1,5 +1,5 @@
 'language:en':
-  application.error_503: We are maintaining our service. Videos will be back soon.
+  application.error_503: We are maintaining our service. We will be back shortly.
   application.error_404: >-
     We cannot recognize your api key. Please make sure to specify it in your
     website's header.
@@ -8,6 +8,18 @@
   application.error_unknown: >-
     An unknown error occurred. Our team has been notified and will resolve the
     issue.
+  ziggeoaudioplayer.audio-not-found: We could not find the specified audio file.
+  ziggeoaudioplayer.audio-access-forbidden: You are not permitted to access this audio file.
+  ziggeoaudioplayer.audio-unknown-error: We cannot access this audio at the moment. Please try again later.
+  ziggeoaudioplayer.audio-rejected: The audio has been rejected.
+  ziggeoaudioplayer.audio-processing: The audio is processing - stay tuned.
+  ziggeoaudioplayer.audio-access-error: The audio is currently under moderation. You may click to retry.
+  ziggeoimageviewer.image-not-found: We could not find the specified image file.
+  ziggeoimageviewer.image-access-forbidden: You are not permitted to access this image file.
+  ziggeoimageviewer.image-unknown-error: We cannot access this image at the moment. Please try again later.
+  ziggeoimageviewer.image-rejected: The image has been rejected.
+  ziggeoimageviewer.image-processing: The image is processing - stay tuned.
+  ziggeoimageviewer.image-access-error: The image is currently under moderation. You may click to retry.
   ziggeoplayer.video-not-found: We could not find the specified video file.
   ziggeoplayer.video-access-forbidden: You are not permitted to access this video file.
   ziggeoplayer.video-unknown-error: We cannot access this video at the moment. Please try again later.
