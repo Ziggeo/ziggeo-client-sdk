@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.33.0 - 2018-09-20
+ziggeo-client-sdk - v2.33.1 - 2018-09-30
 Copyright (c) 
 Proprietary Software License.
 */
@@ -25132,7 +25132,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.121"
+    "version": "0.0.126",
+    "datetime": 1538220301617
 };
 });
 
@@ -27789,11 +27790,16 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
                     },
 
                     toggle_volume: function() {
-                        if (this.get("volume") > 0) {
+                        if (this.get("volume") > 0 && !this.parent().get("volumeafterinteraction")) {
                             this.__oldVolume = this.get("volume");
                             this.set("volume", 0);
-                        } else
+                        } else {
                             this.set("volume", this.__oldVolume || 1);
+
+                            if (this.parent().get("volumeafterinteraction"))
+                                this.parent().set("volumeafterinteraction", false);
+                        }
+
                         this.trigger("volume", this.get("volume"));
                     },
 
@@ -28322,7 +28328,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterError", ["module:V
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State","base:Timers.Timer"], function (State, Timer, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State","browser:Info","browser:Dom","base:Timers.Timer"], function (State, Info, Dom, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -28343,6 +28349,14 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadVideo", ["module:Vid
             if (this.dyn.get("skipinitial") && !this.dyn.get("autoplay"))
                 this.next("PlayVideo");
             else {
+                if (Info.isChromiumBased() && !this.dyn.get("skipinitial")) {
+                    var video = this.dyn.__video;
+                    video.isMuted = true;
+                    Dom.userInteraction(function() {
+                        video.isMuted = false;
+                    }, this);
+                }
+
                 var counter = 10;
                 this.auto_destroy(new Timer({
                     context: this,
@@ -28358,7 +28372,6 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadVideo", ["module:Vid
                 }));
             }
         }
-
     });
 });
 
@@ -28664,6 +28677,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "sharevideo": [],
                     "sharevideourl": "",
                     "visibilityfraction": 0.8,
+                    "unmuted": false, // Reference to Chrome renewed policy, we have to setup mute for auto plyed players.
 
                     /* Configuration */
                     "forceflash": false,
@@ -29253,25 +29267,18 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         }
 
                         if (this.get("playwhenvisible")) {
-                            var _self;
-                            _self = this;
                             this.set("skipinitial", true);
-                            if (Dom.isElementVisible(video, this.get("visibilityfraction"))) {
-                                this.player.play();
+                            if (Info.isChromiumBased() && !this.get("unmuted")) {
+                                video.isMuted = true;
+                                Dom.userInteraction(function() {
+                                    video.isMuted = true;
+                                    this.set("unmuted", true);
+                                    this.set("volumeafterinteraction", false);
+                                    this._playWhenVisible(video);
+                                }, this);
+                            } else {
+                                this._playWhenVisible(video);
                             }
-
-                            this._visiblityScrollEvent = this.auto_destroy(new DomEvents());
-                            this._visiblityScrollEvent.on(document, "scroll", function() {
-                                if (!_self.get('playedonce') && !_self.get("manuallypaused")) {
-                                    if (Dom.isElementVisible(video, _self.get("visibilityfraction"))) {
-                                        _self.player.play();
-                                    } else if (_self.get("playing")) {
-                                        _self.player.pause();
-                                    }
-                                } else if (_self.get("playing") && !Dom.isElementVisible(video, _self.get("visibilityfraction"))) {
-                                    _self.player.pause();
-                                }
-                            });
                         }
                         this.player.on("fullscreen-change", function(inFullscreen) {
                             this.set("fullscreened", inFullscreen);
@@ -29343,6 +29350,28 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     this.__activated = true;
                     if (this.__attachRequested)
                         this._attachVideo();
+                },
+
+                _playWhenVisible: function(video) {
+                    var _self = this;
+
+                    if (Dom.isElementVisible(video, this.get("visibilityfraction"))) {
+                        this.player.play();
+                    }
+
+                    this._visiblityScrollEvent = this.auto_destroy(new DomEvents());
+                    this._visiblityScrollEvent.on(document, "scroll", function() {
+                        if (!_self.get('playedonce') && !_self.get("manuallypaused")) {
+                            if (Dom.isElementVisible(video, _self.get("visibilityfraction"))) {
+                                _self.player.play();
+                            } else if (_self.get("playing")) {
+                                _self.player.pause();
+                            }
+                        } else if (_self.get("playing") && !Dom.isElementVisible(video, _self.get("visibilityfraction"))) {
+                            _self.player.pause();
+                        }
+                    });
+
                 },
 
                 /* In the future if require to use promise player, Supports >Chrome50, >FireFox53
@@ -29467,6 +29496,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     user_activity: function(strong) {
                         if (strong && this.get("volumeafterinteraction")) {
                             this.set_volume(1.0);
+                            this.set("volumeafterinteraction", false);
                         }
                         if (this.get('preventinteractionstatus')) return;
                         this._resetActivity();
@@ -29577,7 +29607,13 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             return;
                         }
                         volume = Math.min(1.0, volume);
-                        volume = volume <= 0 ? 0 : volume; // Don't allow negative value
+
+                        if (!this.get("volumeafterinteraction"))
+                            volume = volume <= 0 ? 0 : volume; // Don't allow negative value
+                        else {
+                            this.set("volumeafterinteraction", false);
+                            volume = 0;
+                        }
 
                         if (this.player && this.player._broadcastingState && this.player._broadcastingState.googleCastConnected) {
                             this._broadcasting.player.trigger("change-google-cast-volume", volume);
@@ -29863,7 +29899,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Chooser", ["dynamics:Dynamic","modu
         }, function(inherited) {
             return {
 
-                template: "<div class=\"{{css}}-chooser-container\">\n\t<div class=\"{{css}}-chooser-button-container\">\n\t\t<div ba-repeat=\"{{action :: actions}}\">\n\t\t\t<div ba-hotkey:space^enter=\"{{click_action(action)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t tabindex=\"0\" class=\"{{css}}-chooser-button-{{action.index}}\"\n\t\t\t     ba-click=\"{{click_action(action)}}\"\n\t\t\t>\n\t\t\t\t<input ba-if=\"{{action.select && action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   capture />\n\t\t\t\t<input ba-if=\"{{action.select && !action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   />\n\t\t\t\t<i class=\"{{csscommon}}-icon-{{action.icon}}\"\n\t\t\t\t   ba-if=\"{{action.icon}}\"></i>\n\t\t\t\t<span>\n\t\t\t\t\t{{action.label}}\n\t\t\t\t</span>\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>\n",
+                template: "<div class=\"{{css}}-chooser-container\">\n\t<div class=\"{{css}}-chooser-button-container\">\n\t\t<div ba-repeat=\"{{action :: actions}}\">\n\t\t\t<div ba-hotkey:space^enter=\"{{click_action(action)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t tabindex=\"0\" class=\"{{css}}-chooser-button-{{action.index}}\"\n\t\t\t     ba-click=\"{{click_action(action)}}\"\n\t\t\t>\n\t\t\t\t<input ba-if=\"{{action.select && action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t\t onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t\t onclick=\"this.value=''\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   capture />\n\t\t\t\t<input ba-if=\"{{action.select && !action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   />\n\t\t\t\t<i class=\"{{csscommon}}-icon-{{action.icon}}\"\n\t\t\t\t   ba-if=\"{{action.icon}}\"></i>\n\t\t\t\t<span>\n\t\t\t\t\t{{action.label}}\n\t\t\t\t</span>\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>\n",
 
                 attrs: {
                     "css": "ba-videorecorder",
@@ -30584,13 +30620,26 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:V
             this.dyn._prepareRecording().success(function() {
                 this.dyn.trigger("upload_selected", file);
                 this.dyn._uploadVideoFile(file);
+                this._setValueToEmpty(file);
                 this.next("Uploading");
             }, this).error(function(s) {
+                this._setValueToEmpty(file);
                 this.next("FatalError", {
                     message: s,
                     retry: "Chooser"
                 });
             }, this);
+        },
+
+        /**
+         * Try to fix twice file upload behaviour, (on change event won't be executed twice with the same file)
+         * Don't set null to value, will not solve an issue
+         * @param {HTMLInputElement} file
+         */
+        _setValueToEmpty: function(file) {
+            try {
+                file.value = '';
+            } catch (e) {}
         }
 
     });
@@ -34327,6 +34376,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "title": "",
                     "initialseek": null,
                     "visibilityfraction": 0.8,
+                    "unmuted": false, // Reference to Chrome renewed policy, we have to setup mute for auto plyed players.
 
                     /* Configuration */
                     "forceflash": false,
@@ -34617,26 +34667,16 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                 this.initializeVisualEffect();
                             }, this, 100);
                         }
-
                         if (this.get("playwhenvisible")) {
-                            var _self;
-                            _self = this;
-                            if (Dom.isElementVisible(audio, this.get("visibilityfraction"))) {
-                                this.player.play();
-                            }
-
-                            this._visiblityScrollEvent = this.auto_destroy(new DomEvents());
-                            this._visiblityScrollEvent.on(document, "scroll", function() {
-                                if (!_self.get('playedonce') && !_self.get("manuallypaused")) {
-                                    if (Dom.isElementVisible(audio, _self.get("visibilityfraction"))) {
-                                        _self.player.play();
-                                    } else if (_self.get("playing")) {
-                                        _self.player.pause();
-                                    }
-                                } else if (_self.get("playing") && !Dom.isElementVisible(audio, _self.get("visibilityfraction"))) {
-                                    _self.player.pause();
-                                }
-                            });
+                            if (Info.isChromiumBased() && !this.get("unmuted")) {
+                                audio.isMuted = true;
+                                Dom.userInteraction(function() {
+                                    audio.isMuted = false;
+                                    this.set("unmuted", true);
+                                    this._playWhenVisible(audio);
+                                });
+                            } else
+                                this._playWhenVisible(audio);
                         }
                         this.player.on("playing", function() {
                             this.set("playing", true);
@@ -34690,6 +34730,28 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     this.__activated = true;
                     if (this.__attachRequested)
                         this._attachAudio();
+                },
+
+                _playWhenVisible: function(audio) {
+                    var _self = this;
+
+                    if (Dom.isElementVisible(audio, this.get("visibilityfraction"))) {
+                        this.player.play();
+                    }
+
+                    this._visiblityScrollEvent = this.auto_destroy(new DomEvents());
+                    this._visiblityScrollEvent.on(document, "scroll", function() {
+                        if (!_self.get('playedonce') && !_self.get("manuallypaused")) {
+                            if (Dom.isElementVisible(audio, _self.get("visibilityfraction"))) {
+                                _self.player.play();
+                            } else if (_self.get("playing")) {
+                                _self.player.pause();
+                            }
+                        } else if (_self.get("playing") && !Dom.isElementVisible(audio, _self.get("visibilityfraction"))) {
+                            _self.player.pause();
+                        }
+                    });
+
                 },
 
                 reattachAudio: function() {
@@ -34970,7 +35032,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadError", ["module:Aud
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State","base:Timers.Timer"], function (State, Timer, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State","browser:Info","browser:Dom","base:Timers.Timer"], function (State, Info, Dom, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -34991,20 +35053,34 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadAudio", ["module:Aud
             if (!this.dyn.get("autoplay"))
                 this.next("PlayAudio");
             else {
-                var counter = 10;
-                this.auto_destroy(new Timer({
-                    context: this,
-                    fire: function() {
-                        if (!this.destroyed() && !this.dyn.destroyed() && this.dyn.player)
-                            this.dyn.player.play();
-                        counter--;
-                        if (counter === 0)
-                            this.next("PlayAudio");
-                    },
-                    delay: 200,
-                    immediate: true
-                }));
+                // Mute audio to reference Chrome policy changes after October 2018
+                if (Info.isChromiumBased) {
+                    var audio = this.dyn.__audio;
+                    audio.isMuted = true;
+                    Dom.userInteraction(function() {
+                        audio.isMuted = false;
+                        this._runTimer();
+                    }, this);
+                } else {
+                    this._runTimer();
+                }
             }
+        },
+
+        _runTimer: function() {
+            var counter = 10;
+            this.auto_destroy(new Timer({
+                context: this,
+                fire: function() {
+                    if (!this.destroyed() && !this.dyn.destroyed() && this.dyn.player)
+                        this.dyn.player.play();
+                    counter--;
+                    if (counter === 0)
+                        this.next("PlayAudio");
+                },
+                delay: 200,
+                immediate: true
+            }));
         }
 
     });
@@ -36121,13 +36197,26 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Chooser", ["module:A
             this.dyn._prepareRecording().success(function() {
                 this.dyn.trigger("upload_selected", file);
                 this.dyn._uploadAudioFile(file);
+                this._setValueToEmpty(file);
                 this.next("Uploading");
             }, this).error(function(s) {
+                this._setValueToEmpty(file);
                 this.next("FatalError", {
                     message: s,
                     retry: "Chooser"
                 });
             }, this);
+        },
+
+        /**
+         * Try to fix twice file upload behaviour, (on change event won't be executed twice with the same file)
+         * Don't set null to value, will not solve an issue
+         * @param {HTMLInputElement} file
+         */
+        _setValueToEmpty: function(file) {
+            try {
+                file.value = '';
+            } catch (e) {}
         }
 
     });
