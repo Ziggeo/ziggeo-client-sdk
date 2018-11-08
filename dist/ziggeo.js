@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.33.2 - 2018-10-09
+ziggeo-client-sdk - v2.33.3 - 2018-11-07
 Copyright (c) 
 Proprietary Software License.
 */
@@ -2350,7 +2350,7 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.166"
+    "version": "1.0.170"
 };
 });
 
@@ -6322,6 +6322,18 @@ Scoped.define("module:Strings", ["module:Objs"], function (Objs) {
     return {
 
         /**
+         * Uppercases first character in string.
+         *
+         * @param {string} s string in question
+         *
+         * @return {string} uppercased string
+         */
+        ucFirst: function(s) {
+            s += '';
+            return s.charAt(0).toUpperCase() + s.substr(1);
+        },
+
+        /**
          * Escapes a string to be used as an exact match in a regular expression.
          *
          * @param {string} s string in question
@@ -6784,6 +6796,25 @@ Scoped.define("module:Strings", ["module:Objs"], function (Objs) {
                 return i + "rd";
             }
             return i + "th";
+        },
+
+        __cachedRegExp: {},
+
+        /**
+         * Returns a reg exp object for a reg exp string from a cache.
+         *
+         * @param {string} regexString reg exp string
+         * @param {string} regexOptions reg exp options string
+         *
+         * @returns {object} RegExp object
+         */
+        cachedRegExp: function(regexString, regexOptions) {
+            regexOptions = regexOptions || "";
+            if (!this.__cachedRegExp[regexString])
+                this.__cachedRegExp[regexString] = {};
+            if (!this.__cachedRegExp[regexString][regexOptions])
+                this.__cachedRegExp[regexString][regexOptions] = new RegExp(regexString, regexOptions);
+            return this.__cachedRegExp[regexString][regexOptions];
         }
 
     };
@@ -12951,7 +12982,7 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
         userInteractionCallbackList = [];
         userInteractionCallbackWaiting = false;
         INTERACTION_EVENTS.forEach(function(event) {
-            document.body.removeEventListener(event, userInteractionCallbackFunc);
+            window.removeEventListener(event, userInteractionCallbackFunc);
         });
     };
 
@@ -12990,7 +13021,7 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
             if (!userInteractionCallbackWaiting) {
                 userInteractionCallbackWaiting = true;
                 INTERACTION_EVENTS.forEach(function(event) {
-                    document.body.addEventListener(event, userInteractionCallbackFunc);
+                    window.addEventListener(event, userInteractionCallbackFunc);
                 });
             }
         },
@@ -13410,6 +13441,33 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
         keyboardUnfocus: function() {
             if (document.activeElement)
                 document.activeElement.blur();
+        },
+
+        passiveEventsSupported: function() {
+            return Info.isiOS();
+        },
+
+        containerStickyBottom: function(someElement) {
+            var lastScrollHeight = someElement.scrollHeight;
+            var critical = false;
+            var observer = new MutationObserver(function() {
+                if (critical)
+                    return;
+                critical = true;
+                var newScrollHeight = someElement.scrollHeight;
+                var oldScrollHeight = lastScrollHeight;
+                lastScrollHeight = newScrollHeight;
+                if (newScrollHeight > oldScrollHeight)
+                    someElement.scrollTop = someElement.scrollTop + newScrollHeight - oldScrollHeight;
+                critical = false;
+            });
+            observer.observe(someElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                characterData: true
+            });
+            return observer;
         }
 
     };
@@ -13564,7 +13622,7 @@ Scoped.define("module:FlashHelper", ["base:Time","base:Objs","base:Types","base:
     };
 });
 
-Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions"], function (Class, Objs, Functions, scoped) {
+Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions","module:Dom"], function (Class, Objs, Functions, Dom, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -13580,12 +13638,12 @@ Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions"], func
                 inherited.destroy.call(this);
             },
 
-            on: function(element, events, callback, context) {
+            on: function(element, events, callback, context, options) {
                 events.split(" ").forEach(function(event) {
                     if (!event)
                         return;
                     var callback_function = Functions.as_method(callback, context || element);
-                    element.addEventListener(event, callback_function, false);
+                    element.addEventListener(event, callback_function, options && Dom.passiveEventsSupported() ? options : false);
                     this.__callbacks[event] = this.__callbacks[event] || [];
                     this.__callbacks[event].push({
                         element: element,
@@ -13606,7 +13664,7 @@ Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions"], func
                         var i = 0;
                         while (i < entries.length) {
                             var entry = entries[i];
-                            if ((!element || element == entry.element) && (!callback || callback == entry.callback) && (!context || context == entry.context)) {
+                            if ((!element || element === entry.element) && (!callback || callback === entry.callback) && (!context || context === entry.context)) {
                                 entry.element.removeEventListener(event, entry.callback_function, false);
                                 entries[i] = entries[entries.length - 1];
                                 entries.pop();
@@ -15038,6 +15096,9 @@ Scoped.define("module:Ajax.XmlHttpRequestAjax", ["base:Ajax.Support","base:Net.U
     var Module = {
 
         supports: function(options) {
+            // Worker
+            if (typeof window === "undefined")
+                return true;
             if (!window.XMLHttpRequest)
                 return false;
             if (options.forceJsonp || options.forcePostmessage)
@@ -15653,8 +15714,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.97",
-    "datetime": 1539046765179
+    "version": "0.0.99",
+    "datetime": 1541625684042
 };
 });
 
@@ -16313,6 +16374,10 @@ Scoped.define("module:AudioRecorder.AudioRecorderWrapper", ["base:Classes.Condit
             stopRecord: function(options) {},
 
             isFlash: function() {
+                return false;
+            },
+
+            isWebrtcStreaming: function() {
                 return false;
             },
 
@@ -19791,6 +19856,10 @@ Scoped.define("module:Recorder.VideoRecorderWrapper", ["base:Classes.Conditional
                 return false;
             },
 
+            isWebrtcStreaming: function() {
+                return false;
+            },
+
             supportsLocalPlayback: function() {
                 return false;
             },
@@ -20241,7 +20310,18 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                 options.video.width = options.video.width || window.innerWidth || document.body.clientWidth;
                 options.video.height = options.video.height || window.innerHeight || document.body.clientHeight;
             }
-            if (Info.isFirefox()) {
+            if (Info.isiOS()) {
+                opts.video = {};
+                if (options.video.width)
+                    opts.video.width = options.video.width;
+                if (options.video.height)
+                    opts.video.height = options.video.height;
+                if (options.video.frameRate)
+                    opts.video.frameRate = options.video.frameRate;
+                if (options.video.cameraFaceFront !== undefined)
+                    opts.video.facingMode = options.video.cameraFaceFront ? "front" : "environment";
+                return this.userMedia(opts);
+            } else if (Info.isFirefox()) {
                 opts.video = {};
                 if (options.screen) {
                     opts.video.mediaSource = "screen";
@@ -21021,6 +21101,10 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 return this._stream;
             },
 
+            isWebrtcStreaming: function() {
+                return false;
+            },
+
             bindMedia: function() {
                 if (this._bound)
                     return;
@@ -21238,6 +21322,10 @@ Scoped.define("module:AudioRecorder.WebRTCAudioRecorderWrapper", ["module:AudioR
                 if (!this._analyser && this._recorder && this._recorder.stream())
                     this._analyser = new AudioAnalyser(this._recorder.stream());
                 return this._analyser ? this._analyser.soundLevel() : 0.0;
+            },
+
+            isWebrtcStreaming: function() {
+                return this._recorder.isWebrtcStreaming();
             },
 
             testSoundLevel: function(activate) {
@@ -21497,6 +21585,7 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
                     flip: !!this._options.flip,
                     framerate: this._options.framerate,
                     recordVideo: this._options.recordVideo,
+                    recordFakeVideo: !this._options.recordVideo,
                     recordAudio: this._options.recordAudio,
                     recordResolution: {
                         width: this._options.recordingWidth,
@@ -21556,6 +21645,10 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
 
             deltaCoefficient: function() {
                 return this._recorder.deltaCoefficient();
+            },
+
+            isWebrtcStreaming: function() {
+                return this._recorder.isWebrtcStreaming();
             },
 
             soundLevel: function() {
@@ -21769,6 +21862,10 @@ Scoped.define("module:WebRTC.PeerRecorderWrapper", ["module:WebRTC.RecorderWrapp
             return this._recorder.start(options.webrtcStreaming);
         },
 
+        isWebrtcStreaming: function() {
+            return true;
+        },
+
         _stopRecord: function() {
             this._recorder.stop();
             var localBlob = null;
@@ -21822,8 +21919,11 @@ Scoped.define("module:WebRTC.PeerRecorderWrapperIfNecessary", ["module:WebRTC.Pe
         return {
 
             supported: function(options) {
-                options = Objs.clone(options, 1);
-                delete options.webrtcStreamingIfNecessary;
+                if (options.webrtcStreamingIfNecessary) {
+                    options = Objs.clone(options, 1);
+                    options.webrtcStreamingIfNecessary = false;
+                    options.webrtcStreaming = true;
+                }
                 return inherited.supported.call(this, options);
             }
 
@@ -21873,10 +21973,8 @@ Scoped.define("module:WebRTC.MediaRecorderWrapper", ["module:WebRTC.RecorderWrap
             supported: function(options) {
                 if (!inherited.supported.call(this, options))
                     return false;
-                /*
-                if (!options.recordVideo)
+                if (options.recordFakeVideo)
                     return false;
-                    */
                 return MediaRecorder.supported();
             }
 
@@ -25145,8 +25243,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.131",
-    "datetime": 1539059850829
+    "version": "0.0.136",
+    "datetime": 1541611383641
 };
 });
 
@@ -27125,21 +27223,14 @@ Scoped.define("module:AudioVisualisation", ["base:Class","browser:Dom"], functio
             constructor: function(stream, options) {
                 inherited.constructor.call(this);
                 this.stream = stream;
+                this.recorder = null;
+                this.theme = options.theme;
                 if (options.recorder) {
-                    this.audioContext = options.globalAudioContext;
-
-                    // Commented for the future use in audio recorder
-                    // var recorder = options.recorder;
-                    // this._analyser = recorder._analyser;
-                    // this._audioContext = this._analyser._audioContext;
-                    // this.audioContext = this._analyser._audioContext;
-                    // this._analyserNode = this._analyser._analyserNode;
-                    // this._audioInput = this._analyser._audioInput;
+                    this.recorder = options.recorder;
                 } else {
                     var AudioContext = window.AudioContext || window.webkitAudioContext;
                     this.audioContext = new AudioContext();
                 }
-                this.audioBufferSourceNode = this.audioContext.createBufferSource();
                 this.createVisualisationCanvas(options.height, options.element);
                 this.frameID = null;
             },
@@ -27159,21 +27250,36 @@ Scoped.define("module:AudioVisualisation", ["base:Class","browser:Dom"], functio
             initializeVisualEffect: function() {
                 try {
                     var _source;
+                    if (this.recorder) {
+                        this._analyser = this.recorder._analyser;
+                        this.analyser = this._analyser._analyserNode;
+                        this.audioContext = this._analyser._audioContext;
+                        this.analyser.fftSize = 256;
+                        //_source = this.audioContext.createMediaStreamSource(this.stream)
+                    }
+
                     if (this.audioContext || this.stream) {
-                        this.analyser = this._analyser || this.audioContext.createAnalyser();
-                        this.audioBufferSourceNode.connect(this.analyser);
-                        _source = this.audioContext.createMediaElementSource(this.stream);
-                        _source.connect(this.analyser);
                         if (this.audioContext.state === 'suspended') {
                             Dom.userInteraction(function() {
                                 this.audioContext.resume();
                             }, this);
                         }
+
+                        if (this.stream instanceof HTMLElement) {
+                            _source = this.audioContext.createMediaElementSource(this.stream);
+                            this.analyser = this._analyser || this.audioContext.createAnalyser();
+                            _source.connect(this.analyser);
+                            this.analyser.fftSize = 256;
+                            this.analyser.connect(this.audioContext.destination);
+                        }
+
                         this.analyser.connect(this.audioContext.destination);
-                        this.analyser.fftSize = 256;
+                        this.audioBufferSourceNode = this.audioContext.createBufferSource();
+                        this.audioBufferSourceNode.connect(this.analyser);
                         this.bufferLength = this.analyser.frequencyBinCount;
-                        this.dataArray = new Uint8Array(this.bufferLength);
-                        // this.dataArray = new Float32Array( this.analyser.fftSize);
+                        // this.dataArray = new Uint8Array(this.analyser.fftSize);
+                        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                        // this.dataArray = new Float32Array(this.analyser.fftSize);
                         this.canvasWidth = this.canvas.width;
                         this.canvasHeigth = this.canvas.height;
                         this.barWidth = (this.canvasWidth / this.bufferLength) * 2.5;
@@ -27216,10 +27322,15 @@ Scoped.define("module:AudioVisualisation", ["base:Class","browser:Dom"], functio
                 this.analyser.getByteFrequencyData(this.dataArray);
                 // this.dataArray = new Float32Array( this.analyser.fftSize);
                 // this.analyser.getFloatTimeDomainData(this.dataArray);
-                setTimeout(function() {
-                    //debugger;
-                }, 2000);
-                this._drawBigBalloon();
+                // this._drawRedBars();
+                switch (this.theme) {
+                    case "red-bars":
+                        this._drawRedBars();
+                        break;
+                    default:
+                        this._drawBigBalloon();
+                        break;
+                }
             },
 
             cancelFrame: function(ID) {
@@ -27370,6 +27481,16 @@ Scoped.define("module:Settings", ["base:Class","base:Objs","base:Events.EventsMi
                     return;
                 }
                 this._showRootSettings(this.options, this.hasSubMenu);
+            },
+
+            /**
+             * Hide settings
+             */
+            hide_settings: function() {
+                if (this.containerInner) {
+                    this._removeSettingsContent();
+                    return;
+                }
             },
 
             /**
@@ -27613,6 +27734,7 @@ Scoped.define("module:PopupHelper", ["base:Class","base:Events.EventsMixin","bro
                 },
 
                 destroy: function() {
+                    this.__popup.hide();
                     this.__popup.destroy();
                     inherited.destroy.call(this);
                 }
@@ -28661,10 +28783,12 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadVideo", ["module:Vid
             else {
                 if (Info.isChromiumBased() && !this.dyn.get("skipinitial")) {
                     var video = this.dyn.__video;
-                    video.isMuted = true;
-                    Dom.userInteraction(function() {
-                        video.isMuted = false;
-                    }, this);
+                    if (video) {
+                        video.isMuted = true;
+                        Dom.userInteraction(function() {
+                            video.isMuted = false;
+                        }, this);
+                    }
                 }
 
                 var counter = 10;
@@ -29184,7 +29308,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                 remove_on_destroy: true,
 
                 create: function() {
-                    if ( /*Info.isMobile() && */ (this.get("autoplay") || this.get("playwhenvisible"))) {
+                    if ((Info.isMobile() || Info.isChromiumBased()) && (this.get("autoplay") || this.get("playwhenvisible"))) {
                         this.set("volume", 0.0);
                         this.set("volumeafterinteraction", true);
                         //if (!(Info.isiOS() && Info.iOSversion().major >= 10)) {
@@ -29639,6 +29763,8 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         this.player.on("ended", function() {
                             this.set("playing", false);
                             this.set('playedonce', true);
+                            if (this.settings)
+                                this.settings.hide_settings();
                             this.trigger("ended");
                         }, this);
                         this.trigger("attached", instance);
@@ -30961,6 +31087,9 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:V
         },
 
         _uploadFile: function(file) {
+            if (this.__blocked)
+                return;
+            this.__blocked = true;
             this.dyn.set("creation-type", Info.isMobile() ? "mobile" : "upload");
             try {
                 this.dyn._videoFileName = file.files[0].name;
@@ -30970,9 +31099,11 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:V
                 this.dyn.trigger("upload_selected", file);
                 this.dyn._uploadVideoFile(file);
                 this._setValueToEmpty(file);
+                this.__blocked = false;
                 this.next("Uploading");
             }, this).error(function(s) {
                 this._setValueToEmpty(file);
+                this.__blocked = false;
                 this.next("FatalError", {
                     message: s,
                     retry: "Chooser"
@@ -31952,6 +32083,10 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
 
                 isFlash: function() {
                     return this.recorder && this.recorder.isFlash();
+                },
+
+                isWebrtcStreaming: function() {
+                    return this.recorder && this.recorder.isWebrtcStreaming();
                 },
 
                 _initializeUploader: function() {
@@ -34749,7 +34884,9 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "postervisible": false,
                     "visualeffectvisible": false,
                     "visualeffectsupported": false,
-                    "visualeffectheight": 120,
+                    "visualeffectheight": null,
+                    "visualeffectminheight": 120,
+                    "visualeffecttheme": "balloon", // types: `balloon`, 'red-bars'
                     "skipseconds": 5
                 },
 
@@ -34774,6 +34911,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "playonclick": "boolean",
                     "skipseconds": "integer",
                     "visualeffectvisible": "boolean",
+                    "visualeffectmode": "string",
                     "visualeffectheight": "integer"
                 },
 
@@ -34932,10 +35070,16 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         this.player = instance;
                         this.__audio = audio;
                         // Draw audio visualisation effect
-                        if (this.get("visualeffectvisible") && AudioVisualisation.supported()) {
+                        if (this.get("visualeffectvisible") && AudioVisualisation.supported() && !this.audioVisualisation) {
+                            if (this.get("height") && this.get("height") > this.get("visualeffectminheight")) {
+                                this.set('visualeffectheight', this.get("height"));
+                            } else if (this.get("visualeffectheight") < this.get("visualeffectminheight")) {
+                                this.set('visualeffectheight', this.get("visualeffectminheight"));
+                            }
                             this.audioVisualisation = new AudioVisualisation(audio, {
                                 height: this.get('visualeffectheight'),
-                                element: this.activeElement()
+                                element: this.activeElement(),
+                                theme: this.get("visualeffecttheme")
                             });
 
                             // To be able set width of the canvas element
@@ -34976,6 +35120,8 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         this.player.on("ended", function() {
                             this.set("playing", false);
                             this.set('playedonce', true);
+                            if (this.settings)
+                                this.settings.hide_settings();
                             this.trigger("ended");
                         }, this);
                         this.trigger("attached", instance);
@@ -35340,11 +35486,13 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadAudio", ["module:Aud
                 // Mute audio to reference Chrome policy changes after October 2018
                 if (Info.isChromiumBased) {
                     var audio = this.dyn.__audio;
-                    audio.isMuted = true;
-                    Dom.userInteraction(function() {
-                        audio.isMuted = false;
-                        this._runTimer();
-                    }, this);
+                    if (audio) {
+                        audio.isMuted = true;
+                        Dom.userInteraction(function() {
+                            audio.isMuted = false;
+                            this._runTimer();
+                        }, this);
+                    }
                 } else {
                     this._runTimer();
                 }
@@ -35809,7 +35957,7 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
         }, function(inherited) {
             return {
 
-                template: "\n<div data-selector=\"audio-recorder-container\" ba-show=\"{{!player_active}}\"\n     class=\"{{css}}-container {{csstheme}} {{css}}-size-{{csssize}} {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}}\n     \t{{cssrecorder}}-{{ firefox ? 'firefox' : 'common'}}-browser {{cssaudio}}\n    \t{{cssrecorder}}-{{themecolor}}-color\"\n     ba-styles=\"{{widthHeightStyles}}\"\n>\n\n\t<canvas data-selector=\"visualisation-canvas\" class=\"{{css}}-visualisation-canvas\"></canvas>\n    <audio tabindex=\"-1\" data-selector=\"recorder-status\" class=\"{{css}}-audio {{css}}-{{hasrecorder ? 'hasrecorder' : 'norecorder'}}\" data-audio=\"audio\" playsinline></audio>\n    <div data-selector=\"audio-recorder-overlay\" class='{{cssrecorder}}-overlay' ba-show=\"{{!hideoverlay}}\" data-overlay=\"overlay\">\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t    ba-tooltip=\"{{loadertooltip}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-label=\"{{loaderlabel}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t\tba-links=\"{{message_links}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t\tba-event:link=\"message_link_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dynchooser}}\n\t\t\tba-recordviafilecapture=\"{{recordviafilecapture}}\"\n\t\t    ba-css=\"{{csschooser || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplchooser}}\"\n\t\t    ba-if=\"{{chooser_active && !is_initial_state}}\"\n\t\t    ba-allowrecord=\"{{allowrecord}}\"\n\t\t    ba-allowupload=\"{{allowupload}}\"\n\t\t    ba-allowcustomupload=\"{{allowcustomupload}}\"\n\t\t    ba-allowedextensions=\"{{allowedextensions}}\"\n\t\t    ba-primaryrecord=\"{{primaryrecord}}\"\n\t\t    ba-timelimit=\"{{timelimit}}\"\n\t\t    ba-event:record=\"record_audio\"\n\t\t    ba-event:upload=\"upload_audio\"\n\t\t></ba-{{dynchooser}}>\n\n\t\t<ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-microphones=\"{{microphones}}\"\n\t\t    ba-selectedmicrophone=\"{{selectedmicrophone || 0}}\"\n\t\t    ba-microphonehealthy=\"{{microphonehealthy}}\"\n\t\t    ba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-settingsvisible=\"{{settingsvisible}}\"\n\t\t    ba-recordvisible=\"{{recordvisible}}\"\n\t\t\tba-cancelvisible=\"{{allowcancel && cancancel}}\"\n\t\t    ba-rerecordvisible=\"{{rerecordvisible}}\"\n\t\t    ba-stopvisible=\"{{stopvisible}}\"\n\t\t    ba-controlbarlabel=\"{{controlbarlabel}}\"\n\t\t\tba-mintimeindicator=\"{{mintimeindicator}}\"\n\t\t\tba-timeminlimit=\"{{timeminlimit}}\"\n\t\t    ba-event:select-microphone=\"select_microphone\"\n\t\t    ba-event:invoke-record=\"record\"\n\t\t    ba-event:invoke-rerecord=\"rerecord\"\n\t\t    ba-event:invoke-stop=\"stop\"\n\t\t></ba-{{dyncontrolbar}}>\n    </div>\n</div>\n\n<div data-selector=\"recorder-player\" ba-if=\"{{player_active}}\" ba-styles=\"{{widthHeightStyles}}\">\n\t<span ba-show=\"{{ie8}}\">&nbsp;</span>\n\t<ba-{{dynaudioplayer}}\n\t    ba-theme=\"{{theme || 'default'}}\"\n        ba-themecolor=\"{{themecolor}}\"\n        ba-source=\"{{playbacksource}}\"\n        ba-hideoninactivity=\"{{false}}\"\n        ba-forceflash=\"{{forceflash}}\"\n        ba-noflash=\"{{noflash}}\"\n        ba-stretch=\"{{stretch}}\"\n        ba-attrs=\"{{playerattrs}}\"\n        ba-data:id=\"player\"\n        ba-width=\"{{width}}\"\n        ba-height=\"{{height}}\"\n        ba-totalduration=\"{{duration / 1000}}\"\n        ba-rerecordable=\"{{rerecordable && (recordings === null || recordings > 0)}}\"\n        ba-submittable=\"{{manualsubmit && verified}}\"\n        ba-reloadonplay=\"{{true}}\"\n        ba-autoplay=\"{{autoplay}}\"\n\t\tba-visualeffectvisible=\"{{visualeffectvisible}}\"\n\t\tba-event:loaded=\"ready_to_play\"\n        ba-event:rerecord=\"rerecord\"\n        ba-event:playing=\"playing\"\n        ba-event:paused=\"paused\"\n        ba-event:ended=\"ended\"\n        ba-event:submit=\"manual_submit\"\n\t>\n\t</ba-{{dynaudioplayer}}>\n</div>\n",
+                template: "\n<div data-selector=\"audio-recorder-container\" ba-show=\"{{!player_active}}\"\n     class=\"{{css}}-container {{csstheme}} {{css}}-size-{{csssize}} {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}}\n     \t{{cssrecorder}}-{{ firefox ? 'firefox' : 'common'}}-browser {{cssaudio}}\n    \t{{cssrecorder}}-{{themecolor}}-color\"\n     ba-styles=\"{{widthHeightStyles}}\"\n>\n\n\t<canvas data-selector=\"visualisation-canvas\" class=\"{{css}}-visualisation-canvas\"></canvas>\n    <audio tabindex=\"-1\" data-selector=\"recorder-status\" class=\"{{css}}-audio {{css}}-{{hasrecorder ? 'hasrecorder' : 'norecorder'}}\" data-audio=\"audio\" playsinline></audio>\n    <div data-selector=\"audio-recorder-overlay\" class='{{cssrecorder}}-overlay' ba-show=\"{{!hideoverlay}}\" data-overlay=\"overlay\">\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t    ba-tooltip=\"{{loadertooltip}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-label=\"{{loaderlabel}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t\tba-links=\"{{message_links}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t\tba-event:link=\"message_link_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dynchooser}}\n\t\t\tba-recordviafilecapture=\"{{recordviafilecapture}}\"\n\t\t    ba-css=\"{{csschooser || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplchooser}}\"\n\t\t    ba-if=\"{{chooser_active && !is_initial_state}}\"\n\t\t    ba-allowrecord=\"{{allowrecord}}\"\n\t\t    ba-allowupload=\"{{allowupload}}\"\n\t\t    ba-allowcustomupload=\"{{allowcustomupload}}\"\n\t\t    ba-allowedextensions=\"{{allowedextensions}}\"\n\t\t    ba-primaryrecord=\"{{primaryrecord}}\"\n\t\t    ba-timelimit=\"{{timelimit}}\"\n\t\t    ba-event:record=\"record_audio\"\n\t\t    ba-event:upload=\"upload_audio\"\n\t\t></ba-{{dynchooser}}>\n\n\t\t<ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-microphones=\"{{microphones}}\"\n\t\t    ba-selectedmicrophone=\"{{selectedmicrophone || 0}}\"\n\t\t    ba-microphonehealthy=\"{{microphonehealthy}}\"\n\t\t    ba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-settingsvisible=\"{{settingsvisible}}\"\n\t\t    ba-recordvisible=\"{{recordvisible}}\"\n\t\t\tba-cancelvisible=\"{{allowcancel && cancancel}}\"\n\t\t    ba-rerecordvisible=\"{{rerecordvisible}}\"\n\t\t    ba-stopvisible=\"{{stopvisible}}\"\n\t\t    ba-controlbarlabel=\"{{controlbarlabel}}\"\n\t\t\tba-mintimeindicator=\"{{mintimeindicator}}\"\n\t\t\tba-timeminlimit=\"{{timeminlimit}}\"\n\t\t    ba-event:select-microphone=\"select_microphone\"\n\t\t    ba-event:invoke-record=\"record\"\n\t\t    ba-event:invoke-rerecord=\"rerecord\"\n\t\t    ba-event:invoke-stop=\"stop\"\n\t\t></ba-{{dyncontrolbar}}>\n    </div>\n</div>\n\n<div data-selector=\"recorder-player\" ba-if=\"{{player_active}}\" ba-styles=\"{{widthHeightStyles}}\">\n\t<span ba-show=\"{{ie8}}\">&nbsp;</span>\n\t<ba-{{dynaudioplayer}}\n\t    ba-theme=\"{{theme || 'default'}}\"\n        ba-themecolor=\"{{themecolor}}\"\n        ba-source=\"{{playbacksource}}\"\n        ba-hideoninactivity=\"{{false}}\"\n        ba-forceflash=\"{{forceflash}}\"\n        ba-noflash=\"{{noflash}}\"\n\t\tba-visualeffectheight=\"{{visualeffectheight}}\"\n\t\tba-visualeffecttheme=\"{{visualeffecttheme}}\"\n        ba-stretch=\"{{stretch}}\"\n        ba-attrs=\"{{playerattrs}}\"\n        ba-data:id=\"player\"\n        ba-width=\"{{width}}\"\n        ba-height=\"{{height}}\"\n        ba-totalduration=\"{{duration / 1000}}\"\n        ba-rerecordable=\"{{rerecordable && (recordings === null || recordings > 0)}}\"\n        ba-submittable=\"{{manualsubmit && verified}}\"\n        ba-reloadonplay=\"{{true}}\"\n        ba-autoplay=\"{{autoplay}}\"\n\t\tba-visualeffectvisible=\"{{visualeffectvisible}}\"\n\t\tba-event:loaded=\"ready_to_play\"\n        ba-event:rerecord=\"rerecord\"\n        ba-event:playing=\"playing\"\n        ba-event:paused=\"paused\"\n        ba-event:ended=\"ended\"\n        ba-event:submit=\"manual_submit\"\n\t>\n\t</ba-{{dynaudioplayer}}>\n</div>\n",
 
                 attrs: {
                     /* CSS */
@@ -35872,6 +36020,9 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "display-timer": true,
                     "visualeffectvisible": true,
                     "visualeffectsupported": false,
+                    "visualeffectheight": null,
+                    "visualeffectminheight": 120,
+                    "visualeffecttheme": "balloon", // types: `balloon`, 'red-bars'
 
                     /* Configuration */
                     "forceflash": false,
@@ -35969,6 +36120,8 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                                     this.audioVisualisation.canvas.remove();
                                 this.audioVisualisation.destroy();
                             }
+                        } else if (this.audioVisualisation) {
+                            this.audioVisualisation.renderFrame();
                         }
                     }
                 },
@@ -36117,6 +36270,39 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                             this.recorder.setVolumeGain(this.get("microphone-volume"));
                             this.set("hideoverlay", false);
                             this.off("require_display", null, this);
+                            // Draw visualisation effect for the audio player
+                            if (this.get("visualeffectvisible") && AudioVisualisation.supported()) {
+                                if (this.get("height") && this.get("height") > this.get("visualeffectminheight")) {
+                                    this.set('visualeffectheight', this.get("height"));
+                                } else if (this.get("visualeffectheight") < this.get("visualeffectminheight")) {
+                                    this.set('visualeffectheight', this.get("visualeffectminheight"));
+                                }
+                                this.audioVisualisation = new AudioVisualisation(this.recorder._recorder.stream(), {
+                                    element: this.activeElement(),
+                                    recorder: this.recorder,
+                                    height: this.get("visualeffectheight"),
+                                    theme: this.get("visualeffecttheme")
+                                });
+                                // To be able set width of the canvas element
+                                var waitAnalyser = new Timers.Timer({
+                                    context: this,
+                                    immediate: true,
+                                    delay: 50,
+                                    fire: function() {
+                                        if (this.recorder._analyser) {
+                                            try {
+                                                this.audioVisualisation.initializeVisualEffect();
+                                                this.set("visualeffectsupported", true);
+                                            } catch (ex) {
+                                                this.set("visualeffectsupported", false);
+                                                console.warn(ex);
+                                            }
+                                            waitAnalyser.stop();
+                                        }
+                                    }
+                                });
+                                this.auto_destroy(waitAnalyser);
+                            }
                             this.recorder.enumerateDevices().success(function(devices) {
                                 var selected = this.recorder.currentDevices();
                                 this.set("selectedmicrophone", selected.audio);
@@ -36133,6 +36319,10 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
 
                 isFlash: function() {
                     return this.recorder && this.recorder.isFlash();
+                },
+
+                isWebrtcStreaming: function() {
+                    return this.recorder && this.recorder.isWebrtcStreaming();
                 },
 
                 _initializeUploader: function() {
@@ -36180,8 +36370,8 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     if (!this.__recording)
                         return Promise.error(true);
                     // Destroy audio visualisation effect for the recorder
-                    // if (this.audioVisualisation)
-                    //     this.audioVisualisation.cancelFrame(this.audioVisualisation.frameID);
+                    if (this.audioVisualisation)
+                        this.audioVisualisation.cancelFrame(this.audioVisualisation.frameID);
                     return this.recorder.stopRecord({
                         rtmp: this.get("uploadoptions").rtmp,
                         audio: this.get("uploadoptions").audio,
@@ -36386,7 +36576,7 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
 
         })
         .register("ba-audiorecorder")
-        .registerFunctions({ /**/"!player_active": function (obj) { with (obj) { return !player_active; } }, "css": function (obj) { with (obj) { return css; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "firefox ? 'firefox' : 'common'": function (obj) { with (obj) { return firefox ? 'firefox' : 'common'; } }, "cssaudio": function (obj) { with (obj) { return cssaudio; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "hasrecorder ? 'hasrecorder' : 'norecorder'": function (obj) { with (obj) { return hasrecorder ? 'hasrecorder' : 'norecorder'; } }, "!hideoverlay": function (obj) { with (obj) { return !hideoverlay; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "cssrecorder || css": function (obj) { with (obj) { return cssrecorder || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "loadertooltip": function (obj) { with (obj) { return loadertooltip; } }, "hovermessage": function (obj) { with (obj) { return hovermessage; } }, "loaderlabel": function (obj) { with (obj) { return loaderlabel; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "message_links": function (obj) { with (obj) { return message_links; } }, "dynchooser": function (obj) { with (obj) { return dynchooser; } }, "recordviafilecapture": function (obj) { with (obj) { return recordviafilecapture; } }, "csschooser || css": function (obj) { with (obj) { return csschooser || css; } }, "tmplchooser": function (obj) { with (obj) { return tmplchooser; } }, "chooser_active && !is_initial_state": function (obj) { with (obj) { return chooser_active && !is_initial_state; } }, "allowrecord": function (obj) { with (obj) { return allowrecord; } }, "allowupload": function (obj) { with (obj) { return allowupload; } }, "allowcustomupload": function (obj) { with (obj) { return allowcustomupload; } }, "allowedextensions": function (obj) { with (obj) { return allowedextensions; } }, "primaryrecord": function (obj) { with (obj) { return primaryrecord; } }, "timelimit": function (obj) { with (obj) { return timelimit; } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "selectedmicrophone || 0": function (obj) { with (obj) { return selectedmicrophone || 0; } }, "microphonehealthy": function (obj) { with (obj) { return microphonehealthy; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "allowcancel && cancancel": function (obj) { with (obj) { return allowcancel && cancancel; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "mintimeindicator": function (obj) { with (obj) { return mintimeindicator; } }, "timeminlimit": function (obj) { with (obj) { return timeminlimit; } }, "player_active": function (obj) { with (obj) { return player_active; } }, "ie8": function (obj) { with (obj) { return ie8; } }, "dynaudioplayer": function (obj) { with (obj) { return dynaudioplayer; } }, "theme || 'default'": function (obj) { with (obj) { return theme || 'default'; } }, "playbacksource": function (obj) { with (obj) { return playbacksource; } }, "false": function (obj) { with (obj) { return false; } }, "forceflash": function (obj) { with (obj) { return forceflash; } }, "noflash": function (obj) { with (obj) { return noflash; } }, "stretch": function (obj) { with (obj) { return stretch; } }, "playerattrs": function (obj) { with (obj) { return playerattrs; } }, "width": function (obj) { with (obj) { return width; } }, "height": function (obj) { with (obj) { return height; } }, "duration / 1000": function (obj) { with (obj) { return duration / 1000; } }, "rerecordable && (recordings === null || recordings > 0)": function (obj) { with (obj) { return rerecordable && (recordings === null || recordings > 0); } }, "manualsubmit && verified": function (obj) { with (obj) { return manualsubmit && verified; } }, "true": function (obj) { with (obj) { return true; } }, "autoplay": function (obj) { with (obj) { return autoplay; } }, "visualeffectvisible": function (obj) { with (obj) { return visualeffectvisible; } }/**/ })
+        .registerFunctions({ /**/"!player_active": function (obj) { with (obj) { return !player_active; } }, "css": function (obj) { with (obj) { return css; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "firefox ? 'firefox' : 'common'": function (obj) { with (obj) { return firefox ? 'firefox' : 'common'; } }, "cssaudio": function (obj) { with (obj) { return cssaudio; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "hasrecorder ? 'hasrecorder' : 'norecorder'": function (obj) { with (obj) { return hasrecorder ? 'hasrecorder' : 'norecorder'; } }, "!hideoverlay": function (obj) { with (obj) { return !hideoverlay; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "cssrecorder || css": function (obj) { with (obj) { return cssrecorder || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "loadertooltip": function (obj) { with (obj) { return loadertooltip; } }, "hovermessage": function (obj) { with (obj) { return hovermessage; } }, "loaderlabel": function (obj) { with (obj) { return loaderlabel; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "message_links": function (obj) { with (obj) { return message_links; } }, "dynchooser": function (obj) { with (obj) { return dynchooser; } }, "recordviafilecapture": function (obj) { with (obj) { return recordviafilecapture; } }, "csschooser || css": function (obj) { with (obj) { return csschooser || css; } }, "tmplchooser": function (obj) { with (obj) { return tmplchooser; } }, "chooser_active && !is_initial_state": function (obj) { with (obj) { return chooser_active && !is_initial_state; } }, "allowrecord": function (obj) { with (obj) { return allowrecord; } }, "allowupload": function (obj) { with (obj) { return allowupload; } }, "allowcustomupload": function (obj) { with (obj) { return allowcustomupload; } }, "allowedextensions": function (obj) { with (obj) { return allowedextensions; } }, "primaryrecord": function (obj) { with (obj) { return primaryrecord; } }, "timelimit": function (obj) { with (obj) { return timelimit; } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "selectedmicrophone || 0": function (obj) { with (obj) { return selectedmicrophone || 0; } }, "microphonehealthy": function (obj) { with (obj) { return microphonehealthy; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "allowcancel && cancancel": function (obj) { with (obj) { return allowcancel && cancancel; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "mintimeindicator": function (obj) { with (obj) { return mintimeindicator; } }, "timeminlimit": function (obj) { with (obj) { return timeminlimit; } }, "player_active": function (obj) { with (obj) { return player_active; } }, "ie8": function (obj) { with (obj) { return ie8; } }, "dynaudioplayer": function (obj) { with (obj) { return dynaudioplayer; } }, "theme || 'default'": function (obj) { with (obj) { return theme || 'default'; } }, "playbacksource": function (obj) { with (obj) { return playbacksource; } }, "false": function (obj) { with (obj) { return false; } }, "forceflash": function (obj) { with (obj) { return forceflash; } }, "noflash": function (obj) { with (obj) { return noflash; } }, "visualeffectheight": function (obj) { with (obj) { return visualeffectheight; } }, "visualeffecttheme": function (obj) { with (obj) { return visualeffecttheme; } }, "stretch": function (obj) { with (obj) { return stretch; } }, "playerattrs": function (obj) { with (obj) { return playerattrs; } }, "width": function (obj) { with (obj) { return width; } }, "height": function (obj) { with (obj) { return height; } }, "duration / 1000": function (obj) { with (obj) { return duration / 1000; } }, "rerecordable && (recordings === null || recordings > 0)": function (obj) { with (obj) { return rerecordable && (recordings === null || recordings > 0); } }, "manualsubmit && verified": function (obj) { with (obj) { return manualsubmit && verified; } }, "true": function (obj) { with (obj) { return true; } }, "autoplay": function (obj) { with (obj) { return autoplay; } }, "visualeffectvisible": function (obj) { with (obj) { return visualeffectvisible; } }/**/ })
         .attachStringTable(Assets.strings)
         .addStrings({
             "recorder-error": "An error occurred, please try again later. Click to retry.",
@@ -37627,14 +37817,14 @@ Scoped.define("module:Application", ["base:Class","base:Objs","base:Events.Event
 
 Scoped.define("private:Dynamics", ["dynamics:DomObserver","dynamics:Parser","dynamics:Registries","base:Async","browser:Dom","module:Application"], function (a,b,c,d,e,f){b.secureMode=!0,c.prefixes.ziggeo=!0;var g=new a({allowed_dynamics:["ziggeoplayer","ziggeorecorder","ziggeoaudioplayer","ziggeoaudiorecorder","ziggeoimageviewer","ziggeoimagecapture","ziggeoiframeplayer","ziggeoiframerecorder"],enabled:!1});return e.ready(function(){d.eventually(function(){f.onUndefer(function(){g.enable()})})}),{domObserver:g}});
 
-Scoped.define("private:ZiggeoDynamicMixin", ["module:Application","base:Types"], function (a,b){return{_obtainApplication:function(){this.get("application")&&(this.application=b.is_string(this.get("application"))?a.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||a.getDefault()},_deferActivate:function(){return this._obtainApplication(),!(this.application||!this.get("lazy-application"))&&(a.events.once("set-default",function(a){
-this.application=a,this.activate()},this),!0)}}});
+Scoped.define("private:ZiggeoDynamicMixin", ["module:Application","base:Types"], function (a,b){return{_obtainApplication:function(){this.get("application")&&(this.application=b.is_string(this.get("application"))?a.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||a.getDefault()},_deferActivate:function(){
+return this._obtainApplication(),!(this.application||!this.get("lazy-application"))&&(a.events.once("set-default",function(a){this.application=a,this.activate()},this),!0)}}});
 
 Scoped.define("module:AudioPlayer", ["mediacomponents:AudioPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function (a,b,c,d,e,f,g,h,i,j,k,l,m,n){return a.extend({scoped:n},[m,function(a){return{types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool"},_notifications:{_activate:"_createWithApplication"},destroy:function(){this.application.embed_events.off(null,null,this),a.destroy.call(this)},attrs:{"client-auth":null,"server-auth":null,"intermediate-token":null,audio:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1},create:function(){return this._invokeCallback=h.eventInvokeCallback,this.get("source")||this.get("sources").length>0?a.create.call(this):(this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),a.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),void this.set("audio_status",null))},_obtainApplication:function(){this.get("application")&&(this.application=d.is_string(this.get("application"))?c.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||c.getDefault()},_createWithApplication:function(){if(this._obtainApplication(),!this.application)return void b.warn("No application (token) defined. We need an application (token) to include an embedding.");if(!this.application.data.get("auth")&&(this.get("client-auth")||this.get("server-auth")))return void b.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(a){return this.__sourceByAudio(a)},this));var a=this.get("playlist")[0];this.set("source",a.source),this.set("audio",a.token),this.on("playlist-next",function(a){this.set("audio",a.token)},this)}this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")?this.set("ready",!0):(this.get("source")||this.__setAudioSources(),this.set("ready",!0)),this._track("embedding_loaded")},this).on("error",function(a,b){this.set("application_status",!1),this.state().next("FatalError",{message:b})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(a){a!==this&&this.get("playing")&&this.execute("pause")},this)},events:{"change:audio":function(){this.set("stream",null),this.__setAudioSources()},paused:function(){this._track("audio_play_pause",{media_time:this.get("position")})},playing:function(){this._track("audio_play_playing",{media_time:this.get("position")})},ended:function(){this._track("audio_play_end",{media_time:this.get("duration")})},seek:function(a){this._track("audio_play_seek",{media_time:a})}},__setAudioSources:function(){this.get("audio")&&this.get("application_status")&&(this.set("shareaudiourl",this.application.audios.publicAudioUrl(this.get("audio")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),this.application.audios.cache(this.get("audio"),{auth:this.get("auth")}).callback(this.__audioUpdate,this),this.get("ready")&&this.reattachAudio())},__setSources:function(){this.setAll(this.__sourceByAudio(this.get("audio"),this.get("stream")))},__sourceByAudio:function(a,b){var c=this.get("audio_data"),d=i.filter(c&&c.streams?c.streams:[],function(a){return(a.token===c.original_stream.token||a.parent_stream===c.original_stream.token)&&5===a.state&&3===a.streamable},this);if(this.get("playlist")&&(d=[],b=null),b||d.length<2){var e=b?this.application.audio_streams:this.application.audios,f=[a];return b&&f.push(b),f.push({auth:this.get("auth"),params:{effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{source:e.audioUrl.apply(e,f),token:a}}var g=[],h=[],j={force_refresh:this.get("forcerefresh"),auth:this.get("auth")};i.iter(d,function(b){g.push({src:this.application.audio_streams.audioUrl(a,b.token,j),token:b.token}),h.push({filter:{token:b.token}})},this);var k=h[0];return{source:null,sources:g,streams:h,currentstream:k,token:a}},__audioUpdate:function(a,b){if(!this.destroyed())if(a)this.set("audio_status",!1),a.status_code()===f.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("audio-not-found")}):a.status_code()===f.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("audio-access-forbidden")}):this.state().next("FatalError",{message:this.string("audio-unknown-error")});else{if(this.set("audio_data",b),this.get("title")||this.set("title",b.title),this.set("totalduration",b.duration),b.approved===!1&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:b.moderation_reason||this.string("audio-rejected")});if(b.state<4)return void this.state().next("FatalError",{message:this.string("audio-unknown-error")});if(this.set("audio_status",!0),4===b.state)return void("AudioProcessing"!==this.state().state_name()&&this.state().next("AudioProcessing"));if("AudioProcessing"===this.state().state_name())return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.set("forcerefresh",j.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.audios.refreshToken(this.get("audio")))return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(a,b,c){if(this.application){var d=j.now(),e=k.create();e.success(function(){this.application.analytics.track("2",a,{audio_token:this.get("audio_data").token,stream_token:this.get("stream")?this.get("stream"):void 0},i.extend({embed_type:"player"},b),i.extend({duration:this.get("audio_data").duration||this.get("duration"),tags:this.get("audio_data").tags},c),d)},this),this.get("audio_data")?e.asyncSuccess():this.once("change:audio_data",function(){e.asyncSuccess()},this)}}}}],function(a){return{playerStates:function(){return a.playerStates.call(this).concat([e])}}}).register("ba-ziggeoaudioplayer").register("ziggeoaudioplayer").attachStringTable(g.mainLocale).addStrings({"audio-not-found":"We could not find the specified audio file.","audio-access-forbidden":"You are not permitted to access this audio file.","audio-unknown-error":"We cannot access this audio at the moment. Please try again later.","audio-rejected":"The audio has been rejected.","audio-processing":"The audio is processing - stay tuned.","audio-access-error":"The audio is currently under moderation. You may click to retry."})});
 
 Scoped.define("module:PopupAudioPlayer", ["module:AudioPlayer","mediacomponents:PopupHelper"], function (a,b,c){return a.extend({scoped:c},b.mixin)});
 
-Scoped.define("module:AudioRecorder", ["mediacomponents:AudioRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:AudioRecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function (AudioRecorder,Application,Device,Logger,Environment,AudioRecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return AudioRecorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(a){return{template:a.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynaudioplayer:"ziggeoaudioplayer","audio-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,audio:null,description:null,title:null,tags:null,"custom-data":null,key:null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1},types:{tags:"array","custom-data":"object","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(a){a.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"aac"),a.create.call(this),this.get("audio")&&!this.get("key")&&Strings.starts_with(this.get("audio"),"_")&&this.set("key",Strings.strip_start(this.get("audio"),"_")),this.get("simulate")&&this.set("localplayback",!0),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialaudio=!!this.get("audio"),this.get("audio")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(a){a.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var a=Promise.create();return this.application?a.asyncSuccess(!0):Application.events.once("set-default",function(b){this.application=b,a.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(a=a.mapSuccess(function(){return this.application.audios.get(this.get("audio"),{auth:this.get("auth")}).success(function(a){a&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),a.success(this.activate,this),!0},_createWithApplication:function(){return this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(a,b){this.set("application_status",!1),this.state().next("FatalError",{message:b})},this),this.set("playerattrs",{application:this.application,"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),audio:this.get("audio"),"force-refresh":Time.now()}),this._track("audio_embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(a,b){this.application.urls.registerRtmpConnectivityResult(a.serverUrl,b)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),void this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):void Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):void Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(a,b,c){this.application.analytics.track("2",a,{audio_token:this.get("audio"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialaudio?"rerecorder":"recorder"},b),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),tags:this.get("tags")},c))},functions:{reset:function(){this.get("audio")&&!this.__hadInitialaudio&&this.set("audio",null),this.__had_processed=!1,a.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),a.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.audio",this.get("audio"));var a=this.application.audio_streams.rtmpStreamName(this.get("audio"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpAudioRecordingUrls().map(function(b){return{serverUrl:b,streamName:a}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")?this.application.urls.wssUrl():void 0,streamInfo:this.application.data.get("webrtc_streaming")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("audio"),this.get("stream"),this.get("auth"))}:void 0,delay:4750,stopDelay:2750},audio:Objs.extend({resilienceCheck:function(a){return!a||!a.duration}},this.application.audio_streams.attachUploaderConfig(this.get("audio"),this.get("stream"),this.get("auth")))})},__createParams:function(){var a={};try{var b=this.activeElement().cloneNode();b.innerHTML="",a=b.outerHTML}catch(c){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):void 0,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):void 0,key:this.get("key"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),force_overwrite:this.get("force-overwrite"),audio_profile:this.get("audio-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,audio_file_name:this._audioFileName,device_info:Objs.extend({api_version:2,embed_code:a},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.application.data.get("webrtc_streaming")}:{create_stream:!0}},_prepareRecording:function(){return this.get("audio")?this.application.audio_streams.create(this.get("audio"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(a){this.set("stream",a.token),this.set("stream_data",a),this._updateUrls()},this):this.application.audios.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(a){this.set("audio",a.audio.token),this.set("audio_data",a.audio),this.set("stream",a.stream.token),this.set("stream_data",a.stream),this._updateUrls()},this)},_verifyRecording:function(){var a=Promise.create();return Async.eventually(function(){if(this.get("audio")){var b=this.get("simulate")?Promise.value(!0):this.application.audio_streams.submit(this.get("audio"),this.get("stream"),{},this.get("auth"),50);b.success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("audio")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.audios.cacheInvalidate(this.get("audio"))},this).forwardCallback(a)}},this,2500),a},_afterActivate:function(b){a._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),b.parentElement.appendChild(this.__inputBindElement)),this.get("audio")&&(this.__inputBindElement.value=this.get("audio")))}}}],function(a){return{recorderStates:function(){return a.recorderStates.call(this).concat([AudioRecorderStates])}}}).register("ba-ziggeoaudiorecorder").register("ziggeoaudiorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
+Scoped.define("module:AudioRecorder", ["mediacomponents:AudioRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:AudioRecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function (AudioRecorder,Application,Device,Logger,Environment,AudioRecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return AudioRecorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(a){return{template:a.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynaudioplayer:"ziggeoaudioplayer","audio-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,audio:null,description:null,title:null,tags:null,"custom-data":null,key:null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1},types:{tags:"array","custom-data":"object","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(a){a.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"aac"),a.create.call(this),this.get("audio")&&!this.get("key")&&Strings.starts_with(this.get("audio"),"_")&&this.set("key",Strings.strip_start(this.get("audio"),"_")),this.get("simulate")&&this.set("localplayback",!0),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialaudio=!!this.get("audio"),this.get("audio")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(a){a.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var a=Promise.create();return this.application?a.asyncSuccess(!0):Application.events.once("set-default",function(b){this.application=b,a.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(a=a.mapSuccess(function(){return this.application.audios.get(this.get("audio"),{auth:this.get("auth")}).success(function(a){a&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),a.success(this.activate,this),!0},_createWithApplication:function(){return this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(a,b){this.set("application_status",!1),this.state().next("FatalError",{message:b})},this),this.set("playerattrs",{application:this.application,"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),audio:this.get("audio"),"force-refresh":Time.now()}),this._track("audio_embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(a,b){this.application.urls.registerRtmpConnectivityResult(a.serverUrl,b)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),void this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):void Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):void Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(a,b,c){this.application.analytics.track("2",a,{audio_token:this.get("audio"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialaudio?"rerecorder":"recorder"},b),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),tags:this.get("tags")},c))},functions:{reset:function(){this.get("audio")&&!this.__hadInitialaudio&&this.set("audio",null),this.__had_processed=!1,a.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),a.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.audio",this.get("audio"));var a=this.application.audio_streams.rtmpStreamName(this.get("audio"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpAudioRecordingUrls().map(function(b){return{serverUrl:b,streamName:a}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():void 0,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("audio"),this.get("stream"),this.get("auth"))}:void 0,delay:4750,stopDelay:2750},audio:Objs.extend({resilienceCheck:function(a){return!a||!a.duration}},this.application.audio_streams.attachUploaderConfig(this.get("audio"),this.get("stream"),this.get("auth")))})},__createParams:function(){var a={};try{var b=this.activeElement().cloneNode();b.innerHTML="",a=b.outerHTML}catch(c){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):void 0,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):void 0,key:this.get("key"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),force_overwrite:this.get("force-overwrite"),audio_profile:this.get("audio-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,audio_file_name:this._audioFileName,device_info:Objs.extend({api_version:2,embed_code:a},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},_prepareRecording:function(){return this.get("audio")?this.application.audio_streams.create(this.get("audio"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(a){this.set("stream",a.token),this.set("stream_data",a),this._updateUrls()},this):this.application.audios.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(a){this.set("audio",a.audio.token),this.set("audio_data",a.audio),this.set("stream",a.stream.token),this.set("stream_data",a.stream),this._updateUrls()},this)},_verifyRecording:function(){var a=Promise.create();return Async.eventually(function(){if(this.get("audio")){var b=this.get("simulate")?Promise.value(!0):this.application.audio_streams.submit(this.get("audio"),this.get("stream"),{},this.get("auth"),50);b.success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("audio")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.audios.cacheInvalidate(this.get("audio"))},this).forwardCallback(a)}},this,2500),a},_afterActivate:function(b){a._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),b.parentElement.appendChild(this.__inputBindElement)),this.get("audio")&&(this.__inputBindElement.value=this.get("audio")))}}}],function(a){return{recorderStates:function(){return a.recorderStates.call(this).concat([AudioRecorderStates])}}}).register("ba-ziggeoaudiorecorder").register("ziggeoaudiorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
 
 Scoped.define("module:PopupAudioRecorder", ["module:AudioRecorder","mediacomponents:PopupHelper"], function (a,b,c){return a.extend({scoped:c},b.mixin)});
 
@@ -37654,8 +37844,8 @@ Scoped.define("module:Player", ["mediacomponents:VideoPlayer.Dynamics.Player","p
 
 Scoped.define("module:PopupPlayer", ["module:Player","mediacomponents:PopupHelper"], function (a,b,c){return a.extend({scoped:c},b.mixin)});
 
-Scoped.define("module:Recorder", ["mediacomponents:VideoRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:RecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function (Recorder,Application,Device,Logger,Environment,RecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return Recorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(a){return{template:a.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynvideoplayer:"ziggeoplayer","effect-profile":null,"preview-effect-profile":null,"video-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,video:null,description:null,title:null,tags:null,"custom-data":null,key:null,"auto-crop":null,"auto-pad":null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1,chrome_extension_id:null,opera_extension_id:null,chrome_extension_install_link:null,opera_extension_install_link:null},types:{tags:"array","custom-data":"object","auto-crop":"bool","auto-pad":"bool","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","effect-profile":"array","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(a){a.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"mp4"),a.create.call(this),this.get("video")&&!this.get("key")&&Strings.starts_with(this.get("video"),"_")&&this.set("key",Strings.strip_start(this.get("video"),"_")),this.get("simulate")&&this.set("localplayback",!0),Types.is_string(this.get("effect-profile"))&&this.set("effect-profile",Types.parseArray(this.get("effect-profile"))),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialVideo=!!this.get("video"),this.get("video")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),
-this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(a){a.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var a=Promise.create();return this.application?a.asyncSuccess(!0):Application.events.once("set-default",function(b){this.application=b,a.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(a=a.mapSuccess(function(){return this.application.videos.get(this.get("video"),{auth:this.get("auth")}).success(function(a){a&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),a.success(this.activate,this),!0},_createWithApplication:function(){return this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.get("chrome_extension_id")&&!this.get("chrome_extension_install_link")&&this.set("chrome_extension_install_link","https://chrome.google.com/webstore/detail/"+this.get("chrome_extension_id")),this.set("screen",{chromeExtensionId:this.get("chrome_extension_id")||this.application.data.get("chrome_extension_id"),operaExtensionId:this.get("opera_extension_id")||this.application.data.get("opera_extension_id"),chromeExtensionInstallLink:this.get("chrome_extension_install_link")||this.application.data.get("chrome_extension_install_link"),operaExtensionInstallLink:this.get("opera_extension_install_link")||this.application.data.get("opera_extension_install_link")}),this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(a,b){this.set("application_status",!1),this.state().next("FatalError",{message:b})},this),this.set("playerattrs",{application:this.application,"effect-profile":this.get("preview-effect-profile"),"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),video:this.get("video"),"force-refresh":Time.now()}),this._track("embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(a,b){this.application.urls.registerRtmpConnectivityResult(a.serverUrl,b)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),void this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):void Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):void Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(a,b,c){this.application.analytics.track("2",a,{video_token:this.get("video"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialVideo?"rerecorder":"recorder"},b),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),width:this.get("recordingwidth"),height:this.get("recordingheight"),tags:this.get("tags")},c))},functions:{reset:function(){this.get("video")&&!this.__hadInitialVideo&&this.set("video",null),this.__had_processed=!1,a.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),a.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.video",this.get("video"));var a=this.application.streams.rtmpStreamName(this.get("video"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpRecordingUrls().map(function(b){return{serverUrl:b,streamName:a}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")?this.application.urls.wssUrl():void 0,streamInfo:this.application.data.get("webrtc_streaming")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("video"),this.get("stream"),this.get("auth"))}:void 0,delay:4750,stopDelay:2750},image:this.application.streams.imageAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),video:Objs.extend({resilienceCheck:function(a){return!a||!a.duration}},this.application.streams.videoAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth"))),audio:this.application.streams.audioAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream"),this.get("auth"))})},_readDeviceOrientation:function(){var a=window.orientation+90;return a||void 0},__createParams:function(){var a={};try{var b=this.activeElement().cloneNode();b.innerHTML="",a=b.outerHTML}catch(c){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):void 0,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):void 0,key:this.get("key"),auto_crop:this.get("auto-crop"),auto_pad:this.get("auto-pad"),only_audio:this.get("onlyaudio"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),effect_profile:this.get("effect-profile")?this.get("effect-profile").join(","):void 0,force_overwrite:this.get("force-overwrite"),video_profile:this.get("video-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,video_file_name:this._videoFileName,device_info:Objs.extend({api_version:2,embed_code:a},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.application.data.get("webrtc_streaming")}:{create_stream:!0}},_prepareRecording:function(){return this._requiresDeviceOrientation=Info.isMobile()&&Info.isiOS()&&void 0!==window.orientation&&this.recorder,this.get("video")?this.application.streams.create(this.get("video"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(a){this.set("stream",a.token),this.set("stream_data",a),this._updateUrls()},this):this.application.videos.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(a){this.set("video",a.video.token),this.set("video_data",a.video),this.set("stream",a.stream.token),this.set("stream_data",a.stream),this._updateUrls()},this)},_verifyRecording:function(){var a=Promise.create();return Async.eventually(function(){if(this.get("video")){var b=this.get("simulate")?Promise.value(!0):this.application.streams._recorder_submit(this.get("video"),this.get("stream"),{rotation:this._requiresDeviceOrientation?this._readDeviceOrientation():void 0},this.get("auth"),50);b.success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("video")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.videos.cacheInvalidate(this.get("video"))},this).forwardCallback(a)}},this,2500),a},_afterActivate:function(b){a._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),b.parentElement.appendChild(this.__inputBindElement)),this.get("video")&&(this.__inputBindElement.value=this.get("video")))}}}],function(a){return{recorderStates:function(){return a.recorderStates.call(this).concat([RecorderStates])}}}).register("ba-ziggeorecorder").register("ziggeorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
+Scoped.define("module:Recorder", ["mediacomponents:VideoRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:RecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function (Recorder,Application,Device,Logger,Environment,RecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return Recorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(a){return{template:a.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynvideoplayer:"ziggeoplayer","effect-profile":null,"preview-effect-profile":null,"video-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,video:null,description:null,title:null,tags:null,"custom-data":null,key:null,"auto-crop":null,"auto-pad":null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1,chrome_extension_id:null,opera_extension_id:null,chrome_extension_install_link:null,opera_extension_install_link:null},types:{tags:"array","custom-data":"object","auto-crop":"bool","auto-pad":"bool","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","effect-profile":"array","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(a){a.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"mp4"),a.create.call(this),this.get("video")&&!this.get("key")&&Strings.starts_with(this.get("video"),"_")&&this.set("key",Strings.strip_start(this.get("video"),"_")),this.get("simulate")&&this.set("localplayback",!0),Types.is_string(this.get("effect-profile"))&&this.set("effect-profile",Types.parseArray(this.get("effect-profile"))),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialVideo=!!this.get("video"),this.get("video")||(this.set("playermodeifexists",!1),
+this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(a){a.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var a=Promise.create();return this.application?a.asyncSuccess(!0):Application.events.once("set-default",function(b){this.application=b,a.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(a=a.mapSuccess(function(){return this.application.videos.get(this.get("video"),{auth:this.get("auth")}).success(function(a){a&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),a.success(this.activate,this),!0},_createWithApplication:function(){return this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.get("chrome_extension_id")&&!this.get("chrome_extension_install_link")&&this.set("chrome_extension_install_link","https://chrome.google.com/webstore/detail/"+this.get("chrome_extension_id")),this.set("screen",{chromeExtensionId:this.get("chrome_extension_id")||this.application.data.get("chrome_extension_id"),operaExtensionId:this.get("opera_extension_id")||this.application.data.get("opera_extension_id"),chromeExtensionInstallLink:this.get("chrome_extension_install_link")||this.application.data.get("chrome_extension_install_link"),operaExtensionInstallLink:this.get("opera_extension_install_link")||this.application.data.get("opera_extension_install_link")}),this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(a,b){this.set("application_status",!1),this.state().next("FatalError",{message:b})},this),this.set("playerattrs",{application:this.application,"effect-profile":this.get("preview-effect-profile"),"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),video:this.get("video"),"force-refresh":Time.now()}),this._track("embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(a,b){this.application.urls.registerRtmpConnectivityResult(a.serverUrl,b)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),void this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):void Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):void Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(a,b,c){this.application.analytics.track("2",a,{video_token:this.get("video"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialVideo?"rerecorder":"recorder"},b),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),width:this.get("recordingwidth"),height:this.get("recordingheight"),tags:this.get("tags")},c))},functions:{reset:function(){this.get("video")&&!this.__hadInitialVideo&&this.set("video",null),this.__had_processed=!1,a.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),a.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.video",this.get("video"));var a=this.application.streams.rtmpStreamName(this.get("video"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpRecordingUrls().map(function(b){return{serverUrl:b,streamName:a}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():void 0,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("video"),this.get("stream"),this.get("auth"))}:void 0,delay:4750,stopDelay:2750},image:this.application.streams.imageAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),video:Objs.extend({resilienceCheck:function(a){return!a||!a.duration}},this.application.streams.videoAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth"))),audio:this.application.streams.audioAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream"),this.get("auth"))})},_readDeviceOrientation:function(){var a=window.orientation+90;return a||void 0},__createParams:function(){var a={};try{var b=this.activeElement().cloneNode();b.innerHTML="",a=b.outerHTML}catch(c){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):void 0,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):void 0,key:this.get("key"),auto_crop:this.get("auto-crop"),auto_pad:this.get("auto-pad"),only_audio:this.get("onlyaudio"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),effect_profile:this.get("effect-profile")?this.get("effect-profile").join(","):void 0,force_overwrite:this.get("force-overwrite"),video_profile:this.get("video-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,video_file_name:this._videoFileName,device_info:Objs.extend({api_version:2,embed_code:a},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},_prepareRecording:function(){return this._requiresDeviceOrientation=Info.isMobile()&&Info.isiOS()&&void 0!==window.orientation&&this.recorder,this.get("video")?this.application.streams.create(this.get("video"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(a){this.set("stream",a.token),this.set("stream_data",a),this._updateUrls()},this):this.application.videos.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(a){this.set("video",a.video.token),this.set("video_data",a.video),this.set("stream",a.stream.token),this.set("stream_data",a.stream),this._updateUrls()},this)},_verifyRecording:function(){var a=Promise.create();return Async.eventually(function(){if(this.get("video")){var b=this.get("simulate")?Promise.value(!0):this.application.streams._recorder_submit(this.get("video"),this.get("stream"),{rotation:this._requiresDeviceOrientation?this._readDeviceOrientation():void 0},this.get("auth"),50);b.success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("video")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.videos.cacheInvalidate(this.get("video"))},this).forwardCallback(a)}},this,2500),a},_afterActivate:function(b){a._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),b.parentElement.appendChild(this.__inputBindElement)),this.get("video")&&(this.__inputBindElement.value=this.get("video")))}}}],function(a){return{recorderStates:function(){return a.recorderStates.call(this).concat([RecorderStates])}}}).register("ba-ziggeorecorder").register("ziggeorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
 
 Scoped.define("module:PopupRecorder", ["module:Recorder","mediacomponents:PopupHelper"], function (a,b,c){return a.extend({scoped:c},b.mixin)});
 
