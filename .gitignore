@@ -2,6 +2,7 @@ node_modules
 bower_components
 *.log
 .DS_Store
+
 package-lock.json
 temp
 google-translate-creds.json
