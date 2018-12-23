@@ -172,7 +172,8 @@ module.exports = function(grunt) {
         "src/fragments/scoped-end.js-fragment"
     ], 'dist/ziggeo.js')
     .gittagTask()
-    .browserqunitTask(null, 'tests/ui/tests.html', true)
+    .browserqunitTask(null, 'tests/ui/tests.html', true, false)
+    .browserqunitTask("browserqunit-ngrok", 'tests/ui/tests.html', true, true)
     .qunitTask("jsdomqunit", 'tests/qunit/credentials.js', grunt.file.expand([
         "./tests/qunit/qunit.js",
         "./tests/qunit/tests/*.js"

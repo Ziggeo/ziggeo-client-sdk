@@ -9,13 +9,13 @@ QUnit.test("Embed Player Via HTML", function(assert) {
     ZiggeoApi.V2.Player.findByElementPromise(playerElement).success(function (playerInstance) {
         playerInstance.on("playing", function () {
             assert.ok(true, "playing");
-            playerInstance.on("paused", function () {
+            playerInstance.on("paused ended", function () {
                 assert.ok(true, "paused");
                 rootElement.innerHTML = "";
                 done();
-            });
+            }, this, {eventually: true});
         });
-        playerInstance.play();
+        //playerInstance.play();
     });
 });
 
@@ -40,11 +40,11 @@ QUnit.test("Embed Player Via JS", function(assert) {
 
     playerInstance.on("playing", function () {
         assert.ok(true, "playing");
-        playerInstance.on("paused", function () {
+        playerInstance.on("paused ended", function () {
             assert.ok(true, "paused");
             playerInstance.destroy();
             done();
-        });
+        }, this, {eventually: true});
     });
-    playerInstance.play();
+    //playerInstance.play();
 });

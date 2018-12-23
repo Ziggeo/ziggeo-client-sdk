@@ -6,4 +6,5 @@ QUnit.test("detect device microphone camera", function(assert) {
         assert.ok(micCount > 0);
         done();
     });
+
 });

@@ -1,7 +1,7 @@
 {
   "name": "ziggeo-client-sdk",
   "description": "Ziggeo API (https://ziggeo.com) allows you to integrate video recording and playback with only two lines of code in your site, service or app. This is the JavaScript Client SDK.",
-  "version": "2.33.3",
+  "version": "2.33.4",
   "author": "Ziggeo",
   "repository": "https://github.com/Ziggeo/ziggeo-client-sdk.git",
   "license": "Proprietary",
@@ -9,7 +9,8 @@
     "build": "grunt",
     "tests": "grunt browserqunit",
     "relink": "npm link betajs-scoped && npm link betajs-compile && npm link betajs && npm link betajs-browser && npm link betajs-flash && npm link betajs-dynamics && npm link betajs-shims && npm link betajs-media && npm link betajs-media-components",
-    "pushtags": "grunt gittag && git push origin --tags --force"
+    "pushtags": "grunt gittag && git push origin --tags --force",
+    "reinstall": "rm -f package-lock.json && rm -rf node_modules && npm i && npm run relink"
   },
   "dependencies": {
     "grunt": "",
@@ -20,7 +21,7 @@
     "grunt-text-replace": "",
     "grunt-contrib-copy": "",
     "grunt-contrib-csslint": "",
-    "grunt-contrib-uglify": "~2.3.0",
+    "grunt-contrib-uglify": "^4.0.0",
     "grunt-contrib-cssmin": "",
     "@google-cloud/translate": "",
     "grunt-yaml": "",
