@@ -1,7 +1,7 @@
 /*!
-ziggeo-client-sdk - v2.33.4 - 2018-12-23
-Copyright (c) 
-Proprietary Software License.
+ziggeo-client-sdk - v2.34.0 - 2019-02-22
+Copyright (c) Ziggeo
+Closed Source Software License.
 */
 (function () {
 

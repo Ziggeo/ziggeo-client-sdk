@@ -1,7 +1,7 @@
 /*!
-ziggeo-client-sdk - v2.33.4 - 2018-12-23
-Copyright (c) 
-Proprietary Software License.
+ziggeo-client-sdk - v2.34.0 - 2019-02-22
+Copyright (c) Ziggeo
+Closed Source Software License.
 */
 //  json2.js
 //  2016-10-28
@@ -2350,8 +2350,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.174",
-    "datetime": 1544744357263
+    "version": "1.0.179",
+    "datetime": 1550721276131
 };
 });
 
@@ -6021,7 +6021,7 @@ Scoped.define("module:Events.EventsMixin", ["module:Timers.Timer","module:Async"
                 obj.eventually = options.eventually;
             if (options.off_on_destroyed)
                 obj.off_on_destroyed = options.off_on_destroyed;
-            if (options.min_delay)
+            if (options.min_delay) {
                 obj.min_delay = new Timer({
                     delay: options.min_delay,
                     once: true,
@@ -6033,7 +6033,8 @@ Scoped.define("module:Events.EventsMixin", ["module:Timers.Timer","module:Async"
                         this.__invokeCallback(obj);
                     }
                 });
-            if (options.max_delay)
+            }
+            if (options.max_delay) {
                 obj.max_delay = new Timer({
                     delay: options.max_delay,
                     once: true,
@@ -6045,6 +6046,9 @@ Scoped.define("module:Events.EventsMixin", ["module:Timers.Timer","module:Async"
                         this.__invokeCallback(obj);
                     }
                 });
+            }
+            if (options.norecursion)
+                obj.no_recursion = true;
             return obj;
         },
 
@@ -6056,10 +6060,18 @@ Scoped.define("module:Events.EventsMixin", ["module:Timers.Timer","module:Async"
         },
 
         __invokeCallback: function(obj, params) {
-            if (obj.off_on_destroyed && obj.context && obj.context.destroyed())
+            if (obj.off_on_destroyed && obj.context && obj.context.destroyed()) {
                 this.off(null, null, obj);
-            else
+                return;
+            }
+            if (obj.no_recursion && obj.in_recursion)
+                return;
+            obj.in_recursion = true;
+            try {
                 this._invokeCallback(obj.callback, obj.context || this, params || obj.params);
+            } finally {
+                obj.in_recursion = false;
+            }
         },
 
         /**
@@ -6905,390 +6917,6 @@ Scoped.define("module:Tokens", function () {
     };
 });
 
-Scoped.define("module:Net.Uri", ["module:Objs","module:Types","module:Strings"], function (Objs, Types, Strings) {
-
-    var parse_strict_regex = /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/;
-    var parse_loose_regex = /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
-    var parse_key = ["source", "protocol", "authority", "userInfo", "user", "password", "host", "port", "relative", "path", "directory", "file", "query", "anchor"];
-    var parse_key_parser = /(?:^|&)([^&=]*)=?([^&]*)/g;
-
-
-    /**
-     * Uri Auxilary Functions
-     * 
-     * @module BetaJS.Net.Uri
-     */
-    return {
-
-        /**
-         * Create a URI string from a set of parameters.
-         * 
-         * @param {object} obj parameters
-         * 
-         * @return {string} uri
-         */
-        build: function(obj) {
-            var s = "";
-            if (obj.protocol)
-                s += obj.protocol + "://";
-            if (obj.username)
-                s += obj.username + ":";
-            if (obj.password)
-                s += obj.password + "@";
-            s += obj.server;
-            if (obj.port)
-                s += ":" + obj.port;
-            if (obj.path)
-                s += "/" + obj.path;
-            return s;
-        },
-
-
-        /**
-         * Encode a set of uri query parameters.
-         * 
-         * @param {object} arr a key-value set of query parameters
-         * @param {string} prefix an optional prefix to be used for generating the keys
-         * @param {boolean} flatten flatten the components first
-         * 
-         * @return {string} encoded query parameters
-         */
-        encodeUriParams: function(arr, prefix, flatten) {
-            prefix = prefix || "";
-            var res = [];
-            if (flatten) {
-                Objs.iter(Objs.serializeFlatJSON(arr), function(kv) {
-                    res.push(prefix + kv.key + "=" + encodeURIComponent(kv.value));
-                }, this);
-            } else {
-                Objs.iter(arr, function(value, key) {
-                    if (Types.is_object(value))
-                        res = res.concat(this.encodeUriParams(value, prefix + key + "_"));
-                    else
-                        res.push(prefix + key + "=" + encodeURIComponent(value));
-                }, this);
-            }
-            return res.join("&");
-        },
-
-
-        /**
-         * Decode a uri query parameter string
-         * 
-         * @param {string} res encoded query parameters
-         * 
-         * @return {object} key-value set of query parameters
-         */
-        decodeUriParams: function(res) {
-            var arr = {};
-            res.split("&").forEach(function(kv) {
-                var kvsplit = Strings.splitFirst(kv, "=");
-                arr[kvsplit.head] = decodeURIComponent(kvsplit.tail);
-            });
-            return arr;
-        },
-
-
-        /**
-         * Append a set of uri query parameters to a URI.
-         * 
-         * @param {string} uri a uri
-         * @param {object} arr a key-value set of query parameters
-         * @param {string} prefix an optional prefix to be used for generating the keys
-         * 
-         * @return {string} uri with the encoded query parameters attached
-         */
-        appendUriParams: function(uri, arr, prefix) {
-            return Types.is_empty(arr) ? uri : (uri + (uri.indexOf("?") != -1 ? "&" : "?") + this.encodeUriParams(arr, prefix));
-        },
-
-
-        /**
-         * Parses a given uri into decomposes it into its components.
-         * 
-         * @thanks parseUri 1.2.2, (c) Steven Levithan <stevenlevithan.com>, MIT License
-         * 
-         * @param {string} str uri to be parsed
-         * @param {boolean} strict use strict parsing (default false)
-         * 
-         * @return {object} decomposed uri
-         */
-        parse: function(str, strict) {
-            var parser = strict ? parse_strict_regex : parse_loose_regex;
-            var m = parser.exec(str);
-            var uri = {};
-            for (var i = 0; i < parse_key.length; ++i)
-                uri[parse_key[i]] = m[i] || "";
-            uri.queryKey = {};
-            uri[parse_key[12]].replace(parse_key_parser, function($0, $1, $2) {
-                if ($1) uri.queryKey[$1] = $2;
-            });
-            return uri;
-        },
-
-        /**
-         * Determines whether a target URI is considered cross-domain with respect to a source URI.
-         * 
-         * @param {string} source source URI
-         * @param {string} target target URI
-         * 
-         * @return {boolean} true if target is cross-domain w.r.t. source
-         */
-        isCrossDomainUri: function(source, target) {
-            // If target has no protocol delimiter, there is no domain given, hence source domain is used
-            if (target.indexOf("//") < 0)
-                return false;
-            // If source has no protocol delimiter but target has, it is cross-domain.
-            if (source.indexOf("//") < 0)
-                return true;
-            source = this.parse(source.toLowerCase());
-            target = this.parse(target.toLowerCase());
-            // Terminate if one of protocols is the file protocol.
-            if (source.protocol === "file" || target.protocol === "file")
-                return source.protocol === target.protocol;
-            return source.host !== target.host || source.port !== target.port;
-        }
-
-    };
-});
-
-Scoped.define("module:Classes.OptimisticConditionalInstance", ["module:Class","module:Objs","module:Promise"], function (Class, Objs, Promise, scoped) {
-    return Class.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * OptimisticConditionalInstance for registering and optimistically creating particular flavors of a certain class under particular conditions
-         * 
-         * @class BetaJS.Classes.OptimisticConditionalInstance
-         */
-        return {
-
-            /**
-             * Instantiates a particular flavor of a OptimisticConditionalInstance
-             * 
-             * @param {object} options Options for the instance
-             * @param {object} transitionals Particular transitional data that should be passed on from one instance to the next
-             */
-            constructor: function(options, transitionals) {
-                inherited.constructor.call(this);
-                this._transitionals = {};
-            },
-
-            /**
-             * Returns an initialization promise.
-             * 
-             * @return {object} Initialization promise
-             */
-            _initializer: function() {
-                // returns a promise
-            },
-
-            /**
-             * Tries to initialize this instance.
-             * 
-             * @return {object} Success promise
-             */
-            _initialize: function() {
-                return this._initializer().success(function() {
-                    this._afterInitialize();
-                }, this);
-            },
-
-            /**
-             * Returns the current set of transitionals.
-             * 
-             * @return {object} Set of transitionals
-             */
-            transitionals: function() {
-                return this._transitionals;
-            },
-
-            /**
-             * Will be called after an instance has been initialized.
-             * 
-             */
-            _afterInitialize: function() {
-                // setup
-            }
-
-        };
-    }, {}, {
-
-        __registry: [],
-
-        /**
-         * Registers a particular flavor of an OptimisticConditionalInstance
-         * 
-         * @param {object} cls flavor class
-         * @param {int} priority priority of this class; the higher the priority the more likely it is to be instantiated
-         * 
-         * @static
-         */
-        register: function(cls, priority) {
-            this.__registry.push({
-                cls: cls,
-                priority: priority
-            });
-        },
-
-        /**
-         * Instantiates the best match.
-         * 
-         * @param {object} options Set of options
-         * @return {object} Instance of best match as a promise
-         * 
-         * @static
-         */
-        create: function(options) {
-            var promise = Promise.create();
-            var reg = Objs.clone(this.__registry, 1);
-            var transitionals = {};
-            var next = function() {
-                if (!reg.length) {
-                    promise.asyncError(true);
-                    return;
-                }
-                var p = -1;
-                var j = -1;
-                for (var i = 0; i < reg.length; ++i) {
-                    if (reg[i].priority > p) {
-                        p = reg[i].priority;
-                        j = i;
-                    }
-                }
-                var cls = reg[j].cls;
-                reg.splice(j, 1);
-                var instance = new cls(options, transitionals);
-                instance._initialize().error(function() {
-                    transitionals = instance.transitionals();
-                    instance.destroy();
-                    next.call(this);
-                }, this).success(function() {
-                    promise.asyncSuccess(instance);
-                });
-            };
-            next.call(this);
-            return promise;
-        }
-
-    });
-});
-
-Scoped.define("module:Classes.ConditionalInstance", ["module:Class","module:Objs"], function (Class, Objs, scoped) {
-    return Class.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * Conditional Instance Class for registering and creating particular flavors of a certain class under particular conditions
-         * 
-         * @class BetaJS.Classes.ConditionalInstance
-         */
-        return {
-
-            /**
-             * Instantiates a particular flavor of a ConditionalInstance
-             * 
-             * @param {object} options Options for the instance
-             */
-            constructor: function(options) {
-                inherited.constructor.call(this);
-                this._options = this.cls._initializeOptions(options);
-            }
-
-        };
-    }, {
-
-        /**
-         * Initialize given options with potentially additional parameters
-         * 
-         * @param {object} options Given options
-         * @return {object} Initialized options
-         * 
-         * @static
-         */
-        _initializeOptions: function(options) {
-            return options;
-        },
-
-        /**
-         * Determines whether a set of options is supported by this flavor of a ConditionalInstance
-         * 
-         * @param {object} options set of options
-         * @return {boolean} true if supported
-         * 
-         * @static
-         */
-        supported: function(options) {
-            return false;
-        }
-
-    }, {
-
-        __registry: [],
-
-        /**
-         * Registers a particular flavor of a ConditionalInstance
-         * 
-         * @param {object} cls flavor class
-         * @param {int} priority priority of this class; the higher the priority the more likely it is to be instantiated
-         * 
-         * @static
-         */
-        register: function(cls, priority) {
-            this.__registry.push({
-                cls: cls,
-                priority: priority
-            });
-        },
-
-        /**
-         * Determines the best match of all registered flavors, given a set of options.
-         * 
-         * @param {object} options Set of options
-         * @return {object} flavor class being the best match
-         * 
-         * @static
-         */
-        match: function(options) {
-            options = this._initializeOptions(options);
-            var bestMatch = null;
-            Objs.iter(this.__registry, function(entry) {
-                if ((!bestMatch || bestMatch.priority < entry.priority) && entry.cls.supported(options))
-                    bestMatch = entry;
-            }, this);
-            return bestMatch;
-        },
-
-        /**
-         * Instantiates the best match.
-         * 
-         * @param {object} options Set of options
-         * @return {object} Instance of best match
-         * 
-         * @static
-         */
-        create: function(options) {
-            var match = this.match(options);
-            return match ? new match.cls(options) : null;
-        },
-
-        /**
-         * Determines whether there is any support for a given set of options.
-         * 
-         * @param {object} options Set of options
-         * @return {boolean} True if there is at least one match.
-         * 
-         * @static
-         */
-        anySupport: function(options) {
-            return this.match(options) !== null;
-        }
-
-    });
-});
-
 Scoped.define("module:Properties.ObservableMixin", [], function () {
 
     /**
@@ -7663,12 +7291,13 @@ Scoped.define("module:Properties.PropertiesMixin", ["module:Objs.Scopes","module
          * 
          * @param {string} key key in question
          * @param value value in question
+         * @param oldValue oldValue in question
          * 
          * @return value, possibly altered
          * 
          * @protected
          */
-        _beforeSet: function(key, value) {
+        _beforeSet: function(key, value, oldValue) {
             return value;
         },
 
@@ -8066,8 +7695,8 @@ Scoped.define("module:Properties.PropertiesMixin", ["module:Objs.Scopes","module
                     this.compute(key, value.func, value.dependencies);
                 return this;
             }
-            value = this._beforeSet(key, value);
             var oldValue = this.get(key);
+            value = this._beforeSet(key, value, oldValue);
             if (oldValue !== value) {
                 Scopes.set(key, value, this.__properties.data);
                 this.__setChanged(key, value, oldValue);
@@ -8272,6 +7901,532 @@ Scoped.define("module:Comparators", ["module:Types","module:Properties.Propertie
         }
 
     };
+});
+
+Scoped.define("module:Sort", ["module:Comparators","module:Types","module:Objs"], function (Comparators, Types, Objs) {
+
+    /**
+     * Sort objects and arrays.
+     * 
+     * @module BetaJS.Sort
+     */
+    return {
+
+        /**
+         * Sort keys in an object according to a comparator. 
+         * 
+         * @param {object} object object to be sorted
+         * @param {function} f comparator comparator for sorting, accepting keys first and then optionally values
+         * 
+         * @return {object} sorted object
+         */
+        sort_object: function(object, f) {
+            var a = [];
+            for (var key in object)
+                a.push({
+                    key: key,
+                    value: object[key]
+                });
+            a.sort(function(x, y) {
+                return f(x.key, y.key, x.value, y.value);
+            });
+            var o = {};
+            for (var i = 0; i < a.length; ++i)
+                o[a[i].key] = a[i].value;
+            return o;
+        },
+
+        /**
+         * Deep sorting an object according to a comparator. 
+         * 
+         * @param {object} object object to be sorted
+         * @param {function} f comparator comparator for sorting, accepting keys first and then optionally values
+         * 
+         * @return {object} sorted object
+         */
+        deep_sort: function(object, f) {
+            f = f || Comparators.byValue;
+            if (Types.is_array(object)) {
+                for (var i = 0; i < object.length; ++i)
+                    object[i] = this.deep_sort(object[i], f);
+                return object.sort(f);
+            } else if (Types.is_object(object)) {
+                for (var key in object)
+                    object[key] = this.deep_sort(object[key], f);
+                return this.sort_object(object, f);
+            } else
+                return object;
+        },
+
+        /**
+         * Sort an array of items with inter-dependency specifiers s.t. every item in the resulting array has all its dependencies come before.
+         * 
+         * @param {array} items list of items with inter-dependency specifiers
+         * @param {string|function} identifier function / key mapping an item to its unique identifier
+         * @param {string|function} before function / key mapping an item to its array of dependencies
+         * @param {string|function} after function / key mapping an item to its array of depending items
+         * 
+         * @return {array} sorted array
+         */
+        dependency_sort: function(items, identifier, before, after) {
+            var identifierf = Types.is_string(identifier) ? function(obj) {
+                return obj[identifier];
+            } : identifier;
+            var beforef = Types.is_string(before) ? function(obj) {
+                return obj[before];
+            } : before;
+            var afterf = Types.is_string(after) ? function(obj) {
+                return obj[after];
+            } : after;
+            var n = items.length;
+            var data = [];
+            var identifier_to_index = {};
+            var todo = {};
+            var i = 0;
+            for (i = 0; i < n; ++i) {
+                todo[i] = true;
+                var ident = identifierf(items[i], i);
+                identifier_to_index[ident] = i;
+                data.push({
+                    before: {},
+                    after: {}
+                });
+            }
+            var make_before_iter_func = function(i) {
+                return function(before) {
+                    var before_index = identifier_to_index[before];
+                    if (Types.is_defined(before_index)) {
+                        data[i].before[before_index] = true;
+                        data[before_index].after[i] = true;
+                    }
+                };
+            };
+            var make_after_iter_func = function(i) {
+                return function(after) {
+                    var after_index = identifier_to_index[after];
+                    if (Types.is_defined(after_index)) {
+                        data[i].after[after_index] = true;
+                        data[after_index].before[i] = true;
+                    }
+                };
+            };
+            for (i = 0; i < n; ++i) {
+                Objs.iter(beforef(items[i], i) || [], make_before_iter_func(i));
+                Objs.iter(afterf(items[i]) || [], make_after_iter_func(i));
+            }
+            var result = [];
+            while (!Types.is_empty(todo)) {
+                for (i in todo) {
+                    if (Types.is_empty(data[i].after)) {
+                        delete todo[i];
+                        result.push(items[i]);
+                        for (var bef in data[i].before)
+                            delete data[bef].after[i];
+                    }
+                }
+            }
+            return result;
+        }
+
+    };
+});
+
+Scoped.define("module:Net.Uri", ["module:Objs","module:Types","module:Strings","module:Sort"], function (Objs, Types, Strings, Sort) {
+
+    var parse_strict_regex = /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/;
+    var parse_loose_regex = /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
+    var parse_key = ["source", "protocol", "authority", "userInfo", "user", "password", "host", "port", "relative", "path", "directory", "file", "query", "anchor"];
+    var parse_key_parser = /(?:^|&)([^&=]*)=?([^&]*)/g;
+
+
+    /**
+     * Uri Auxilary Functions
+     * 
+     * @module BetaJS.Net.Uri
+     */
+    return {
+
+        /**
+         * Create a URI string from a set of parameters.
+         * 
+         * @param {object} obj parameters
+         * 
+         * @return {string} uri
+         */
+        build: function(obj) {
+            var s = "";
+            if (obj.protocol)
+                s += obj.protocol + "://";
+            if (obj.username)
+                s += obj.username + ":";
+            if (obj.password)
+                s += obj.password + "@";
+            s += obj.server;
+            if (obj.port)
+                s += ":" + obj.port;
+            if (obj.path)
+                s += "/" + obj.path;
+            return s;
+        },
+
+
+        /**
+         * Encode a set of uri query parameters.
+         * 
+         * @param {object} arr a key-value set of query parameters
+         * @param {string} prefix an optional prefix to be used for generating the keys
+         * @param {boolean} flatten flatten the components first
+         * 
+         * @return {string} encoded query parameters
+         */
+        encodeUriParams: function(arr, prefix, flatten) {
+            prefix = prefix || "";
+            var res = [];
+            if (flatten) {
+                Objs.iter(Objs.serializeFlatJSON(arr), function(kv) {
+                    res.push(prefix + kv.key + "=" + encodeURIComponent(kv.value));
+                }, this);
+            } else {
+                Objs.iter(arr, function(value, key) {
+                    if (Types.is_object(value))
+                        res = res.concat(this.encodeUriParams(value, prefix + key + "_"));
+                    else
+                        res.push(prefix + key + "=" + encodeURIComponent(value));
+                }, this);
+            }
+            return res.join("&");
+        },
+
+
+        /**
+         * Decode a uri query parameter string
+         * 
+         * @param {string} res encoded query parameters
+         * 
+         * @return {object} key-value set of query parameters
+         */
+        decodeUriParams: function(res) {
+            var arr = {};
+            res.split("&").forEach(function(kv) {
+                var kvsplit = Strings.splitFirst(kv, "=");
+                arr[kvsplit.head] = decodeURIComponent(kvsplit.tail);
+            });
+            return arr;
+        },
+
+
+        /**
+         * Append a set of uri query parameters to a URI.
+         * 
+         * @param {string} uri a uri
+         * @param {object} arr a key-value set of query parameters
+         * @param {string} prefix an optional prefix to be used for generating the keys
+         * 
+         * @return {string} uri with the encoded query parameters attached
+         */
+        appendUriParams: function(uri, arr, prefix) {
+            return Types.is_empty(arr) ? uri : (uri + (uri.indexOf("?") != -1 ? "&" : "?") + this.encodeUriParams(arr, prefix));
+        },
+
+
+        /**
+         * Parses a given uri into decomposes it into its components.
+         * 
+         * @thanks parseUri 1.2.2, (c) Steven Levithan <stevenlevithan.com>, MIT License
+         * 
+         * @param {string} str uri to be parsed
+         * @param {boolean} strict use strict parsing (default false)
+         * 
+         * @return {object} decomposed uri
+         */
+        parse: function(str, strict) {
+            var parser = strict ? parse_strict_regex : parse_loose_regex;
+            var m = parser.exec(str);
+            var uri = {};
+            for (var i = 0; i < parse_key.length; ++i)
+                uri[parse_key[i]] = m[i] || "";
+            uri.queryKey = {};
+            uri[parse_key[12]].replace(parse_key_parser, function($0, $1, $2) {
+                if ($1) uri.queryKey[$1] = $2;
+            });
+            return uri;
+        },
+
+        /**
+         * Determines whether a target URI is considered cross-domain with respect to a source URI.
+         * 
+         * @param {string} source source URI
+         * @param {string} target target URI
+         * 
+         * @return {boolean} true if target is cross-domain w.r.t. source
+         */
+        isCrossDomainUri: function(source, target) {
+            // If target has no protocol delimiter, there is no domain given, hence source domain is used
+            if (target.indexOf("//") < 0)
+                return false;
+            // If source has no protocol delimiter but target has, it is cross-domain.
+            if (source.indexOf("//") < 0)
+                return true;
+            source = this.parse(source.toLowerCase());
+            target = this.parse(target.toLowerCase());
+            // Terminate if one of protocols is the file protocol.
+            if (source.protocol === "file" || target.protocol === "file")
+                return source.protocol === target.protocol;
+            return source.host !== target.host || source.port !== target.port;
+        },
+
+        /**
+         * Normalizes the query of a uri by sorting keys alphabetically.
+         *
+         * @param {string} uri source URI
+         *
+         * @return {string} normalized uri
+         */
+        normalizeUri: function(uri) {
+            var q = uri.indexOf("?");
+            return q >= 0 ? uri.substring(0, q) + "?" + this.encodeUriParams(Sort.sort_object(this.decodeUriParams(uri.substring(q + 1)), function(x, y) {
+                return x.localeCompare(y);
+            })) : uri;
+        }
+
+    };
+});
+
+Scoped.define("module:Classes.OptimisticConditionalInstance", ["module:Class","module:Objs","module:Promise"], function (Class, Objs, Promise, scoped) {
+    return Class.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * OptimisticConditionalInstance for registering and optimistically creating particular flavors of a certain class under particular conditions
+         * 
+         * @class BetaJS.Classes.OptimisticConditionalInstance
+         */
+        return {
+
+            /**
+             * Instantiates a particular flavor of a OptimisticConditionalInstance
+             * 
+             * @param {object} options Options for the instance
+             * @param {object} transitionals Particular transitional data that should be passed on from one instance to the next
+             */
+            constructor: function(options, transitionals) {
+                inherited.constructor.call(this);
+                this._transitionals = {};
+            },
+
+            /**
+             * Returns an initialization promise.
+             * 
+             * @return {object} Initialization promise
+             */
+            _initializer: function() {
+                // returns a promise
+            },
+
+            /**
+             * Tries to initialize this instance.
+             * 
+             * @return {object} Success promise
+             */
+            _initialize: function() {
+                return this._initializer().success(function() {
+                    this._afterInitialize();
+                }, this);
+            },
+
+            /**
+             * Returns the current set of transitionals.
+             * 
+             * @return {object} Set of transitionals
+             */
+            transitionals: function() {
+                return this._transitionals;
+            },
+
+            /**
+             * Will be called after an instance has been initialized.
+             * 
+             */
+            _afterInitialize: function() {
+                // setup
+            }
+
+        };
+    }, {}, {
+
+        __registry: [],
+
+        /**
+         * Registers a particular flavor of an OptimisticConditionalInstance
+         * 
+         * @param {object} cls flavor class
+         * @param {int} priority priority of this class; the higher the priority the more likely it is to be instantiated
+         * 
+         * @static
+         */
+        register: function(cls, priority) {
+            this.__registry.push({
+                cls: cls,
+                priority: priority
+            });
+        },
+
+        /**
+         * Instantiates the best match.
+         * 
+         * @param {object} options Set of options
+         * @return {object} Instance of best match as a promise
+         * 
+         * @static
+         */
+        create: function(options) {
+            var promise = Promise.create();
+            var reg = Objs.clone(this.__registry, 1);
+            var transitionals = {};
+            var next = function() {
+                if (!reg.length) {
+                    promise.asyncError(true);
+                    return;
+                }
+                var p = -1;
+                var j = -1;
+                for (var i = 0; i < reg.length; ++i) {
+                    if (reg[i].priority > p) {
+                        p = reg[i].priority;
+                        j = i;
+                    }
+                }
+                var cls = reg[j].cls;
+                reg.splice(j, 1);
+                var instance = new cls(options, transitionals);
+                instance._initialize().error(function() {
+                    transitionals = instance.transitionals();
+                    instance.destroy();
+                    next.call(this);
+                }, this).success(function() {
+                    promise.asyncSuccess(instance);
+                });
+            };
+            next.call(this);
+            return promise;
+        }
+
+    });
+});
+
+Scoped.define("module:Classes.ConditionalInstance", ["module:Class","module:Objs"], function (Class, Objs, scoped) {
+    return Class.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * Conditional Instance Class for registering and creating particular flavors of a certain class under particular conditions
+         * 
+         * @class BetaJS.Classes.ConditionalInstance
+         */
+        return {
+
+            /**
+             * Instantiates a particular flavor of a ConditionalInstance
+             * 
+             * @param {object} options Options for the instance
+             */
+            constructor: function(options) {
+                inherited.constructor.call(this);
+                this._options = this.cls._initializeOptions(options);
+            }
+
+        };
+    }, {
+
+        /**
+         * Initialize given options with potentially additional parameters
+         * 
+         * @param {object} options Given options
+         * @return {object} Initialized options
+         * 
+         * @static
+         */
+        _initializeOptions: function(options) {
+            return options;
+        },
+
+        /**
+         * Determines whether a set of options is supported by this flavor of a ConditionalInstance
+         * 
+         * @param {object} options set of options
+         * @return {boolean} true if supported
+         * 
+         * @static
+         */
+        supported: function(options) {
+            return false;
+        }
+
+    }, {
+
+        __registry: [],
+
+        /**
+         * Registers a particular flavor of a ConditionalInstance
+         * 
+         * @param {object} cls flavor class
+         * @param {int} priority priority of this class; the higher the priority the more likely it is to be instantiated
+         * 
+         * @static
+         */
+        register: function(cls, priority) {
+            this.__registry.push({
+                cls: cls,
+                priority: priority
+            });
+        },
+
+        /**
+         * Determines the best match of all registered flavors, given a set of options.
+         * 
+         * @param {object} options Set of options
+         * @return {object} flavor class being the best match
+         * 
+         * @static
+         */
+        match: function(options) {
+            options = this._initializeOptions(options);
+            var bestMatch = null;
+            Objs.iter(this.__registry, function(entry) {
+                if ((!bestMatch || bestMatch.priority < entry.priority) && entry.cls.supported(options))
+                    bestMatch = entry;
+            }, this);
+            return bestMatch;
+        },
+
+        /**
+         * Instantiates the best match.
+         * 
+         * @param {object} options Set of options
+         * @return {object} Instance of best match
+         * 
+         * @static
+         */
+        create: function(options) {
+            var match = this.match(options);
+            return match ? new match.cls(options) : null;
+        },
+
+        /**
+         * Determines whether there is any support for a given set of options.
+         * 
+         * @param {object} options Set of options
+         * @return {boolean} True if there is at least one match.
+         * 
+         * @static
+         */
+        anySupport: function(options) {
+            return this.match(options) !== null;
+        }
+
+    });
 });
 
 Scoped.define("module:Exceptions.Exception", ["module:Class","module:Comparators"], function (Class, Comparators, scoped) {
@@ -8749,6 +8904,7 @@ Scoped.define("module:Ajax.Support", ["module:Ajax.NoCandidateAjaxException","mo
                 });
             }
             options.method = options.method.toUpperCase();
+            options.methodSupportsPayload = options.method === "POST" || options.method === "PATCH" || options.method === "PUT";
             if (options.baseUri)
                 options.uri = options.uri ? options.baseUri + options.uri : options.baseUri;
             delete options.baseUri;
@@ -12198,134 +12354,6 @@ Scoped.define("module:Net.Cookies", ["module:Objs","module:Types"], function (Ob
     };
 });
 
-Scoped.define("module:Sort", ["module:Comparators","module:Types","module:Objs"], function (Comparators, Types, Objs) {
-
-    /**
-     * Sort objects and arrays.
-     * 
-     * @module BetaJS.Sort
-     */
-    return {
-
-        /**
-         * Sort keys in an object according to a comparator. 
-         * 
-         * @param {object} object object to be sorted
-         * @param {function} f comparator comparator for sorting, accepting keys first and then optionally values
-         * 
-         * @return {object} sorted object
-         */
-        sort_object: function(object, f) {
-            var a = [];
-            for (var key in object)
-                a.push({
-                    key: key,
-                    value: object[key]
-                });
-            a.sort(function(x, y) {
-                return f(x.key, y.key, x.value, y.value);
-            });
-            var o = {};
-            for (var i = 0; i < a.length; ++i)
-                o[a[i].key] = a[i].value;
-            return o;
-        },
-
-        /**
-         * Deep sorting an object according to a comparator. 
-         * 
-         * @param {object} object object to be sorted
-         * @param {function} f comparator comparator for sorting, accepting keys first and then optionally values
-         * 
-         * @return {object} sorted object
-         */
-        deep_sort: function(object, f) {
-            f = f || Comparators.byValue;
-            if (Types.is_array(object)) {
-                for (var i = 0; i < object.length; ++i)
-                    object[i] = this.deep_sort(object[i], f);
-                return object.sort(f);
-            } else if (Types.is_object(object)) {
-                for (var key in object)
-                    object[key] = this.deep_sort(object[key], f);
-                return this.sort_object(object, f);
-            } else
-                return object;
-        },
-
-        /**
-         * Sort an array of items with inter-dependency specifiers s.t. every item in the resulting array has all its dependencies come before.
-         * 
-         * @param {array} items list of items with inter-dependency specifiers
-         * @param {string|function} identifier function / key mapping an item to its unique identifier
-         * @param {string|function} before function / key mapping an item to its array of dependencies
-         * @param {string|function} after function / key mapping an item to its array of depending items
-         * 
-         * @return {array} sorted array
-         */
-        dependency_sort: function(items, identifier, before, after) {
-            var identifierf = Types.is_string(identifier) ? function(obj) {
-                return obj[identifier];
-            } : identifier;
-            var beforef = Types.is_string(before) ? function(obj) {
-                return obj[before];
-            } : before;
-            var afterf = Types.is_string(after) ? function(obj) {
-                return obj[after];
-            } : after;
-            var n = items.length;
-            var data = [];
-            var identifier_to_index = {};
-            var todo = {};
-            var i = 0;
-            for (i = 0; i < n; ++i) {
-                todo[i] = true;
-                var ident = identifierf(items[i], i);
-                identifier_to_index[ident] = i;
-                data.push({
-                    before: {},
-                    after: {}
-                });
-            }
-            var make_before_iter_func = function(i) {
-                return function(before) {
-                    var before_index = identifier_to_index[before];
-                    if (Types.is_defined(before_index)) {
-                        data[i].before[before_index] = true;
-                        data[before_index].after[i] = true;
-                    }
-                };
-            };
-            var make_after_iter_func = function(i) {
-                return function(after) {
-                    var after_index = identifier_to_index[after];
-                    if (Types.is_defined(after_index)) {
-                        data[i].after[after_index] = true;
-                        data[after_index].before[i] = true;
-                    }
-                };
-            };
-            for (i = 0; i < n; ++i) {
-                Objs.iter(beforef(items[i], i) || [], make_before_iter_func(i));
-                Objs.iter(afterf(items[i]) || [], make_after_iter_func(i));
-            }
-            var result = [];
-            while (!Types.is_empty(todo)) {
-                for (i in todo) {
-                    if (Types.is_empty(data[i].after)) {
-                        delete todo[i];
-                        result.push(items[i]);
-                        for (var bef in data[i].before)
-                            delete data[bef].after[i];
-                    }
-                }
-            }
-            return result;
-        }
-
-    };
-});
-
 Scoped.define("module:Classes.LocaleAggregator", ["module:Class","module:Classes.LocaleMixin","module:Objs"], function (Class, LocaleMixin, Objs, scoped) {
     return Class.extend({
         scoped: scoped
@@ -13127,9 +13155,15 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
             return result;
         },
 
-        elementByTemplate: function(template) {
+        elementByTemplate: function(template, encapsulate_in_div_if_needed) {
             var result = this.elementsByTemplate(template);
-            return result.length > 0 ? result[0] : null;
+            if (result.length === 1)
+                return result[0];
+            if (result.length === 0 || !encapsulate_in_div_if_needed)
+                return null;
+            var element = document.createElement("div");
+            result.forEach(element.appendChild, element);
+            return element;
         },
 
         changeTag: function(node, name) {
@@ -13169,7 +13203,7 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
         __FULLSCREEN_EVENTS: ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"],
         __FULLSCREEN_METHODS: ["requestFullscreen", "webkitRequestFullscreen", "mozRequestFullScreen", "msRequestFullscreen", "webkitEnterFullScreen"],
         __FULLSCREEN_ATTRS: ["fullscreenElement", "webkitFullscreenElement", "mozFullScreenElement", "msFullscreenElement"],
-        __FULLSCREEN_EXIT_METHODS: ["exitFullscreen", "mozCancelFullScreen", "webkitExitFullscreen"],
+        __FULLSCREEN_EXIT_METHODS: ["exitFullscreen", "mozCancelFullScreen", "webkitExitFullscreen", "msExitFullscreen"],
 
         elementSupportsFullscreen: function(element) {
             return element && this.__FULLSCREEN_METHODS.some(function(key) {
@@ -15177,7 +15211,7 @@ Scoped.define("module:Ajax.XmlHttpRequestAjax", ["base:Ajax.Support","base:Net.U
 
         execute: function(options, progress, progressCtx) {
             var uri = Uri.appendUriParams(options.uri, options.query || {});
-            if (options.method === "GET")
+            if (!options.methodSupportsPayload)
                 uri = Uri.appendUriParams(uri, options.data || {});
             var promise = Promise.create();
 
@@ -15209,7 +15243,7 @@ Scoped.define("module:Ajax.XmlHttpRequestAjax", ["base:Ajax.Support","base:Net.U
             if (options.bearer)
                 xmlhttp.setRequestHeader('Authorization', 'Bearer ' + options.bearer);
 
-            if (options.method !== "GET" && !Types.is_empty(options.data)) {
+            if (options.methodSupportsPayload && !Types.is_empty(options.data)) {
                 if (options.requireFormData) {
                     var formData = new(window.FormData)();
                     Objs.iter(options.data, function(value, key) {
@@ -15772,8 +15806,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.102",
-    "datetime": 1545543944545
+    "version": "0.0.109",
+    "datetime": 1549326183479
 };
 });
 
@@ -17957,29 +17991,33 @@ Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:Player.VideoPlay
                 return this._element.buffered.end(0);
             },
 
-            _fullscreenElement: function() {
+            // Element argument or this._element.parent* has to be top layer (https://fullscreen.spec.whatwg.org/#top-layer)
+            // The z-index property has no effect in the top layer.
+            _fullscreenElement: function(element) {
                 //fullscreen issue was present on Chromium based browsers. Could recreate on Iron and Chrome.
                 if (Info.isChromiumBased() && !Info.isMobile()) {
-                    return this._element.parentNode;
+                    return element || this._element.parentNode;
                 }
 
-                return Info.isFirefox() ? this._element.parentElement : this._element;
+                return Info.isFirefox() ?
+                    element || this._element.parentElement :
+                    element || this._element;
             },
 
-            supportsFullscreen: function() {
-                return Dom.elementSupportsFullscreen(this._fullscreenElement());
+            supportsFullscreen: function(element) {
+                return Dom.elementSupportsFullscreen(this._fullscreenElement(element));
             },
 
-            enterFullscreen: function() {
-                Dom.elementEnterFullscreen(this._fullscreenElement());
+            enterFullscreen: function(element) {
+                Dom.elementEnterFullscreen(this._fullscreenElement(element));
             },
 
             exitFullscreen: function() {
                 Dom.documentExitFullscreen();
             },
 
-            isFullscreen: function() {
-                return Dom.elementIsFullscreen(this._fullscreenElement());
+            isFullscreen: function(element) {
+                return Dom.elementIsFullscreen(this._fullscreenElement(element));
             },
 
             videoWidth: function() {
@@ -20268,18 +20306,27 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                     videoCount: 0
                 };
                 Objs.iter(sources, function(source) {
+                    // Capabilities method which will show more detailed information about device
+                    // https://www.chromestatus.com/feature/5145556682801152 - Status of the feature
+                    var _sourceCapabilities;
                     if (source.kind.indexOf("video") === 0) {
                         result.videoCount++;
+                        if (typeof source.getCapabilities !== 'undefined')
+                            _sourceCapabilities = source.getCapabilities();
                         result.video[source.id || source.deviceId] = {
                             id: source.id || source.deviceId,
-                            label: source.label
+                            label: source.label,
+                            capabilities: _sourceCapabilities
                         };
                     }
                     if (source.kind.indexOf("audio") === 0) {
                         result.audioCount++;
+                        if (typeof source.getCapabilities !== 'undefined')
+                            _sourceCapabilities = source.getCapabilities();
                         result.audio[source.id || source.deviceId] = {
                             id: source.id || source.deviceId,
-                            label: source.label
+                            label: source.label,
+                            capabilities: _sourceCapabilities
                         };
                     }
                 });
@@ -20381,7 +20428,9 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                 if (options.video.frameRate)
                     opts.video.frameRate = options.video.frameRate;
                 if (options.video.cameraFaceFront !== undefined)
-                    opts.video.facingMode = options.video.cameraFaceFront ? "front" : "environment";
+                    opts.video.facingMode = {
+                        exact: options.video.cameraFaceFront ? "user" : "environment"
+                    };
                 return this.userMedia(opts);
             } else if (Info.isFirefox()) {
                 opts.video = {};
@@ -20414,7 +20463,9 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                 if (options.video.sourceId)
                     opts.video.sourceId = options.video.sourceId;
                 if (options.video.cameraFaceFront !== undefined && Info.isMobile())
-                    opts.video.facingMode = options.video.cameraFaceFront ? "front" : "environment";
+                    opts.video.facingMode = {
+                        exact: options.video.cameraFaceFront ? "user" : "environment"
+                    };
                 return this.userMedia(opts);
             } else if (Info.isEdge() && options.screen) {
                 if (navigator.getDisplayMedia) {
@@ -20447,7 +20498,12 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                 if (options.video.sourceId)
                     opts.video.mandatory.sourceId = options.video.sourceId;
                 if (options.video.cameraFaceFront !== undefined && Info.isMobile())
-                    opts.video.mandatory.facingMode = options.video.cameraFaceFront ? "front" : "environment";
+                    // The { exact: } syntax means the constraint is required, and things fail if the user doesn't have the right camera.
+                    // If you leave it out then the constraint is optional, which in Firefox for Android means it only changes the default
+                    // in the camera chooser in the permission prompt.
+                    opts.video.mandatory.facingMode = {
+                        exact: options.video.cameraFaceFront ? "user" : "environment"
+                    };
                 if (options.video.frameRate) {
                     opts.video.mandatory.minFrameRate = options.video.frameRate;
                     opts.video.mandatory.maxFrameRate = options.video.frameRate;
@@ -20585,6 +20641,130 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
             return blob;
         }
 
+    };
+});
+
+Scoped.define("module:Recorder.Support", ["module:WebRTC.Support","browser:Upload.FileUploader","browser:Upload.CustomUploader","browser:Dom","base:Objs"], function (Support, FileUploader, CustomUploader, Dom, Objs) {
+    return {
+
+        /**
+         *
+         * @param {string} type
+         * @param {HTMLVideoElement} video
+         * @param {int|undefined} h
+         * @param {int|undefined} w
+         * @param {int|undefined} x
+         * @param {int|undefined} y
+         * @param {int|undefined} quality
+         * @return {Data URL}
+         */
+        createSnapshot: function(type, video, h, w, x, y, quality) {
+            return Support.dataURItoBlob(this._createSnapshot(type, video));
+        },
+
+        /**
+         *
+         * @param {string} type
+         * @param {HTMLVideoElement} video
+         * @param {int|undefined} h
+         * @param {int|undefined} w
+         * @param {int|undefined} x
+         * @param {int|undefined} y
+         * @param {int|undefined} quality
+         * @return {Data URL}
+         */
+        _createSnapshot: function(type, video, h, w, x, y, quality) {
+            x = x || 0;
+            y = y || 0;
+            quality = quality || 1.0;
+            var canvas = document.createElement('canvas');
+            canvas.width = w || (video.videoWidth || video.clientWidth);
+            canvas.height = h || (video.videoHeight || video.clientHeight);
+            var context = canvas.getContext('2d');
+            context.drawImage(video, x, y, canvas.width, canvas.height);
+            var data = canvas.toDataURL(type, quality);
+            return data;
+        },
+
+        removeSnapshot: function(snapshot) {},
+
+        /**
+         *
+         * @param {HTMLImageElement} image
+         */
+        removeSnapshotDisplay: function(image) {
+            image.remove();
+        },
+
+        /**
+         *
+         * @param {HTMLElement} parent
+         * @param {Data URL} snapshot
+         * @param {int} x
+         * @param {int} y
+         * @param {int} w
+         * @param {int} h
+         * @return {HTMLImageElement}
+         */
+        createSnapshotDisplay: function(parent, snapshot, x, y, w, h) {
+            var url = Support.globals().URL.createObjectURL(snapshot);
+            var image = document.createElement("img");
+            image.style.position = "absolute";
+            this.updateSnapshotDisplay(snapshot, image, x, y, w, h);
+            image.src = url;
+            if (parent.tagName.toLowerCase() === "video")
+                Dom.elementInsertAfter(image, parent);
+            else
+                Dom.elementPrependChild(parent, image);
+            return image;
+        },
+
+        /**
+         * @param {Data URL} snapshot
+         * @param {HTMLImageElement} image
+         * @param {int} x
+         * @param {int} y
+         * @param {int} w
+         * @param {int} h
+         * @private
+         * @return {void}
+         */
+        updateSnapshotDisplay: function(snapshot, image, x, y, w, h) {
+            image.style.left = x + "px";
+            image.style.top = y + "px";
+            image.style.width = w + "px";
+            image.style.height = h + "px";
+        },
+
+        /**
+         * @param {Data URL} snapshot
+         * @param {string} type
+         * @param {Object} uploaderOptions
+         * @return {*}
+         */
+        createSnapshotUploader: function(isFlash, snapshot, type, uploaderOptions) {
+            if (isFlash) {
+                var uploader = new CustomUploader(Objs.extend({
+                    source: snapshot,
+                    type: type,
+                    recorder: this._recorder
+                }, uploaderOptions));
+                uploader.on("upload", function(options) {
+                    options.recorder.postSnapshot(
+                            options.source,
+                            options.url,
+                            options.type
+                        )
+                        .success(uploader.successCallback, uploader)
+                        .error(uploader.errorCallback, uploader);
+                });
+                return uploader;
+            } else {
+                return FileUploader.create(Objs.extend({
+                    source: snapshot
+                }, uploaderOptions));
+            }
+        }
     };
 });
 
@@ -21125,7 +21305,7 @@ Scoped.define("module:WebRTC.PeerRecorder", ["base:Class","base:Events.EventsMix
     });
 });
 
-Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","module:WebRTC.Support","base:Time","module:Recorder.PixelSampleMixin"], function (ConditionalInstance, EventsMixin, Objs, Support, Time, PixelSampleMixin, scoped) {
+Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","module:WebRTC.Support","module:Recorder.Support","base:Time","module:Recorder.PixelSampleMixin"], function (ConditionalInstance, EventsMixin, Objs, Support, RecorderSupport, Time, PixelSampleMixin, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, PixelSampleMixin, function(inherited) {
@@ -21181,6 +21361,20 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                     this._stream = stream;
                     Support.bindStreamToVideo(stream, this._video, this._flip);
                     this.trigger("bound", stream);
+                    if (typeof stream.getVideoTracks() !== 'undefined') {
+                        if (stream.getVideoTracks()[0]) {
+                            this._videoTrack = stream.getVideoTracks()[0];
+                            if (typeof this._videoTrack.getSettings() !== 'undefined')
+                                this._videoTrackSettings = this._videoTrack.getSettings();
+                        }
+                    }
+                    if (typeof stream.getAudioTracks() !== 'undefined') {
+                        if (stream.getAudioTracks()[0]) {
+                            this._audioTrack = stream.getAudioTracks()[0];
+                            if (typeof this._audioTrack.getSettings() !== 'undefined')
+                                this._audioTrackSettings = this._audioTrack.getSettings();
+                        }
+                    }
                     this._boundMedia();
                 }, this);
             },
@@ -21242,17 +21436,7 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
             },
 
             createSnapshot: function(type) {
-                return Support.dataURItoBlob(this._createSnapshot(type));
-            },
-
-            _createSnapshot: function(type) {
-                var canvas = document.createElement('canvas');
-                canvas.width = this._video.videoWidth || this._video.clientWidth;
-                canvas.height = this._video.videoHeight || this._video.clientHeight;
-                var context = canvas.getContext('2d');
-                context.drawImage(this._video, 0, 0, canvas.width, canvas.height);
-                var data = canvas.toDataURL(type);
-                return data;
+                return RecorderSupport.createSnapshot(type, this._video);
             },
 
             _pixelSample: function(samples, callback, context) {
@@ -21636,7 +21820,7 @@ Scoped.extend("module:ImageRecorder.ImageRecorderWrapper", ["module:ImageRecorde
     return {};
 });
 
-Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:WebRTC.RecorderWrapper","module:WebRTC.Support","module:WebRTC.AudioAnalyser","browser:Dom","browser:Info","base:Time","base:Objs","browser:Upload.FileUploader","browser:Upload.MultiUploader","base:Promise"], function (VideoRecorderWrapper, RecorderWrapper, Support, AudioAnalyser, Dom, Info, Time, Objs, FileUploader, MultiUploader, Promise, scoped) {
+Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:WebRTC.RecorderWrapper","module:WebRTC.Support","module:WebRTC.AudioAnalyser","browser:Dom","browser:Info","base:Time","base:Objs","base:Timers.Timer","base:Comparators","browser:Upload.FileUploader","browser:Upload.MultiUploader","base:Promise"], function (VideoRecorderWrapper, RecorderWrapper, Support, AudioAnalyser, Dom, Info, Time, Objs, Timer, Comparators, FileUploader, MultiUploader, Promise, scoped) {
     return VideoRecorderWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -21739,12 +21923,33 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
                 };
             },
 
+            /**
+             * Promise which will return available devices with their counts also will set
+             * current video and audio devices for the recorder
+             * @return {*}
+             */
             enumerateDevices: function() {
                 return Support.enumerateMediaSources().success(function(result) {
-                    if (!this._currentVideo)
-                        this._currentVideo = Objs.ithKey(result.video);
-                    if (!this._currentAudio)
-                        this._currentAudio = Objs.ithKey(result.audio);
+
+                    this._detectCurrendDeviceId(result.video, result.videoCount, true);
+                    this._detectCurrendDeviceId(result.audio, result.audioCount, false);
+
+                    var timer = this.auto_destroy(new Timer({
+                        start: true,
+                        delay: 100,
+                        context: this,
+                        destroy_on_stop: true,
+                        fire: function() {
+                            if (this._currentVideo && this._currentAudio) {
+                                this.trigger("currentdevicesdetected", {
+                                    video: this._currentVideo,
+                                    audio: this._currentAudio
+                                });
+                                timer.stop();
+                            }
+                        }
+                    }));
+
                 }, this);
             },
 
@@ -21868,8 +22073,74 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
                         return true;
                     return Promise.error(err);
                 });
-            }
+            },
 
+            /**
+             * Reason why set this._currentVideo & _currentAudio based on return value is that Firefox returns 'undefined'
+             * before waiting Objs.iter methods callback
+             * @param devices
+             * @param devicesCount
+             * @param isVideo
+             * @return {*}
+             * @private
+             */
+            _detectCurrendDeviceId: function(devices, devicesCount, isVideo) {
+                var _currentDeviceTrack, _currentDeviceSettings, _counter;
+                if (isVideo) {
+                    _currentDeviceTrack = this._recorder._videoTrack;
+                    _currentDeviceSettings = this._recorder._videoTrackSettings;
+                } else {
+                    _currentDeviceTrack = this._recorder._audioTrack;
+                    _currentDeviceSettings = this._recorder._audioTrackSettings;
+                }
+
+                // First will check if browser could provide device ID via device settings
+                if (_currentDeviceSettings && _currentDeviceTrack) {
+                    if (_currentDeviceSettings.deviceId) {
+                        if (isVideo)
+                            this._currentVideo = devices[_currentDeviceSettings.deviceId].id;
+                        else
+                            this._currentAudio = devices[_currentDeviceSettings.deviceId].id;
+                        return devices[_currentDeviceSettings.deviceId].id;
+                    }
+                    // If browser can provide label of the current device will compare based on label
+                    else if (_currentDeviceTrack.label) {
+                        _counter = 1;
+                        Objs.iter(devices, function(device, index) {
+                            // If determine label will return device ID
+                            if (Comparators.byValue(device.label, _currentDeviceTrack.label) === 0) {
+                                if (isVideo)
+                                    this._currentVideo = index;
+                                else
+                                    this._currentAudio = index;
+                                return index;
+                            }
+
+                            if (_counter >= devicesCount) {
+                                if (isVideo)
+                                    this._currentVideo = Objs.ithKey(devices);
+                                else
+                                    this._currentAudio = Objs.ithKey(devices);
+                                return Objs.ithKey(devices);
+                            }
+
+                            _counter++;
+                        }, this);
+                    } else {
+                        if (isVideo)
+                            this._currentVideo = Objs.ithKey(devices);
+                        else
+                            this._currentAudio = Objs.ithKey(devices);
+                        return Objs.ithKey(devices);
+                    }
+                } else {
+                    if (isVideo)
+                        this._currentVideo = Objs.ithKey(devices);
+                    else
+                        this._currentAudio = Objs.ithKey(devices);
+                    return Objs.ithKey(devices);
+                }
+            }
         };
     }, {
 
@@ -22395,10 +22666,10 @@ Scoped.define("module:Data.ScopeManager", ["base:Class","base:Trees.TreeNavigato
     }]);
 });
 
-Scoped.define("module:Data.AbstractMultiScope", ["base:Class","base:Events.EventsMixin","base:Events.ListenMixin"], function (Class, EventsMixin, ListenMixin, scoped) {
+Scoped.define("module:Data.AbstractMultiScope", ["base:Class","base:Events.EventsMixin","base:Events.ListenMixin","base:Properties.ObservableMixin"], function (Class, EventsMixin, ListenMixin, ObservableMixin, scoped) {
     return Class.extend({
         scoped: scoped
-    }, [EventsMixin, ListenMixin, function(inherited) {
+    }, [EventsMixin, ListenMixin, ObservableMixin, function(inherited) {
         return {
 
             constructor: function() {
@@ -22425,6 +22696,14 @@ Scoped.define("module:Data.AbstractMultiScope", ["base:Class","base:Events.Event
             get: function(key) {
                 var iter = this.iterator();
                 return iter.hasNext() ? iter.next().get(key) : null;
+            },
+
+            hasKey: function(key) {
+                var iter = this.iterator();
+                while (iter.hasNext())
+                    if (iter.next().hasKey(key))
+                        return true;
+                return false;
             },
 
             setProp: function(key, value) {
@@ -22585,12 +22864,16 @@ Scoped.define("module:Data.Friendgroup", ["base:Class","base:Types","base:Objs",
             registerScope: function(scope, identifier) {
                 this._registeredScopes[identifier] = this._registeredScopes[identifier] || {};
                 this._registeredScopes[identifier][scope.cid()] = scope;
+                if (this._watchScopes[identifier])
+                    this._watchScopes[identifier].addScope(scope);
             },
 
             unregisterScope: function(scope, identifier) {
                 delete this._registeredScopes[identifier][scope.cid()];
                 if (Types.is_empty(this._registeredScopes[identifier]))
                     delete this._registeredScopes[identifier];
+                if (this._watchScopes[identifier])
+                    this._watchScopes[identifier].removeScope(scope);
             },
 
             watchScope: function(reference, identifier) {
@@ -22622,10 +22905,10 @@ Scoped.define("module:Data.Friendgroup", ["base:Class","base:Types","base:Objs",
     });
 });
 
-Scoped.define("module:Data.Scope", ["base:Class","base:Events.EventsMixin","base:Events.ListenMixin","base:Classes.ObjectIdMixin","base:Functions","base:Types","base:Strings","base:Objs","base:Ids","base:Properties.Properties","base:Collections.Collection","base:Events.Events","module:Data.ScopeManager","module:Data.MultiScope","module:Data.Friendgroup"], function (Class, EventsMixin, ListenMixin, ObjectIdMixin, Functions, Types, Strings, Objs, Ids, Properties, Collection, Events, ScopeManager, MultiScope, Friendgroup, scoped) {
+Scoped.define("module:Data.Scope", ["base:Class","base:Events.EventsMixin","base:Events.ListenMixin","base:Classes.ObjectIdMixin","base:Functions","base:Types","base:Strings","base:Objs","base:Ids","base:Properties.Properties","base:Collections.Collection","base:Events.Events","base:Properties.ObservableMixin","module:Data.ScopeManager","module:Data.MultiScope","module:Data.AbstractMultiScope","module:Data.Friendgroup"], function (Class, EventsMixin, ListenMixin, ObjectIdMixin, Functions, Types, Strings, Objs, Ids, Properties, Collection, Events, ObservableMixin, ScopeManager, MultiScope, AbstractMultiScope, Friendgroup, scoped) {
     return Class.extend({
         scoped: scoped
-    }, [EventsMixin, ListenMixin, ObjectIdMixin, function(inherited) {
+    }, [EventsMixin, ListenMixin, ObjectIdMixin, ObservableMixin, function(inherited) {
         return {
 
             constructor: function(options) {
@@ -22775,6 +23058,10 @@ Scoped.define("module:Data.Scope", ["base:Class","base:Events.EventsMixin","base
                 return this;
             },
 
+            hasKey: function(key) {
+                return this.__properties.hasKey(key);
+            },
+
             get: function(key) {
                 return this.__properties.get(key);
             },
@@ -22872,7 +23159,7 @@ Scoped.define("module:Data.Scope", ["base:Class","base:Events.EventsMixin","base
             },
 
             bind: function(scope, key, options) {
-                if (scope.instance_of(MultiScope)) {
+                if (scope.instance_of(AbstractMultiScope)) {
                     var iter = scope.iterator();
                     while (iter.hasNext())
                         this.properties().bind(key, iter.next().properties(), options);
@@ -22975,12 +23262,16 @@ Scoped.define("module:Parser", ["base:Types","base:Objs","base:JavaScript"], fun
             if (!result) {
                 var bidirectional = false;
                 var html = false;
+                var noentities = false;
                 var c = code;
                 if (c.charAt(0) == "=") {
                     bidirectional = true;
                     c = c.substring(1);
                 } else if (c.charAt(0) == "-") {
                     html = true;
+                    c = c.substring(1);
+                } else if (c.charAt(0) == "*") {
+                    noentities = true;
                     c = c.substring(1);
                 }
                 var i = c.lastIndexOf("::");
@@ -22992,6 +23283,7 @@ Scoped.define("module:Parser", ["base:Types","base:Objs","base:JavaScript"], fun
                 result = {
                     bidirectional: bidirectional,
                     html: html,
+                    noentities: noentities,
                     args: args,
                     variable: bidirectional ? c : null,
                     func: this.compileFunction(c),
@@ -23484,7 +23776,7 @@ Scoped.define("module:Handlers.Attr", ["base:Class","module:Exceptions.TagHandle
                     this._attrValue = value;
 
                     if (!this._partial || !this._partial.cls.meta.value_hidden) {
-                        var result = Dom.entitiesToUnicode(value);
+                        var result = this._dyn.noentities ? value : Dom.entitiesToUnicode(value);
 
 
                         /*
@@ -23801,14 +24093,15 @@ Scoped.define("module:Handlers.Node", ["base:Class","base:Events.EventsMixin","b
                     this._dyn.value = value;
                     var htmlElement = null;
                     if (this._dyn.html) {
-                        htmlElement = Dom.elementByTemplate(value);
+                        htmlElement = Dom.elementByTemplate(value, true);
                         if (htmlElement) {
                             (this._htmlElement || this._element).replaceWith(htmlElement);
                             this._htmlElement = htmlElement;
                         }
                     }
                     if (!htmlElement) {
-                        var converted = Dom.entitiesToUnicode(value === null ? "" : value);
+                        value = value === null ? "" : value;
+                        var converted = this._dyn.noentities ? value : Dom.entitiesToUnicode(value);
                         if ("textContent" in this._element)
                             this._element.textContent = converted;
                         if ("innerText" in this._element)
@@ -25309,8 +25602,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.145",
-    "datetime": 1545594471338
+    "version": "0.0.152",
+    "datetime": 1549139833866
 };
 });
 
@@ -29856,7 +30149,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             this.player.setMuted(volume <= 0.0);
                             if (this.get("totalduration") || this.player.duration() < Infinity)
                                 this.set("duration", this.get("totalduration") || this.player.duration());
-                            this.set("fullscreensupport", this.player.supportsFullscreen());
+                            this.set("fullscreensupport", this.player.supportsFullscreen(this.activeElement().childNodes[0]));
                             this._updateStretch();
                             if (this.get("initialseek"))
                                 this.player.setPosition(this.get("initialseek"));
@@ -30184,7 +30477,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         if (this.get("fullscreened"))
                             this.player.exitFullscreen();
                         else
-                            this.player.enterFullscreen();
+                            this.player.enterFullscreen(this.activeElement().childNodes[0]);
                         this.set("fullscreened", !this.get("fullscreened"));
                     },
 
@@ -30336,7 +30629,14 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                 this.set("duration", this.player.duration());
                             else
                                 this.set("duration", this.get("totalduration") || new_position);
-                            this.set("fullscreened", this.player.isFullscreen());
+                            this.set("fullscreened", this.player.isFullscreen(this.activeElement().childNodes[0]));
+                            // If settings pop-up is open hide it together with control-bar if hideOnInactivity is true
+                            if (
+                                this.settings && this.get('hideoninactivity') &&
+                                (this.get('activity_delta') > this.get('hidebarafter'))
+                            ) {
+                                this.settings.hide_settings();
+                            }
                         }
                     } catch (e) {}
                     try {
@@ -30616,24 +30916,26 @@ Scoped.define("module:VideoRecorder.Dynamics.Chooser", ["dynamics:Dynamic","modu
         });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","base:Timers.Timer"], ["dynamics:Partials.ShowPartial","dynamics:Partials.RepeatPartial"], function (Class, Assets, Timer, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","base:Timers.Timer","browser:Info"], ["dynamics:Partials.ShowPartial","dynamics:Partials.RepeatPartial"], function (Class, Assets, Timer, Info, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
             return {
 
-                template: "<div class=\"{{css}}-dashboard\">\n\t<div class=\"{{css}}-backbar\"></div>\n\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings\" ba-show=\"{{settingsvisible && settingsopen}}\">\n\t\t<div class=\"{{css}}-settings-backbar\"></div>\n\t\t<div data-selector=\"settings-list-front\" class=\"{{css}}-settings-front\">\n\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t<li>\n\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t   type='radio' name='camera' value=\"{{selectedcamera == camera.id}}\" onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t/>\n\t\t\t\t\t<span></span>\n\t\t\t\t\t<label tabindex=\"0\"\n\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t</label>\n\t\t\t\t </li>\n\t\t\t</ul>\n\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t>\n\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t<span></span>\n\t\t\t\t\t<label>\n\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t</label>\n\t\t\t\t </li>\n\t\t\t</ul>\n\t\t</div>\n\t</div>\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n        <div class=\"{{css}}-leftbutton-container\" ba-show=\"{{settingsvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"record-button-icon-cog\" class=\"{{css}}-button-inner {{css}}-button-{{settingsopen ? 'selected' : 'unselected'}}\"\n                 onclick=\"{{settingsopen=!settingsopen}}\"\n                 onmouseenter=\"{{hover(string('settings'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{css}}-lefticon-container\" ba-show=\"{{settingsvisible && !novideo && !allowscreen}}\">\n            <div data-selector=\"record-button-icon-videocam\" class=\"{{csscommon}}-icon-inner\"\n                 onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                <i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{camerahealthy ? 'good' : 'bad' }}\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{css}}-lefticon-container\" ba-show=\"{{settingsvisible && !noaudio && !allowscreen}}\">\n            <div data-selector=\"record-button-icon-mic\" class=\"{{csscommon}}-icon-inner\"\n                 onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                <i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{css}}-lefticon-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n            <div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\">\n            </div>\n        </div>\n\n        <div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel}}\">\n        \t<div data-selector=\"record-label-block\" class=\"{{css}}-label-label\">\n        \t\t{{controlbarlabel}}\n        \t</div>\n        </div>\n\n        <div class=\"{{css}}-rightbutton-container\" ba-show=\"{{recordvisible}}\">\n        \t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{record()}}\"\n                 onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n        \t\t{{string('record')}}\n        \t</div>\n        </div>\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n        \t<div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                 <input type=\"file\"\n\t\t\t\t       class=\"{{css}}-chooser-file\"\n\t\t\t\t       style=\"height:100\"\n\t\t\t\t       onchange=\"{{uploadCovershot(domEvent)}}\"\n\t\t\t\t       accept=\"{{covershot_accept_string}}\"\n\t\t\t\t />\n                 <span>\n        \t\t\t{{string('upload-covershot')}}\n        \t\t</span>\n        \t</div>\n        </div>\n\n        <div class=\"{{css}}-rightbutton-container\" ba-show=\"{{rerecordvisible}}\">\n        \t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{rerecord()}}\"\n                 onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n        \t\t{{string('rerecord')}}\n        \t</div>\n        </div>\n\n\t\t<div class=\"{{css}}-rightbutton-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"cancel-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n\t\t\t\t{{string('cancel')}}\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-rightbutton-container\" ba-show=\"{{stopvisible}}\">\n        \t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"stop-primary-button\" class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n                 onclick=\"{{stop()}}\"\n                 onmouseenter=\"{{hover( mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n        \t\t{{string('stop')}}\n        \t</div>\n        </div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n        \t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\"  onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n        \t\t{{string('skip')}}\n        \t</div>\n        </div>\n\t</div>\n</div>\n",
+                template: "<div class=\"{{css}}-dashboard\">\n\t<div class=\"{{css}}-backbar\"></div>\n\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings\" ba-show=\"{{settingsvisible && settingsopen}}\">\n\t\t<div class=\"{{css}}-settings-backbar\"></div>\n\t\t<div data-selector=\"settings-list-front\" class=\"{{css}}-settings-front\">\n\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\" ba-show=\"{{!novideo && !allowscreen && !ismobile}}\">\n\t\t\t\t<li>\n\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t   type='radio' name='camera' value=\"{{selectedcamera == camera.id}}\"\n\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t/>\n\t\t\t\t\t<span></span>\n\t\t\t\t\t<label tabindex=\"0\"\n\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t</label>\n\t\t\t\t </li>\n\t\t\t</ul>\n\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t>\n\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t<span></span>\n\t\t\t\t\t<label>\n\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t</label>\n\t\t\t\t </li>\n\t\t\t</ul>\n\t\t</div>\n\t</div>\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-leftbutton-container\" ba-show=\"{{settingsvisible && ismobile}}\">\n\t\t\t<div data-selector=\"face-mode-toggle-icon\" class=\"{{css}}-mobile-camera-switcher {{css}}-button-inner\"\n\t\t\t\t onclick=\"{{toggleFaceMode()}}\"\n\t\t\t\t onmouseenter=\"{{hover(string('switch-camera'))}}\"\n\t\t\t>\n\t\t\t\t<i class=\"{{csscommon}}-icon-arrows-cw\"></i>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-leftbutton-container\" ba-show=\"{{settingsvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"record-button-icon-cog\" class=\"{{css}}-button-inner {{css}}-button-{{settingsopen ? 'selected' : 'unselected'}}\"\n                 onclick=\"{{settingsopen=!settingsopen}}\"\n                 onmouseenter=\"{{hover(string('settings'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{css}}-lefticon-container\" ba-show=\"{{settingsvisible && !novideo && !allowscreen}}\">\n            <div data-selector=\"record-button-icon-videocam\" class=\"{{csscommon}}-icon-inner\"\n                 onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                <i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{camerahealthy ? 'good' : 'bad' }}\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{css}}-lefticon-container\" ba-show=\"{{settingsvisible && !noaudio && !allowscreen}}\">\n            <div data-selector=\"record-button-icon-mic\" class=\"{{csscommon}}-icon-inner\"\n                 onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                <i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{css}}-lefticon-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n            <div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\">\n            </div>\n        </div>\n\n        <div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel}}\">\n        \t<div data-selector=\"record-label-block\" class=\"{{css}}-label-label\">\n        \t\t{{controlbarlabel}}\n        \t</div>\n        </div>\n\n        <div class=\"{{css}}-rightbutton-container\" ba-show=\"{{recordvisible}}\">\n        \t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{record()}}\"\n                 onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n        \t\t{{string('record')}}\n        \t</div>\n        </div>\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n        \t<div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                 <input type=\"file\"\n\t\t\t\t       class=\"{{css}}-chooser-file\"\n\t\t\t\t       style=\"height:100\"\n\t\t\t\t       onchange=\"{{uploadCovershot(domEvent)}}\"\n\t\t\t\t       accept=\"{{covershot_accept_string}}\"\n\t\t\t\t />\n                 <span>\n        \t\t\t{{string('upload-covershot')}}\n        \t\t</span>\n        \t</div>\n        </div>\n\n        <div class=\"{{css}}-rightbutton-container\" ba-show=\"{{rerecordvisible}}\">\n        \t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{rerecord()}}\"\n                 onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n        \t\t{{string('rerecord')}}\n        \t</div>\n        </div>\n\n\t\t<div class=\"{{css}}-rightbutton-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"cancel-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n\t\t\t\t{{string('cancel')}}\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-rightbutton-container\" ba-show=\"{{stopvisible}}\">\n        \t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"stop-primary-button\" class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n                 onclick=\"{{stop()}}\"\n                 onmouseenter=\"{{hover( mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n        \t\t{{string('stop')}}\n        \t</div>\n        </div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n        \t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\"  onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n        \t\t{{string('skip')}}\n        \t</div>\n        </div>\n\t</div>\n</div>\n",
 
                 attrs: {
                     "css": "ba-videorecorder",
                     "csscommon": "ba-commoncss",
                     "cssrecorder": "ba-recorder",
                     "hovermessage": "",
+                    "ismobile": false,
                     "recordingindication": true,
                     "covershot_accept_string": "image/*,image/png,image/jpg,image/jpeg"
                 },
 
                 create: function() {
+                    this.set("ismobile", Info.isMobile());
                     this.auto_destroy(new Timer({
                         context: this,
                         fire: function() {
@@ -30649,6 +30951,9 @@ Scoped.define("module:VideoRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","m
                     },
                     selectMicrophone: function(microphoneId) {
                         this.trigger("select-microphone", microphoneId);
+                    },
+                    toggleFaceMode: function() {
+                        this.trigger("toggle-face-mode");
                     },
                     hover: function(text) {
                         this.set("hovermessage", text);
@@ -30680,7 +30985,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","m
         })
         .register("ba-videorecorder-controlbar")
         .registerFunctions({
-            /**/"css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "settingsvisible && !novideo && !allowscreen": function (obj) { with (obj) { return settingsvisible && !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "settingsvisible && !noaudio && !allowscreen": function (obj) { with (obj) { return settingsvisible && !noaudio && !allowscreen; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover( mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover( mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }/**/
+            /**/"css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "!novideo && !allowscreen && !ismobile": function (obj) { with (obj) { return !novideo && !allowscreen && !ismobile; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "settingsvisible && ismobile": function (obj) { with (obj) { return settingsvisible && ismobile; } }, "toggleFaceMode()": function (obj) { with (obj) { return toggleFaceMode(); } }, "hover(string('switch-camera'))": function (obj) { with (obj) { return hover(string('switch-camera')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "settingsvisible && !novideo && !allowscreen": function (obj) { with (obj) { return settingsvisible && !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "settingsvisible && !noaudio && !allowscreen": function (obj) { with (obj) { return settingsvisible && !noaudio && !allowscreen; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover( mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover( mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }/**/
         })
         .attachStringTable(Assets.strings)
         .addStrings({
@@ -31793,7 +32098,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
         }, function(inherited) {
             return {
 
-                template: "\n<div data-selector=\"video-recorder-container\" ba-show=\"{{!player_active}}\"\n     class=\"{{css}}-container {{csstheme}} {{css}}-size-{{csssize}}\n     {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{css}}-{{ fullscreened ? 'fullscreen' : 'normal' }}-view\n     {{cssrecorder}}-{{ firefox ? 'firefox' : 'common'}}-browser\n     {{cssrecorder}}-{{themecolor}}-color\"\n     ba-styles=\"{{widthHeightStyles}}\"\n>\n\n    <video tabindex=\"-1\" data-selector=\"recorder-status\" class=\"{{css}}-video {{css}}-{{hasrecorder ? 'hasrecorder' : 'norecorder'}}\" data-video=\"video\" playsinline></video>\n\t<ba-videorecorder-faceoutline class=\"{{css}}-overlay\" ba-if=\"{{faceoutline && hasrecorder}}\">\n\t</ba-videorecorder-faceoutline>\n    <div data-selector=\"recorder-overlay\" class='{{cssrecorder}}-overlay' ba-show=\"{{!hideoverlay}}\" data-overlay=\"overlay\">\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t    ba-tooltip=\"{{loadertooltip}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-label=\"{{loaderlabel}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t\tba-links=\"{{message_links}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t\tba-event:link=\"message_link_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dyntopmessage}}\n\t\t    ba-css=\"{{csstopmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmpltopmessage}}\"\n\t\t    ba-show=\"{{topmessage_active && (topmessage || hovermessage)}}\"\n\t\t    ba-topmessage=\"{{hovermessage || topmessage}}\"\n\t\t></ba-{{dyntopmessage}}>\n\n\t\t<ba-{{dynchooser}}\n\t\t\tba-onlyaudio=\"{{onlyaudio}}\"\n\t\t\tba-facecamera=\"{{facecamera}}\"\n\t\t\tba-recordviafilecapture=\"{{recordviafilecapture}}\"\n\t\t    ba-css=\"{{csschooser || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplchooser}}\"\n\t\t\tba-allowscreen=\"{{allowscreen}}\"\n\t\t    ba-if=\"{{chooser_active && !is_initial_state}}\"\n\t\t    ba-allowrecord=\"{{allowrecord}}\"\n\t\t    ba-allowupload=\"{{allowupload}}\"\n\t\t    ba-allowcustomupload=\"{{allowcustomupload}}\"\n\t\t    ba-allowedextensions=\"{{allowedextensions}}\"\n\t\t    ba-primaryrecord=\"{{primaryrecord}}\"\n\t\t    ba-timelimit=\"{{timelimit}}\"\n\t\t    ba-event:record=\"record_video\"\n\t\t\tba-event:record-screen=\"record_screen\"\n\t\t    ba-event:upload=\"video_file_selected\"\n\t\t></ba-{{dynchooser}}>\n\n\t\t<ba-{{dynimagegallery}}\n\t\t    ba-css=\"{{cssimagegallery || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplimagegallery}}\"\n\t\t    ba-if=\"{{imagegallery_active}}\"\n\t\t    ba-imagecount=\"{{gallerysnapshots}}\"\n\t\t    ba-imagenativewidth=\"{{nativeRecordingWidth}}\"\n\t\t    ba-imagenativeheight=\"{{nativeRecordingHeight}}\"\n\t\t    ba-event:image-selected=\"select_image\"\n\t\t></ba-{{dynimagegallery}}>\n\n\t\t<ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-cameras=\"{{cameras}}\"\n\t\t    ba-microphones=\"{{microphones}}\"\n\t\t    ba-noaudio=\"{{noaudio}}\"\n\t\t\tba-novideo=\"{{onlyaudio}}\"\n\t\t\tba-allowscreen=\"{{record_media==='screen'}}\"\n\t\t    ba-selectedcamera=\"{{selectedcamera || 0}}\"\n\t\t    ba-selectedmicrophone=\"{{selectedmicrophone || 0}}\"\n\t\t    ba-camerahealthy=\"{{camerahealthy}}\"\n\t\t    ba-microphonehealthy=\"{{microphonehealthy}}\"\n\t\t    ba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-settingsvisible=\"{{settingsvisible}}\"\n\t\t    ba-recordvisible=\"{{recordvisible}}\"\n\t\t\tba-cancelvisible=\"{{allowcancel && cancancel}}\"\n\t\t    ba-uploadcovershotvisible=\"{{uploadcovershotvisible}}\"\n\t\t    ba-rerecordvisible=\"{{rerecordvisible}}\"\n\t\t    ba-stopvisible=\"{{stopvisible}}\"\n\t\t    ba-skipvisible=\"{{skipvisible}}\"\n\t\t    ba-controlbarlabel=\"{{controlbarlabel}}\"\n\t\t\tba-mintimeindicator=\"{{mintimeindicator}}\"\n\t\t\tba-timeminlimit=\"{{timeminlimit}}\"\n\t\t    ba-event:select-camera=\"select_camera\"\n\t\t    ba-event:select-microphone=\"select_microphone\"\n\t\t    ba-event:invoke-record=\"record\"\n\t\t    ba-event:invoke-rerecord=\"rerecord\"\n\t\t    ba-event:invoke-stop=\"stop\"\n\t\t    ba-event:invoke-skip=\"invoke_skip\"\n\t\t    ba-event:upload-covershot=\"upload_covershot\"\n\t\t></ba-{{dyncontrolbar}}>\n    </div>\n</div>\n\n<div data-selector=\"recorder-player\" ba-if=\"{{player_active}}\" ba-styles=\"{{widthHeightStyles}}\">\n\t<span ba-show=\"{{ie8}}\">&nbsp;</span>\n\t<ba-{{dynvideoplayer}}\n\t    ba-theme=\"{{theme || 'default'}}\"\n        ba-themecolor=\"{{themecolor}}\"\n\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n        ba-source=\"{{playbacksource}}\"\n        ba-poster=\"{{playbackposter}}\"\n        ba-hideoninactivity=\"{{false}}\"\n        ba-forceflash=\"{{forceflash}}\"\n        ba-noflash=\"{{noflash}}\"\n        ba-stretch=\"{{stretch}}\"\n\t\tba-onlyaudio=\"{{onlyaudio}}\"\n        ba-attrs=\"{{playerattrs}}\"\n        ba-data:id=\"player\"\n        ba-width=\"{{width}}\"\n        ba-height=\"{{height}}\"\n        ba-totalduration=\"{{duration / 1000}}\"\n        ba-rerecordable=\"{{rerecordable && (recordings === null || recordings > 0)}}\"\n        ba-submittable=\"{{manualsubmit && verified}}\"\n        ba-reloadonplay=\"{{true}}\"\n        ba-autoplay=\"{{autoplay}}\"\n        ba-nofullscreen=\"{{nofullscreen}}\"\n        ba-topmessage=\"{{playertopmessage}}\"\n        ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n        ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n        ba-tracktags=\"{{tracktags}}\"\n        ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n        ba-trackcuetext=\"{{trackcuetext}}\"\n        ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n\t\tba-event:loaded=\"ready_to_play\"\n        ba-event:rerecord=\"rerecord\"\n        ba-event:playing=\"playing\"\n        ba-event:paused=\"paused\"\n        ba-event:ended=\"ended\"\n        ba-event:submit=\"manual_submit\"\n        ba-event:upload-text-tracks=\"upload_text_tracks\"\n\t\tba-tracksshowselection=\"{{tracksshowselection}}\"\n\t\tba-trackselectorhovered=\"{{trackselectorhovered}}\"\n\t\tba-uploadlocales=\"{{uploadlocales}}\"\n\t\tba-event:selected_label_value=\"selected_label_value\"\n\t\tba-event:move_to_option=\"move_to_option\"\n\t>\n\t</ba-{{dynvideoplayer}}>\n</div>\n",
+                template: "\n<div data-selector=\"video-recorder-container\" ba-show=\"{{!player_active}}\"\n     class=\"{{css}}-container {{csstheme}} {{css}}-size-{{csssize}}\n     {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{css}}-{{ fullscreened ? 'fullscreen' : 'normal' }}-view\n     {{cssrecorder}}-{{ firefox ? 'firefox' : 'common'}}-browser\n     {{cssrecorder}}-{{themecolor}}-color\"\n     ba-styles=\"{{widthHeightStyles}}\"\n>\n\n    <video tabindex=\"-1\" data-selector=\"recorder-status\" class=\"{{css}}-video {{css}}-{{hasrecorder ? 'hasrecorder' : 'norecorder'}}\" data-video=\"video\" playsinline></video>\n\t<ba-videorecorder-faceoutline class=\"{{css}}-overlay\" ba-if=\"{{faceoutline && hasrecorder}}\">\n\t</ba-videorecorder-faceoutline>\n    <div data-selector=\"recorder-overlay\" class='{{cssrecorder}}-overlay' ba-show=\"{{!hideoverlay}}\" data-overlay=\"overlay\">\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t    ba-tooltip=\"{{loadertooltip}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-label=\"{{loaderlabel}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t\tba-links=\"{{message_links}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t\tba-event:link=\"message_link_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dyntopmessage}}\n\t\t    ba-css=\"{{csstopmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmpltopmessage}}\"\n\t\t    ba-show=\"{{topmessage_active && (topmessage || hovermessage)}}\"\n\t\t    ba-topmessage=\"{{hovermessage || topmessage}}\"\n\t\t></ba-{{dyntopmessage}}>\n\n\t\t<ba-{{dynchooser}}\n\t\t\tba-onlyaudio=\"{{onlyaudio}}\"\n\t\t\tba-facecamera=\"{{facecamera}}\"\n\t\t\tba-recordviafilecapture=\"{{recordviafilecapture}}\"\n\t\t    ba-css=\"{{csschooser || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplchooser}}\"\n\t\t\tba-allowscreen=\"{{allowscreen}}\"\n\t\t    ba-if=\"{{chooser_active && !is_initial_state}}\"\n\t\t    ba-allowrecord=\"{{allowrecord}}\"\n\t\t    ba-allowupload=\"{{allowupload}}\"\n\t\t    ba-allowcustomupload=\"{{allowcustomupload}}\"\n\t\t    ba-allowedextensions=\"{{allowedextensions}}\"\n\t\t    ba-primaryrecord=\"{{primaryrecord}}\"\n\t\t    ba-timelimit=\"{{timelimit}}\"\n\t\t    ba-event:record=\"record_video\"\n\t\t\tba-event:record-screen=\"record_screen\"\n\t\t    ba-event:upload=\"video_file_selected\"\n\t\t></ba-{{dynchooser}}>\n\n\t\t<ba-{{dynimagegallery}}\n\t\t    ba-css=\"{{cssimagegallery || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplimagegallery}}\"\n\t\t    ba-if=\"{{imagegallery_active}}\"\n\t\t    ba-imagecount=\"{{gallerysnapshots}}\"\n\t\t    ba-imagenativewidth=\"{{nativeRecordingWidth}}\"\n\t\t    ba-imagenativeheight=\"{{nativeRecordingHeight}}\"\n\t\t    ba-event:image-selected=\"select_image\"\n\t\t></ba-{{dynimagegallery}}>\n\n\t\t<ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-cameras=\"{{cameras}}\"\n\t\t    ba-microphones=\"{{microphones}}\"\n\t\t    ba-noaudio=\"{{noaudio}}\"\n\t\t\tba-novideo=\"{{onlyaudio}}\"\n\t\t\tba-allowscreen=\"{{record_media==='screen'}}\"\n\t\t    ba-selectedcamera=\"{{selectedcamera || 0}}\"\n\t\t    ba-selectedmicrophone=\"{{selectedmicrophone || 0}}\"\n\t\t    ba-camerahealthy=\"{{camerahealthy}}\"\n\t\t    ba-microphonehealthy=\"{{microphonehealthy}}\"\n\t\t    ba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-settingsvisible=\"{{settingsvisible}}\"\n\t\t    ba-recordvisible=\"{{recordvisible}}\"\n\t\t\tba-cancelvisible=\"{{allowcancel && cancancel}}\"\n\t\t    ba-uploadcovershotvisible=\"{{uploadcovershotvisible}}\"\n\t\t    ba-rerecordvisible=\"{{rerecordvisible}}\"\n\t\t    ba-stopvisible=\"{{stopvisible}}\"\n\t\t    ba-skipvisible=\"{{skipvisible}}\"\n\t\t    ba-controlbarlabel=\"{{controlbarlabel}}\"\n\t\t\tba-mintimeindicator=\"{{mintimeindicator}}\"\n\t\t\tba-timeminlimit=\"{{timeminlimit}}\"\n\t\t    ba-event:select-camera=\"select_camera\"\n\t\t    ba-event:select-microphone=\"select_microphone\"\n\t\t    ba-event:invoke-record=\"record\"\n\t\t    ba-event:invoke-rerecord=\"rerecord\"\n\t\t    ba-event:invoke-stop=\"stop\"\n\t\t    ba-event:invoke-skip=\"invoke_skip\"\n\t\t\tba-event:upload-covershot=\"upload_covershot\"\n\t\t    ba-event:toggle-face-mode=\"toggle_face_mode\"\n\t\t></ba-{{dyncontrolbar}}>\n    </div>\n</div>\n\n<div data-selector=\"recorder-player\" ba-if=\"{{player_active}}\" ba-styles=\"{{widthHeightStyles}}\">\n\t<span ba-show=\"{{ie8}}\">&nbsp;</span>\n\t<ba-{{dynvideoplayer}}\n\t    ba-theme=\"{{theme || 'default'}}\"\n        ba-themecolor=\"{{themecolor}}\"\n\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n        ba-source=\"{{playbacksource}}\"\n        ba-poster=\"{{playbackposter}}\"\n        ba-hideoninactivity=\"{{false}}\"\n        ba-forceflash=\"{{forceflash}}\"\n        ba-noflash=\"{{noflash}}\"\n        ba-stretch=\"{{stretch}}\"\n\t\tba-onlyaudio=\"{{onlyaudio}}\"\n        ba-attrs=\"{{playerattrs}}\"\n        ba-data:id=\"player\"\n        ba-width=\"{{width}}\"\n        ba-height=\"{{height}}\"\n        ba-totalduration=\"{{duration / 1000}}\"\n        ba-rerecordable=\"{{rerecordable && (recordings === null || recordings > 0)}}\"\n        ba-submittable=\"{{manualsubmit && verified}}\"\n        ba-reloadonplay=\"{{true}}\"\n        ba-autoplay=\"{{autoplay}}\"\n        ba-nofullscreen=\"{{nofullscreen}}\"\n        ba-topmessage=\"{{playertopmessage}}\"\n        ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n        ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n        ba-tracktags=\"{{tracktags}}\"\n        ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n        ba-trackcuetext=\"{{trackcuetext}}\"\n        ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n\t\tba-event:loaded=\"ready_to_play\"\n        ba-event:rerecord=\"rerecord\"\n        ba-event:playing=\"playing\"\n        ba-event:paused=\"paused\"\n        ba-event:ended=\"ended\"\n        ba-event:submit=\"manual_submit\"\n        ba-event:upload-text-tracks=\"upload_text_tracks\"\n\t\tba-tracksshowselection=\"{{tracksshowselection}}\"\n\t\tba-trackselectorhovered=\"{{trackselectorhovered}}\"\n\t\tba-uploadlocales=\"{{uploadlocales}}\"\n\t\tba-event:selected_label_value=\"selected_label_value\"\n\t\tba-event:move_to_option=\"move_to_option\"\n\t>\n\t</ba-{{dynvideoplayer}}>\n</div>\n",
 
                 attrs: {
                     /* CSS */
@@ -32170,9 +32475,10 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                             this.set("hideoverlay", false);
                             this.off("require_display", null, this);
                             this.recorder.enumerateDevices().success(function(devices) {
-                                var selected = this.recorder.currentDevices();
-                                this.set("selectedcamera", selected.video);
-                                this.set("selectedmicrophone", selected.audio);
+                                this.recorder.once("currentdevicesdetected", function(currentDevices) {
+                                    this.set("selectedcamera", currentDevices.video);
+                                    this.set("selectedmicrophone", currentDevices.audio);
+                                }, this);
                                 this.set("cameras", new Collection(Objs.values(devices.video)));
                                 this.set("microphones", new Collection(Objs.values(devices.audio)));
                                 this.trigger(Types.is_empty(devices.video) ? "no_camera" : "has_camera");
@@ -32315,7 +32621,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     delete this.__backgroundSnapshot;
                 },
 
-                object_functions: ["record", "rerecord", "stop", "play", "pause", "reset"],
+                object_functions: ["record", "rerecord", "screen_record", "stop", "play", "pause", "reset"],
 
                 functions: {
 
@@ -32370,10 +32676,10 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                         this.set("microphonehealthy", false);
                     },
 
-                    select_camera_face: function(faceFront) {
+                    toggle_face_mode: function() {
                         if (this.recorder) {
-                            this.recorder.setCameraFace(faceFront);
-                            this.set("camerafacefront", faceFront);
+                            this.recorder.setCameraFace(this.get("camerafacefront"));
+                            this.set("camerafacefront", !this.get("camerafacefront"));
                         }
                     },
 
@@ -32431,6 +32737,11 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                         }, this);
                     },
 
+                    toggle_facemode: function() {
+                        this._toggleFaceMode();
+
+                    },
+
                     manual_submit: function() {
                         this.set("rerecordable", false);
                         this.set("manualsubmit", false);
@@ -32464,6 +32775,10 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
 
                 soundLevel: function() {
                     return this.recorderAttached() ? this.recorder.soundLevel() : null;
+                },
+
+                _toggleFaceMode: function() {
+                    this.set("camerafacefront", !!this.get("camerafacefront"));
                 },
 
                 _timerFire: function() {
@@ -32624,7 +32939,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
             "video_file_too_large": "Your video file is too large (%s) - click here to try again with a smaller video file.",
             "unsupported_video_type": "Please upload: %s - click here to retry.",
             "orientation-portrait-required": "Please rotate your device to record in portrait mode.",
-            "orientation-landscape-required": "Please rotate your device to record in landscape mode."
+            "orientation-landscape-required": "Please rotate your device to record in landscape mode.",
+            "switch-camera": "Switch camera"
         });
 });
 
@@ -37473,7 +37789,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
 
 Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Parser) {
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "!novideo && !allowscreen && !ismobile": function (obj) { with (obj) { return !novideo && !allowscreen && !ismobile; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "ismobile": function (obj) { with (obj) { return ismobile; } }, "toggleFaceMode()": function (obj) { with (obj) { return toggleFaceMode(); } }, "hover(string('switch-camera'))": function (obj) { with (obj) { return hover(string('switch-camera')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "left()": function (obj) { with (obj) { return left(); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "images": function (obj) { with (obj) { return images; } }, "select(image)": function (obj) { with (obj) { return select(image); } }, "{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}": function (obj) { with (obj) { return {left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}; } }, "right()": function (obj) { with (obj) { return right(); } }/**/
@@ -37491,7 +37807,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
             csstheme: "ba-recorder-theme-cube",
             cssmessage: "ba-videorecorder-theme-cube",
             cssloader: "ba-videorecorder",
-            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t<div class=\"{{css}}-settings-front\">\n\n\t\t\n\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings\" ba-show=\"{{settingsvisible && settingsopen}}\">\n\t\t\t<div data-selector=\"settings-list-front\" class=\"{{css}}-bubble-info\">\n\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\">\n\t\t\t\t\t<li>\n\t\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n                               type='radio'\n\t\t\t\t\t\t\t   name='camera' value=\"{{selectedcamera == camera.id}}\" onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t/>\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label tabindex=\"0\" ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\" data-selector=\"rerecord-primary-button\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\" data-selector=\"cancel-primary-button\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-controlbar-left-section\">\n\n\t\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t\t</div>\n\n\t\t\t<div ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t<div class=\"{{css}}-button\">\n\n\t\t\t\t\t<div tabindex=\"0\" ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t data-selector=\"record-button-icon-cog\" class=\"{{css}}-button-inner {{css}}-button-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t onmouseout=\"this.blur()\"\n\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\" >\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n\t\t<div class=\"{{cssrecorder}}-controlbar-right-section\">\n\n\t\t\t<div class=\"{{css}}-rightbutton-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\" data-selector=\"record-primary-button\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\t\t\t<div class=\"{{css}}-timer-container\">\n\t\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel && !rerecordvisible}}\">\n\t\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\" data-selector=\"stop-primary-button\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\" class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\" data-selector=\"skip-primary-button\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                {{string('skip')}}\n            </div>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
+            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t<div class=\"{{css}}-settings-front\">\n\n\t\t\n\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings\" ba-show=\"{{settingsvisible && settingsopen}}\">\n\t\t\t<div data-selector=\"settings-list-front\" class=\"{{css}}-bubble-info\">\n\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\" ba-show=\"{{!novideo && !allowscreen && !ismobile}}\">\n\t\t\t\t\t<li>\n\t\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n                               type='radio'\n\t\t\t\t\t\t\t   name='camera' value=\"{{selectedcamera == camera.id}}\" onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t/>\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label tabindex=\"0\" ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\" data-selector=\"rerecord-primary-button\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\" data-selector=\"cancel-primary-button\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-controlbar-left-section\">\n\n\t\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t\t</div>\n\n\t\t\t<div ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{ismobile}}\">\n\t\t\t\t\t<div data-selector=\"face-mode-toggle-icon\" class=\"{{css}}-mobile-camera-switcher {{css}}-button-inner {{css}}-button-unselected\"\n\t\t\t\t\t\t onclick=\"{{toggleFaceMode()}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('switch-camera'))}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-arrows-cw\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\">\n\t\t\t\t\t<div tabindex=\"0\" ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t data-selector=\"record-button-icon-cog\" class=\"{{css}}-button-inner {{css}}-button-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t onmouseout=\"this.blur()\"\n\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\" >\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n\t\t<div class=\"{{cssrecorder}}-controlbar-right-section\">\n\n\t\t\t<div class=\"{{css}}-rightbutton-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\" data-selector=\"record-primary-button\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\t\t\t<div class=\"{{css}}-timer-container\">\n\t\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel && !rerecordvisible}}\">\n\t\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\" data-selector=\"stop-primary-button\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\" class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\" data-selector=\"skip-primary-button\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                {{string('skip')}}\n            </div>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
             tmplimagegallery: "<div data-selector=\"image-gallery\" class=\"{{css}}-image-gallery-container\">\n\n\t<div data-selector=\"slider-left-button\" class=\"{{css}}-imagegallery-leftbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-left-inner-button\"\n\t\t\t ba-hotkey:space^enter^left=\"{{left()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\" onclick=\"{{left()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-left-open\"></i>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"images-imagegallery-container\" ba-repeat=\"{{image::images}}\" class=\"{{css}}-imagegallery-container\" data-gallery-container>\n\t\t<div tabindex=\"0\" data-selector=\"imagegallery-selected-image\"\n\t\t\t ba-hotkey:space^enter=\"{{select(image)}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-image\"\n\t\t\t ba-styles=\"{{{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}}}\"\n\t\t\t onclick=\"{{select(image)}}\"\n\t\t>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"slider-right-button\" class=\"{{css}}-imagegallery-rightbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-right-inner-button\"\n\t\t\t ba-hotkey:space^enter^right=\"{{right()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\"\n\t\t\t onclick=\"{{right()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-right-open\"></i>\n\t\t</div>\n\t</div>\n\n</div>\n",
             tmplchooser: "<div class=\"{{css}}-chooser-container\">\n\n\t<div class=\"{{css}}-chooser-button-container\">\n\n\t\t<div ba-repeat=\"{{action :: actions}}\">\n\t\t\t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{click_action(action)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t class=\"{{css}}-chooser-button-{{action.index}}\"\n\t\t\t\t ba-click=\"{{click_action(action)}}\">\n\t\t\t\t<input ba-if=\"{{action.select && action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   capture=\"{{action.switchcamera}}\" />\n\t\t\t\t<input ba-if=\"{{action.select && !action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t/>\n\t\t\t\t<span>\n\t\t\t\t\t{{action.label}}\n\t\t\t\t</span>\n\t\t\t\t<i class=\"{{csscommon}}-icon-{{action.icon}}\"\n\t\t\t\t   ba-if=\"{{action.icon}}\"></i>\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>",
             tmplmessage: "<div data-selector=\"recorder-message-container\" class=\"{{cssrecorder}}-message-container\" ba-click=\"{{click()}}\">\n    <div class=\"{{cssrecorder}}-top-inner-message-container {{cssrecorder}}-{{shortMessage ? 'short-message' : 'long-message'}}\">\n        <div class=\"{{cssrecorder}}-first-inner-message-container\">\n            <div class=\"{{cssrecorder}}-second-inner-message-container\">\n                <div class=\"{{cssrecorder}}-third-inner-message-container\">\n                    <div class=\"{{cssrecorder}}-fourth-inner-message-container\">\n                        <div data-selector=\"recorder-message-block\" class='{{cssrecorder}}-message-message'>\n                            <p>\n                                {{message || \"\"}}\n                            </p>\n                            <ul ba-if=\"{{links && links.length > 0}}\" ba-repeat=\"{{link :: links}}\">\n                                <li>\n                                    <a href=\"javascript:;\" ba-click=\"{{linkClick(link)}}\">\n                                        {{link.title}}\n                                    </a>\n                                </li>\n                            </ul>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n"
@@ -37593,7 +37909,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "!novideo && !allowscreen && !ismobile": function (obj) { with (obj) { return !novideo && !allowscreen && !ismobile; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "ismobile": function (obj) { with (obj) { return ismobile; } }, "toggleFaceMode()": function (obj) { with (obj) { return toggleFaceMode(); } }, "hover(string('switch-camera'))": function (obj) { with (obj) { return hover(string('switch-camera')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "left()": function (obj) { with (obj) { return left(); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "images": function (obj) { with (obj) { return images; } }, "select(image)": function (obj) { with (obj) { return select(image); } }, "{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}": function (obj) { with (obj) { return {left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}; } }, "right()": function (obj) { with (obj) { return right(); } }/**/
@@ -37612,7 +37928,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
             cssmessage: "ba-videorecorder",
             cssloader: "ba-videorecorder",
             tmpltopmessage: "<div class=\"{{css}}-topmessage-container\">\n    <div data-selector=\"recorder-topmessage-block\" class='{{css}}-topmessage-message'>\n        {{topmessage}}\n    </div>\n</div>\n",
-            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t<div class=\"{{css}}-settings-front\">\n\n\t\t\n\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings\" ba-show=\"{{settingsvisible && settingsopen}}\">\n\t\t\t<div class=\"{{css}}-bubble-info\">\n\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\">\n\t\t\t\t\t<li>\n\t\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t   type='radio' name='camera' value=\"{{selectedcamera == camera.id}}\"\n\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t/>\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label onclick=\"{{selectCamera(camera.id)}}\" ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\">\n\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div data-selector=\"cancel-primary-button\" class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\" onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-controlbar-left-section\">\n\n\t\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t\t</div>\n\n\t\t\t<div ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t<div class=\"{{css}}-circle-button\">\n\t\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t data-selector=\"record-button-icon-cog\" class=\"{{css}}-button-inner {{css}}-button-circle-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{cssrecorder}}-controlbar-right-section\">\n\n\t\t\t<div class=\"{{css}}-rightbutton-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\n\t\t\t<div class=\"{{css}}-timer-container\">\n\t\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel && !rerecordvisible}}\">\n\t\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\"\n\t\t\t\t\t class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                {{string('skip')}}\n            </divi>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
+            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t<div class=\"{{css}}-settings-front\">\n\n\t\t\n\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings\" ba-show=\"{{settingsvisible && settingsopen}}\">\n\t\t\t<div class=\"{{css}}-bubble-info\">\n\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\" ba-show=\"{{!novideo && !allowscreen && !ismobile}}\">\n\t\t\t\t\t<li>\n\t\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t   type='radio' name='camera' value=\"{{selectedcamera == camera.id}}\"\n\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t/>\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label onclick=\"{{selectCamera(camera.id)}}\" ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\">\n\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div data-selector=\"cancel-primary-button\" class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t class=\"{{css}}-button-primary\" onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-controlbar-left-section\">\n\n\t\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t\t</div>\n\n\t\t\t<div ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t<div class=\"{{css}}-circle-button\">\n\t\t\t\t\t<div data-selector=\"face-mode-toggle-icon\"  ba-show=\"{{ismobile}}\"\n\t\t\t\t\t\t class=\"{{css}}-mobile-camera-switcher {{css}}-button-inner {{css}}-button-circle-unselected\"\n\t\t\t\t\t\t onclick=\"{{toggleFaceMode()}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('switch-camera'))}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-arrows-cw\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-circle-button\">\n\t\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t data-selector=\"record-button-icon-cog\"\n\t\t\t\t\t\t class=\"{{css}}-button-inner {{css}}-button-circle-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{cssrecorder}}-controlbar-right-section\">\n\n\t\t\t<div class=\"{{css}}-rightbutton-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\n\t\t\t<div class=\"{{css}}-timer-container\">\n\t\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel && !rerecordvisible}}\">\n\t\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\"\n\t\t\t\t\t class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                {{string('skip')}}\n            </divi>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
             tmplimagegallery: "<div data-selector=\"image-gallery\" class=\"{{css}}-image-gallery-container\">\n\n\t<div data-selector=\"slider-left-button\" class=\"{{css}}-imagegallery-leftbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-left-inner-button\"\n\t\t\t ba-hotkey:space^enter^left=\"{{left()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\" onclick=\"{{left()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-left-open\"></i>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"images-imagegallery-container\" ba-repeat=\"{{image::images}}\" class=\"{{css}}-imagegallery-container\" data-gallery-container>\n\t\t<div tabindex=\"0\" data-selector=\"imagegallery-selected-image\"\n\t\t\t ba-hotkey:space^enter=\"{{select(image)}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-image\"\n\t\t\t ba-styles=\"{{{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}}}\"\n\t\t\t onclick=\"{{select(image)}}\"\n\t\t>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"slider-right-button\" class=\"{{css}}-imagegallery-rightbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-right-inner-button\"\n\t\t\t ba-hotkey:space^enter^right=\"{{right()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\"\n\t\t\t onclick=\"{{right()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-right-open\"></i>\n\t\t</div>\n\t</div>\n\n</div>\n",
             tmplchooser: "<div class=\"{{css}}-chooser-container\">\n\n\t<div class=\"{{css}}-chooser-button-container\">\n\n\t\t<div ba-repeat=\"{{action :: actions}}\">\n\t\t\t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{click_action(action)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t class=\"{{css}}-chooser-button-{{action.index}}\"\n\t\t\t\t ba-click=\"{{click_action(action)}}\">\n\t\t\t\t<input ba-if=\"{{action.select && action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   capture=\"{{action.switchcamera}}\" />\n\t\t\t\t<input ba-if=\"{{action.select && !action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t/>\n\t\t\t\t<span>\n\t\t\t\t\t{{action.label}}\n\t\t\t\t</span>\n\t\t\t\t<i class=\"{{csscommon}}-icon-{{action.icon}}\"\n\t\t\t\t   ba-if=\"{{action.icon}}\"></i>\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>",
             tmplmessage: "<div data-selector=\"recorder-message-container\" class=\"{{cssrecorder}}-message-container\" ba-click=\"{{click()}}\">\n    <div class=\"{{cssrecorder}}-top-inner-message-container {{cssrecorder}}-{{shortMessage ? 'short-message' : 'long-message'}}\">\n        <div class=\"{{cssrecorder}}-first-inner-message-container\">\n            <div class=\"{{cssrecorder}}-second-inner-message-container\">\n                <div class=\"{{cssrecorder}}-third-inner-message-container\">\n                    <div class=\"{{cssrecorder}}-fourth-inner-message-container\">\n                        <div data-selector=\"recorder-message-block\" class='{{cssrecorder}}-message-message'>\n                            <p>\n                                {{message || \"\"}}\n                            </p>\n                            <ul ba-if=\"{{links && links.length > 0}}\" ba-repeat=\"{{link :: links}}\">\n                                <li>\n                                    <a href=\"javascript:;\" ba-click=\"{{linkClick(link)}}\">\n                                        {{link.title}}\n                                    </a>\n                                </li>\n                            </ul>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n"
@@ -37722,7 +38038,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen": function (obj) { with (obj) { return settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "ismobile": function (obj) { with (obj) { return ismobile; } }, "toggleFaceMode()": function (obj) { with (obj) { return toggleFaceMode(); } }, "hover(string('switch-camera'))": function (obj) { with (obj) { return hover(string('switch-camera')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "settingsopen": function (obj) { with (obj) { return settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "!novideo && !allowscreen && !ismobile": function (obj) { with (obj) { return !novideo && !allowscreen && !ismobile; } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "left()": function (obj) { with (obj) { return left(); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "images": function (obj) { with (obj) { return images; } }, "select(image)": function (obj) { with (obj) { return select(image); } }, "{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}": function (obj) { with (obj) { return {left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}; } }, "right()": function (obj) { with (obj) { return right(); } }/**/
@@ -37741,7 +38057,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
             cssmessage: "ba-videorecorder",
             cssloader: "ba-videorecorder",
             tmpltopmessage: "<div data-selector=\"recorder-topmessage-block\" class=\"{{css}}-topmessage-container\">\n    <div class='{{css}}-topmessage-message'>\n        {{topmessage}}\n    </div>\n</div>",
-            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t\n\t<div class=\"{{css}}-settings-left-sidebar\">\n\n\t\t<div class=\"{{css}}-controlbar-left-section\">\n\n\t\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t\t</div>\n\n            <div ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t\n\t\t\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings {{css}}-settings-button-container\">\n\n\t\t\t\t\t<div data-selector=\"settings-list-front\" class=\"{{css}}-circle-button\" ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t\t\t<div class=\"{{css}}-bubble-info\" ba-show=\"{{settingsopen}}\" >\n\t\t\t\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\">\n\t\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t\t<input tabindex=\"0\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\t\t\t   type='radio' name='camera' value=\"{{selectedcamera == camera.id}}\" onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t\t\t\t/>\n\t\t\t\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t\t\t\t<label tabindex=\"0\" onmouseout=\"this.blur()\" onclick=\"{{selectCamera(camera.id)}}\">\n\t\t\t\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t\t\t\t</label>\n\t\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t</ul>\n\t\t\t\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t\t\t\t</label>\n\t\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t</ul>\n\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t data-selector=\"record-button-icon-cog\"\n\t\t\t\t\t\t\t class=\"{{css}}-button-inner {{css}}-button-circle-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\n\n\t\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t\t<div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t\t onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n\t\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\n\t\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t\t\t<div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t\t onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n\t\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t<div class=\"{{css}}-controlbar-middle-section\">\n\n\t\t<div class=\"{{css}}-timer-container\" ba-show=\"{{stopvisible}}\">\n\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel}}\">\n\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"cancel-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-primary-button-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\" class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                {{string('skip')}}\n            </div>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
+            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t\n\t<div class=\"{{css}}-settings-left-sidebar\">\n\n\t\t<div class=\"{{css}}-controlbar-left-section\">\n\n\t\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t\t</div>\n\n            <div ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t\n\t\t\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings {{css}}-settings-button-container\">\n\n\t\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{ismobile}}\">\n\t\t\t\t\t\t<div data-selector=\"face-mode-toggle-icon\"\n\t\t\t\t\t\t\t class=\"{{css}}-mobile-camera-switcher {{css}}-button-inner {{css}}-button-circle-unselected\"\n\t\t\t\t\t\t\t onclick=\"{{toggleFaceMode()}}\"\n\t\t\t\t\t\t\t onmouseenter=\"{{hover(string('switch-camera'))}}\"\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-arrows-cw\"></i>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\n\t\t\t\t\t<div data-selector=\"settings-list-front\" class=\"{{css}}-circle-button\" ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t\t\t<div class=\"{{css}}-bubble-info-container\" ba-show=\"{{settingsopen}}\">\n\t\t\t\t\t\t\t<div class=\"{{css}}-bubble-info\" >\n\t\t\t\t\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\" ba-show=\"{{!novideo && !allowscreen && !ismobile}}\">\n\t\t\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t\t\t<input tabindex=\"0\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\t\t\t\t   type='radio' name='camera' value=\"{{selectedcamera == camera.id}}\" onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t\t\t\t\t/>\n\t\t\t\t\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t\t\t\t\t<label tabindex=\"0\" onmouseout=\"this.blur()\" onclick=\"{{selectCamera(camera.id)}}\">\n\t\t\t\t\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t\t\t\t\t</label>\n\t\t\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t\t</ul>\n\t\t\t\t\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t\t\t\t\t</label>\n\t\t\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t\t</ul>\n\t\t\t\t\t\t\t</div>\n\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t data-selector=\"record-button-icon-cog\"\n\t\t\t\t\t\t\t class=\"{{css}}-button-inner {{css}}-button-circle-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\n\t\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t\t<div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t\t onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n\t\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\n\t\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t\t\t<div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t\t onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n\t\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t<div class=\"{{css}}-controlbar-middle-section\">\n\n\t\t<div class=\"{{css}}-timer-container\" ba-show=\"{{stopvisible}}\">\n\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel}}\">\n\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"cancel-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-primary-button-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\" class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                {{string('skip')}}\n            </div>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
             tmplimagegallery: "<div data-selector=\"image-gallery\" class=\"{{css}}-image-gallery-container\">\n\n\t<div data-selector=\"slider-left-button\" class=\"{{css}}-imagegallery-leftbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-left-inner-button\"\n\t\t\t ba-hotkey:space^enter^left=\"{{left()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\" onclick=\"{{left()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-left-open\"></i>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"images-imagegallery-container\" ba-repeat=\"{{image::images}}\" class=\"{{css}}-imagegallery-container\" data-gallery-container>\n\t\t<div tabindex=\"0\" data-selector=\"imagegallery-selected-image\"\n\t\t\t ba-hotkey:space^enter=\"{{select(image)}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-image\"\n\t\t\t ba-styles=\"{{{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}}}\"\n\t\t\t onclick=\"{{select(image)}}\"\n\t\t>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"slider-right-button\" class=\"{{css}}-imagegallery-rightbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-right-inner-button\"\n\t\t\t ba-hotkey:space^enter^right=\"{{right()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\"\n\t\t\t onclick=\"{{right()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-right-open\"></i>\n\t\t</div>\n\t</div>\n\n</div>\n",
             tmplchooser: "<div class=\"{{css}}-chooser-container\">\n\n\t<div class=\"{{css}}-chooser-button-container\">\n\n\t\t<div ba-repeat=\"{{action :: actions}}\">\n\t\t\t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{click_action(action)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t class=\"{{css}}-chooser-button-{{action.index}}\"\n\t\t\t\t ba-click=\"{{click_action(action)}}\">\n\t\t\t\t<input ba-if=\"{{action.select && action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   capture=\"{{action.switchcamera}}\" />\n\t\t\t\t<input ba-if=\"{{action.select && !action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t/>\n\t\t\t\t<span>\n\t\t\t\t\t{{action.label}}\n\t\t\t\t</span>\n\t\t\t\t<i class=\"{{csscommon}}-icon-{{action.icon}}\"\n\t\t\t\t   ba-if=\"{{action.icon}}\"></i>\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>",
             tmplmessage: "<div data-selector=\"recorder-message-container\" class=\"{{cssrecorder}}-message-container\" ba-click=\"{{click()}}\">\n    <div class=\"{{cssrecorder}}-top-inner-message-container {{cssrecorder}}-{{shortMessage ? 'short-message' : 'long-message'}}\">\n        <div class=\"{{cssrecorder}}-first-inner-message-container\">\n            <div class=\"{{cssrecorder}}-second-inner-message-container\">\n                <div class=\"{{cssrecorder}}-third-inner-message-container\">\n                    <div class=\"{{cssrecorder}}-fourth-inner-message-container\">\n                        <div data-selector=\"recorder-message-block\" class='{{cssrecorder}}-message-message'>\n                            <p>\n                                {{message || \"\"}}\n                            </p>\n                            <ul ba-if=\"{{links && links.length > 0}}\" ba-repeat=\"{{link :: links}}\">\n                                <li>\n                                    <a href=\"javascript:;\" ba-click=\"{{linkClick(link)}}\">\n                                        {{link.title}}\n                                    </a>\n                                </li>\n                            </ul>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n"
@@ -37842,7 +38158,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
 
 Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Parser) {
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "!novideo && !allowscreen && !ismobile": function (obj) { with (obj) { return !novideo && !allowscreen && !ismobile; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "ismobile": function (obj) { with (obj) { return ismobile; } }, "toggleFaceMode()": function (obj) { with (obj) { return toggleFaceMode(); } }, "hover(string('switch-camera'))": function (obj) { with (obj) { return hover(string('switch-camera')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "left()": function (obj) { with (obj) { return left(); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "images": function (obj) { with (obj) { return images; } }, "select(image)": function (obj) { with (obj) { return select(image); } }, "{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}": function (obj) { with (obj) { return {left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}; } }, "right()": function (obj) { with (obj) { return right(); } }/**/
@@ -37860,7 +38176,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
             cssrecorder: "ba-recorder",
             cssmessage: "ba-videorecorder",
             cssloader: "ba-videorecorder",
-            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t<div class=\"{{css}}-settings-front\">\n\n\t\t\n\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings\" ba-show=\"{{settingsvisible && settingsopen}}\">\n\t\t\t<div class=\"{{css}}-bubble-info\">\n\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\">\n\t\t\t\t\t<li>\n\t\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t   type='radio' name='camera'\n\t\t\t\t\t\t\t   value=\"{{selectedcamera == camera.id}}\"\n\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t/>\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label tabindex=\"0\"\n\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"cancel-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-controlbar-left-section\">\n\n\t\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t\t</div>\n\n\t\t\t<div ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t<div class=\"{{css}}-button\">\n\n\t\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t data-selector=\"record-button-icon-cog\"\n\t\t\t\t\t\t class=\"{{css}}-button-inner {{css}}-button-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{cssrecorder}}-controlbar-right-section\">\n\n\t\t\t<div class=\"{{css}}-rightbutton-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\n\t\t\t<div class=\"{{css}}-timer-container\">\n\t\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel && !rerecordvisible}}\">\n\t\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\"\n\t\t\t\t\t class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                {{string('skip')}}\n            </div>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
+            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t<div class=\"{{css}}-settings-front\">\n\n\t\t\n\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings\" ba-show=\"{{settingsvisible && settingsopen}}\">\n\t\t\t<div class=\"{{css}}-bubble-info\">\n\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\" ba-show=\"{{!novideo && !allowscreen && !ismobile}}\">\n\t\t\t\t\t<li>\n\t\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t   type='radio' name='camera'\n\t\t\t\t\t\t\t   value=\"{{selectedcamera == camera.id}}\"\n\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t/>\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label tabindex=\"0\"\n\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t</label>\n\t\t\t\t\t</li>\n\t\t\t\t</ul>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"cancel-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-controlbar-left-section\">\n\n\t\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t\t</div>\n\n\t\t\t<div ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{ismobile}}\">\n                    <div data-selector=\"face-mode-toggle-icon\"\n                         class=\"{{css}}-button-inner {{css}}-button-circle-unselected\"\n                         onclick=\"{{toggleFaceMode()}}\"\n                         onmouseenter=\"{{hover(string('switch-camera'))}}\"\n                    >\n                        <i class=\"{{csscommon}}-icon-arrows-cw\"></i>\n                    </div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\">\n\n\t\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t data-selector=\"record-button-icon-cog\"\n\t\t\t\t\t\t class=\"{{css}}-button-inner {{css}}-button-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n\t\t\t\t\t<div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\">\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{cssrecorder}}-controlbar-right-section\">\n\n\t\t\t<div class=\"{{css}}-rightbutton-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\n\t\t\t<div class=\"{{css}}-timer-container\">\n\t\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel && !rerecordvisible}}\">\n\t\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\"\n\t\t\t\t\t class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                {{string('skip')}}\n            </div>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
             tmplimagegallery: "<div data-selector=\"image-gallery\" class=\"{{css}}-image-gallery-container\">\n\n\t<div data-selector=\"slider-left-button\" class=\"{{css}}-imagegallery-leftbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-left-inner-button\"\n\t\t\t ba-hotkey:space^enter^left=\"{{left()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\" onclick=\"{{left()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-left-open\"></i>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"images-imagegallery-container\" ba-repeat=\"{{image::images}}\" class=\"{{css}}-imagegallery-container\" data-gallery-container>\n\t\t<div tabindex=\"0\" data-selector=\"imagegallery-selected-image\"\n\t\t\t ba-hotkey:space^enter=\"{{select(image)}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-image\"\n\t\t\t ba-styles=\"{{{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}}}\"\n\t\t\t onclick=\"{{select(image)}}\"\n\t\t>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"slider-right-button\" class=\"{{css}}-imagegallery-rightbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-right-inner-button\"\n\t\t\t ba-hotkey:space^enter^right=\"{{right()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\"\n\t\t\t onclick=\"{{right()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-right-open\"></i>\n\t\t</div>\n\t</div>\n\n</div>\n",
             tmplchooser: "<div class=\"{{css}}-chooser-container\">\n\n\t<div class=\"{{css}}-chooser-button-container\">\n\n\t\t<div ba-repeat=\"{{action :: actions}}\">\n\t\t\t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{click_action(action)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t class=\"{{css}}-chooser-button-{{action.index}}\"\n\t\t\t\t ba-click=\"{{click_action(action)}}\">\n\t\t\t\t<input ba-if=\"{{action.select && action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   capture=\"{{action.switchcamera}}\" />\n\t\t\t\t<input ba-if=\"{{action.select && !action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t/>\n\t\t\t\t<span>\n\t\t\t\t\t{{action.label}}\n\t\t\t\t</span>\n\t\t\t\t<i class=\"{{csscommon}}-icon-{{action.icon}}\"\n\t\t\t\t   ba-if=\"{{action.icon}}\"></i>\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>",
             tmplmessage: "<div data-selector=\"recorder-message-container\" class=\"{{cssrecorder}}-message-container\" ba-click=\"{{click()}}\">\n    <div class=\"{{cssrecorder}}-top-inner-message-container {{cssrecorder}}-{{shortMessage ? 'short-message' : 'long-message'}}\">\n        <div class=\"{{cssrecorder}}-first-inner-message-container\">\n            <div class=\"{{cssrecorder}}-second-inner-message-container\">\n                <div class=\"{{cssrecorder}}-third-inner-message-container\">\n                    <div class=\"{{cssrecorder}}-fourth-inner-message-container\">\n                        <div data-selector=\"recorder-message-block\" class='{{cssrecorder}}-message-message'>\n                            <p>\n                                {{message || \"\"}}\n                            </p>\n                            <ul ba-if=\"{{links && links.length > 0}}\" ba-repeat=\"{{link :: links}}\">\n                                <li>\n                                    <a href=\"javascript:;\" ba-click=\"{{linkClick(link)}}\">\n                                        {{link.title}}\n                                    </a>\n                                </li>\n                            </ul>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n"
@@ -37959,7 +38275,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen": function (obj) { with (obj) { return settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "ismobile": function (obj) { with (obj) { return ismobile; } }, "toggleFaceMode()": function (obj) { with (obj) { return toggleFaceMode(); } }, "hover(string('switch-camera'))": function (obj) { with (obj) { return hover(string('switch-camera')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "settingsopen": function (obj) { with (obj) { return settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "!novideo && !allowscreen && !ismobile": function (obj) { with (obj) { return !novideo && !allowscreen && !ismobile; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "left()": function (obj) { with (obj) { return left(); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "images": function (obj) { with (obj) { return images; } }, "select(image)": function (obj) { with (obj) { return select(image); } }, "{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}": function (obj) { with (obj) { return {left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}; } }, "right()": function (obj) { with (obj) { return right(); } }/**/
@@ -37978,7 +38294,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
             cssmessage: "ba-videorecorder",
             cssloader: "ba-videorecorder",
             tmpltopmessage: "<div class=\"{{css}}-topmessage-container\">\n    <div data-selector=\"recorder-topmessage-block\" class='{{css}}-topmessage-message'>\n        {{topmessage}}\n    </div>\n</div>\n",
-            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t\n\t<div class=\"{{css}}-settings-left-sidebar\">\n\n\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t</div>\n\n\t\t<div class=\"{{css}}-controlbar-left-section\" ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\n\t\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings {{css}}-settings-button-container\">\n\n\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t\t<div class=\"{{css}}-bubble-info\" ba-show=\"{{settingsopen}}\" >\n\t\t\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\">\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\t\t   type='radio' name='camera' value=\"{{selectedcamera == camera.id}}\"\n\t\t\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t\t\t/>\n\t\t\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t\t\t<label tabindex=\"0\"\n\t\t\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t\t\t</label>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t\t\t</label>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t</div>\n\n\t\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t data-selector=\"record-button-icon-cog\"\n\t\t\t\t\t\t class=\"{{css}}-button-inner {{css}}-button-circle-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n                <div class=\"{{css}}-circle-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\n                    <div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n                         onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n                         onmouseleave=\"{{unhover()}}\">\n                        <i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n                    </div>\n                </div>\n\n                <div class=\"{{css}}-circle-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n                    <div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n                         onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n                         onmouseleave=\"{{unhover()}}\">\n                        <i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n                    </div>\n                </div>\n\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t<div class=\"{{css}}-controlbar-middle-section\">\n\n\t\t<div class=\"{{css}}-timer-container\" ba-show=\"{{stopvisible}}\">\n\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel}}\">\n\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"cancel-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-primary-button-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\" class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                {{string('skip')}}\n            </div>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
+            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard\">\n\n\t\n\t<div class=\"{{css}}-settings-left-sidebar\">\n\n\t\t<div class=\"{{css}}-indicator-container\" ba-show=\"{{stopvisible && recordingindication}}\">\n\t\t\t<div data-selector=\"recording-indicator\" class=\"{{css}}-recording-indication\"></div>\n\t\t</div>\n\n\t\t<div class=\"{{css}}-controlbar-left-section\" ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\n\t\t\t<div data-selector=\"recorder-settings\" class=\"{{css}}-settings {{css}}-settings-button-container\">\n\n\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{ismobile}}\">\n\t\t\t\t\t<div data-selector=\"face-mode-toggle-icon\" class=\"{{css}}-mobile-camera-switcher {{css}}-button-inner\"\n\t\t\t\t\t\t onclick=\"{{toggleFaceMode()}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('switch-camera'))}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-arrows-cw\"></i>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\n\t\t\t\t<div class=\"{{css}}-circle-button\" ba-show=\"{{settingsvisible}}\">\n\n\t\t\t\t\t<div class=\"{{css}}-bubble-info\" ba-show=\"{{settingsopen}}\" >\n\t\t\t\t\t\t<ul data-selector=\"camera-settings\" ba-repeat=\"{{camera :: cameras}}\" ba-show=\"{{!novideo && !allowscreen && !ismobile}}\">\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<input tabindex=\"0\"\n\t\t\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\t\t   type='radio' name='camera' value=\"{{selectedcamera == camera.id}}\"\n\t\t\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t\t\t/>\n\t\t\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t\t\t<label tabindex=\"0\"\n\t\t\t\t\t\t\t\t\t   ba-hotkey:space^enter=\"{{selectCamera(camera.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\t\t   onclick=\"{{selectCamera(camera.id)}}\"\n\t\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\t\t{{camera.label}}\n\t\t\t\t\t\t\t\t</label>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t\t<hr ba-show=\"{{(!noaudio && !novideo) || !allowscreen}}\"/>\n\t\t\t\t\t\t<ul data-selector=\"microphone-settings\" ba-repeat=\"{{microphone :: microphones}}\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\t\t\t\t\t\t\t<li tabindex=\"0\"\n\t\t\t\t\t\t\t\tba-hotkey:space^enter=\"{{selectMicrophone(microphone.id)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t\t\tonclick=\"{{selectMicrophone(microphone.id)}}\"\n\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\t<input type='radio' name='microphone' value=\"{{selectedmicrophone == microphone.id}}\" />\n\t\t\t\t\t\t\t\t<span></span>\n\t\t\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\t\t\t{{microphone.label}}\n\t\t\t\t\t\t\t\t</label>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t</div>\n\n\t\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t\t ba-hotkey:space^enter=\"{{settingsopen=!settingsopen}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t\t data-selector=\"record-button-icon-cog\"\n\t\t\t\t\t\t class=\"{{css}}-button-inner {{css}}-button-circle-{{settingsopen ? 'selected' : 'unselected' }}\"\n\t\t\t\t\t\t onclick=\"{{settingsopen=!settingsopen}}\"\n\t\t\t\t\t\t onmouseenter=\"{{hover(string('settings'))}}\"\n\t\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t\t\t</div>\n\n\t\t\t\t</div>\n\n                <div class=\"{{css}}-circle-button\" ba-show=\"{{!noaudio && !allowscreen}}\">\n\n                    <div data-selector=\"record-button-icon-mic\" class=\"{{css}}-button-inner\"\n                         onmouseenter=\"{{hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))}}\"\n                         onmouseleave=\"{{unhover()}}\">\n                        <i class=\"{{csscommon}}-icon-mic {{csscommon}}-icon-state-{{microphonehealthy ? 'good' : 'bad' }}\"></i>\n                    </div>\n                </div>\n\n                <div class=\"{{css}}-circle-button\" ba-show=\"{{!novideo && !allowscreen}}\">\n                    <div data-selector=\"record-button-icon-videocam\" class=\"{{css}}-button-inner\"\n                         onmouseenter=\"{{hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))}}\"\n                         onmouseleave=\"{{unhover()}}\">\n                        <i class=\"{{csscommon}}-icon-videocam {{csscommon}}-icon-state-{{ camerahealthy ? 'good' : 'bad' }}\"></i>\n                    </div>\n                </div>\n\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t<div class=\"{{css}}-controlbar-middle-section\">\n\n\t\t<div class=\"{{css}}-timer-container\" ba-show=\"{{stopvisible}}\">\n\t\t\t<div class=\"{{css}}-label-container\" ba-show=\"{{controlbarlabel}}\">\n\t\t\t\t<div data-selector=\"record-label-block\" class=\"{{css}}-label {{css}}-button-primary\">\n\t\t\t\t\t{{controlbarlabel}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n\n\t\n\t<div data-selector=\"controlbar\" class=\"{{css}}-controlbar\">\n\n\t\t<div class=\"{{css}}-controlbar-center-section\">\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{rerecordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"rerecord-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{rerecord()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('rerecord-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('rerecord')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-button-container\" ba-show=\"{{cancelvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{cancel()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"cancel-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{cancel()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('cancel-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('cancel')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t\t<div class=\"{{css}}-primary-button-container\" ba-show=\"{{recordvisible}}\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{record()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"record-primary-button\" class=\"{{css}}-button-primary\"\n\t\t\t\t\t onclick=\"{{record()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(string('record-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('record')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\n\t\t</div>\n\n\t\t<div class=\"{{css}}-stop-container\" ba-show=\"{{stopvisible}}\">\n\n\t\t\t<div class=\"{{css}}-stop-button-container\">\n\t\t\t\t<div tabindex=\"0\"\n\t\t\t\t\t ba-hotkey:space^enter=\"{{stop()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t\t data-selector=\"stop-primary-button\" class=\"{{css}}-button-primary {{mintimeindicator ? css + '-disabled': ''}}\"\n\t\t\t\t\t title=\"{{mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')}}\"\n\t\t\t\t\t onclick=\"{{stop()}}\"\n\t\t\t\t\t onmouseenter=\"{{hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))}}\"\n\t\t\t\t\t onmouseleave=\"{{unhover()}}\"\n\t\t\t\t>\n\t\t\t\t\t{{string('stop')}}\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n        <div class=\"{{css}}-centerbutton-container\" ba-show=\"{{skipvisible}}\">\n            <div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{skip()}}\" onmouseout=\"this.blur()\"\n\t\t\t\t data-selector=\"skip-primary-button\" class=\"{{css}}-button-primary\"\n                 onclick=\"{{skip()}}\"\n                 onmouseenter=\"{{hover(string('skip-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\"\n\t\t\t>\n                {{string('skip')}}\n            </div>\n        </div>\n\n\n        <div class=\"{{css}}-rightbutton-container\" ba-if=\"{{uploadcovershotvisible}}\">\n            <div data-selector=\"covershot-primary-button\" class=\"{{css}}-button-primary\"\n                 onmouseenter=\"{{hover(string('upload-covershot-tooltip'))}}\"\n                 onmouseleave=\"{{unhover()}}\">\n                <input type=\"file\"\n                       class=\"{{css}}-chooser-file\"\n                       style=\"height:100px\"\n                       onchange=\"{{uploadCovershot(domEvent)}}\"\n                       accept=\"{{covershot_accept_string}}\" />\n                <span>\n                    {{string('upload-covershot')}}\n                </span>\n            </div>\n        </div>\n\n\t</div>\n\n</div>\n",
             tmplimagegallery: "<div data-selector=\"image-gallery\" class=\"{{css}}-image-gallery-container\">\n\n\t<div data-selector=\"slider-left-button\" class=\"{{css}}-imagegallery-leftbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-left-inner-button\"\n\t\t\t ba-hotkey:space^enter^left=\"{{left()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\" onclick=\"{{left()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-left-open\"></i>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"images-imagegallery-container\" ba-repeat=\"{{image::images}}\" class=\"{{css}}-imagegallery-container\" data-gallery-container>\n\t\t<div tabindex=\"0\" data-selector=\"imagegallery-selected-image\"\n\t\t\t ba-hotkey:space^enter=\"{{select(image)}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-image\"\n\t\t\t ba-styles=\"{{{left: image.left + 'px', top: image.top + 'px', width: image.width + 'px', height: image.height + 'px'}}}\"\n\t\t\t onclick=\"{{select(image)}}\"\n\t\t>\n\t\t</div>\n\t</div>\n\n\t<div data-selector=\"slider-right-button\" class=\"{{css}}-imagegallery-rightbutton\">\n\t\t<div tabindex=\"0\" data-selector=\"slider-right-inner-button\"\n\t\t\t ba-hotkey:space^enter^right=\"{{right()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-imagegallery-button-inner\"\n\t\t\t onclick=\"{{right()}}\"\n\t\t>\n\t\t\t<i class=\"{{csscommon}}-icon-right-open\"></i>\n\t\t</div>\n\t</div>\n\n</div>\n",
             tmplchooser: "<div class=\"{{css}}-chooser-container\">\n\n\t<div class=\"{{css}}-chooser-button-container\">\n\n\t\t<div ba-repeat=\"{{action :: actions}}\">\n\t\t\t<div tabindex=\"0\"\n\t\t\t\t ba-hotkey:space^enter=\"{{click_action(action)}}\" onmouseout=\"this.blur()\"\n\t\t\t\t class=\"{{css}}-chooser-button-{{action.index}}\"\n\t\t\t\t ba-click=\"{{click_action(action)}}\">\n\t\t\t\t<input ba-if=\"{{action.select && action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t\t   capture=\"{{action.switchcamera}}\" />\n\t\t\t\t<input ba-if=\"{{action.select && !action.capture}}\"\n\t\t\t\t\t   type=\"file\"\n\t\t\t\t\t   class=\"{{css}}-chooser-file\"\n\t\t\t\t\t   onchange=\"{{select_file_action(action, domEvent)}}\"\n\t\t\t\t\t   accept=\"{{action.accept}}\"\n\t\t\t\t/>\n\t\t\t\t<span>\n\t\t\t\t\t{{action.label}}\n\t\t\t\t</span>\n\t\t\t\t<i class=\"{{csscommon}}-icon-{{action.icon}}\"\n\t\t\t\t   ba-if=\"{{action.icon}}\"></i>\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>",
             tmplmessage: "<div data-selector=\"recorder-message-container\" class=\"{{cssrecorder}}-message-container\" ba-click=\"{{click()}}\">\n    <div class=\"{{cssrecorder}}-top-inner-message-container {{cssrecorder}}-{{shortMessage ? 'short-message' : 'long-message'}}\">\n        <div class=\"{{cssrecorder}}-first-inner-message-container\">\n            <div class=\"{{cssrecorder}}-second-inner-message-container\">\n                <div class=\"{{cssrecorder}}-third-inner-message-container\">\n                    <div class=\"{{cssrecorder}}-fourth-inner-message-container\">\n                        <div data-selector=\"recorder-message-block\" class='{{cssrecorder}}-message-message'>\n                            <p>\n                                {{message || \"\"}}\n                            </p>\n                            <ul ba-if=\"{{links && links.length > 0}}\" ba-repeat=\"{{link :: links}}\">\n                                <li>\n                                    <a href=\"javascript:;\" ba-click=\"{{linkClick(link)}}\">\n                                        {{link.title}}\n                                    </a>\n                                </li>\n                            </ul>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n"
@@ -38061,7 +38377,7 @@ Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('flash', 'root:BetaJS.Flash');
 Scoped.define("module:", function (){return{guid:"6c65838a-53fd-4fd1-8d48-e571a0500135"}});
 
-Scoped.define("private:Core", function (){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:93","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:33,latest:!0,prerelease:!1},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
+Scoped.define("private:Core", function (){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:93","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:34,latest:!0,prerelease:!0},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
 
 Scoped.define("private:Application.Connect", ["base:Class","base:Objs","base:Ajax.AjaxWrapper"], ["browser:Ajax.IframePostmessageAjax","browser:Ajax.JsonpScriptAjax","browser:Ajax.XDomainRequestAjax","browser:Ajax.XmlHttpRequestAjax"], function (e,i,a,t){return e.extend({scoped:t},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.ajax=new a({sendContentType:!1,contentType:"urlencoded",wrapStatus:!0,wrapStatusParam:"_wrapstatus",noCache:!0,noCacheParam:"_nocache"})},destroy:function(){this.ajax.destroy(),t.destroy.call(this)},rawRequest:function(e,t){return this.ajax.execute({method:t.method,data:t.data,uri:e,resilience:t.resilience,sendContentType:t.sendContentType})},request:function(e,t){return this.rawRequest(this.application.urls.httpApiResourceUrl(e,t),t)},apiRequest:function(e,t){return this.rawRequest(this.application.urls.apiResourceUrl(e,t),i.extend({sendContentType:!0},t))}}})});
 
