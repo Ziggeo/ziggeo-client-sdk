@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="../build/ziggeo.css" />
+        <script src="credentials.js"></script>
+        <script src="../build/ziggeo.js"></script>
+        <script src="header.js"></script>
+    </head>
+    <body>
+        <ziggeorecorder id="recorder" ziggeo-theme="modern" ziggeo-faceoutline>
+        </ziggeorecorder>
+        <script>
+            ZiggeoApi.V2.Application.getDefault().once("ready", function () {
+                var recorder = ZiggeoApi.V2.Recorder.findByElement(document.getElementById("recorder"));
+                recorder.on("all", function (event_name) {
+                    if (event_name.indexOf("change") === 0)
+                        return;
+                    console.log(event_name);
+                });
+            });
+        </script>
+    </body>
+</html>
