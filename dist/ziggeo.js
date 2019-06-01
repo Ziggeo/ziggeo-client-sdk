@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.34.1 - 2019-04-14
+ziggeo-client-sdk - v2.34.2 - 2019-05-31
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -511,8 +511,8 @@ if (typeof JSON !== "object") {
 }());
 
 /*!
-betajs-shims - v0.0.14 - 2017-12-09
-Copyright (c) Oliver Friedmann
+betajs-shims - v0.0.15 - 2019-04-16
+Copyright (c) Oliver Friedmann,Pablo Iglesias
 Apache-2.0 Software License.
 */
 (function() {
@@ -1316,6 +1316,25 @@ Apache-2.0 Software License.
 		return null;
 	}
 }).call(this));
+(function() {
+	if (!this)
+		return;
+	if (!this.forEach) {
+		this.forEach = function (callback, thisArg) {
+			thisArg = thisArg || window;
+			for (var i = 0; i < this.length; i++) {
+				callback.call(thisArg, this[i], i, this);
+			}
+		};
+	}
+}).call((function () {
+	try {
+		return NodeList.prototype;
+	} catch (e) {
+		return null;
+	}
+}).call(this));
+
 (function() {
     if (!this)
         return;
@@ -2350,8 +2369,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.181",
-    "datetime": 1554773326001
+    "version": "1.0.182",
+    "datetime": 1557959173088
 };
 });
 
@@ -5323,6 +5342,34 @@ Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async
             else
                 this.__callbacks.push(record);
             return this;
+        },
+
+        /**
+         * Be notified when the promise does not finish with a certain time.
+         *
+         * @param {int} delay delay timeout
+         * @param {function} f callback function
+         * @param {object} context callback context
+         */
+        timeout: function(delay, f, context) {
+            var ev = Async.eventually(f, context, delay);
+            return this.callback(function() {
+                Async.clearEventually(ev);
+            });
+        },
+
+        /**
+         * Timeout with an error.
+         *
+         * @param {int} delay delay timeout
+         * @param error error value
+         */
+        timeoutError: function(delay, error) {
+            if (!delay)
+                return this;
+            return this.timeout(delay, function() {
+                this.asyncError(error);
+            }, this);
         },
 
         /**
@@ -9702,7 +9749,7 @@ Scoped.define("module:Classes.ObjectIdScope", ["module:Class","module:Classes.Ob
     });
 });
 
-Scoped.define("module:Classes.ObjectIdMixin", ["module:Classes.ObjectIdScope","module:Objs","module:Ids"], function (ObjectIdScope, Objs, Ids) {
+Scoped.define("module:Classes.ObjectIdMixin", ["module:Classes.ObjectIdScope"], function (ObjectIdScope) {
 
     /**
      * Object Id Mixin
@@ -13579,6 +13626,46 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
                 characterData: true
             });
             return observer;
+        },
+
+        isInputLikeElement: function(element) {
+            return element.nodeName === "TEXTAREA" || element.nodeName === "INPUT";
+        },
+
+        copyStringToClipboard: function(s) {
+            var input = document.createElement("input");
+            input.style.display = 'none';
+            document.body.appendChild(input);
+            input.value = s;
+            this.copyInputValueToClipboard(input);
+            document.body.removeChild(input);
+        },
+
+        copyInputValueToClipboard: function(element) {
+            if (document.body.createTextRange) {
+                var textRange = document.body.createTextRange();
+                textRange.moveToElementText(element);
+                textRange.select();
+                return textRange.execCommand("Copy");
+            } else if (window.getSelection && document.createRange) {
+                var oldContentEditable = element.contentEditable;
+                var oldReadOnly = element.readOnly;
+                element.contentEditable = true;
+                element.readOnly = false;
+                var range = document.createRange();
+                range.selectNodeContents(element);
+                var sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range); // Does not work for Firefox if a textarea or input
+                if (this.isInputLikeElement(element))
+                    element.select(); // Firefox will only select a form element with select()
+                if (Info.isiOS())
+                    element.setSelectionRange(0, 999999);
+                element.contentEditable = oldContentEditable;
+                element.readOnly = oldReadOnly;
+                return document.execCommand("copy");
+            }
+            return false;
         }
 
     };
@@ -15829,8 +15916,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.114",
-    "datetime": 1554298226839
+    "version": "0.0.118",
+    "datetime": 1558382220813
 };
 });
 
@@ -20678,6 +20765,7 @@ Scoped.define("module:Recorder.Support", ["module:WebRTC.Support","browser:Uploa
          *
          * @param {string} type
          * @param {HTMLVideoElement} video
+         * @param {boolean} isUploader
          * @param {int|undefined} h
          * @param {int|undefined} w
          * @param {int|undefined} x
@@ -20685,14 +20773,16 @@ Scoped.define("module:Recorder.Support", ["module:WebRTC.Support","browser:Uploa
          * @param {int|undefined} quality
          * @return {Data URL}
          */
-        createSnapshot: function(type, video, h, w, x, y, quality) {
-            return Support.dataURItoBlob(this._createSnapshot(type, video, h, w, x, y, quality));
+        createSnapshot: function(type, video, isUploader, h, w, x, y, quality) {
+            var _data = this._createSnapshot(type, video, isUploader, h, w, x, y, quality);
+            return _data ? Support.dataURItoBlob(_data) : _data;
         },
 
         /**
          *
          * @param {string} type
          * @param {HTMLVideoElement} video
+         * @param {boolean} isUploader
          * @param {int|undefined} h
          * @param {int|undefined} w
          * @param {int|undefined} x
@@ -20700,42 +20790,52 @@ Scoped.define("module:Recorder.Support", ["module:WebRTC.Support","browser:Uploa
          * @param {int|undefined} quality
          * @return {Data URL}
          */
-        _createSnapshot: function(type, video, h, w, x, y, quality) {
+        _createSnapshot: function(type, video, isUploader, h, w, x, y, quality) {
             x = x || 0;
             y = y || 0;
             quality = quality || 1.0;
+            isUploader = isUploader || false;
             var canvas = document.createElement('canvas');
             canvas.width = w || (video.videoWidth || video.clientWidth);
             canvas.height = h || (video.videoHeight || video.clientHeight);
-            var context = canvas.getContext('2d');
             var orientation = +(canvas.width / canvas.height) > 1.00 ? 'landscape' : 'portrait';
             var _isWebKit = (Info.isSafari() || (Info.isMobile() && Info.isiOS()));
+            var _rotationRequired = (orientation === 'portrait') && isUploader && (Info.isFirefox() || _isWebKit);
+            var _positionMove = Info.isFirefox() ? 1.00 : 1.25;
+            var context = canvas.getContext('2d');
 
-            // ctx.drawImage(img,0,0,img.width,img.height,0,0,400,300);
-            if (_isWebKit && orientation === 'portrait' && this.__detectVerticalSquash(video, canvas.width, canvas.height) !== 1) {
-
-                // context.drawImage(img,sx,sy,swidth,sheight,x,y,width,height);
-                // img, sx (The x coordinate where to start clipping), sy (The y coordinate where to start clipping)
-                // swidth, sheight (The width/height of the clipped image), x, y(The x/y coordinate where to place the image on the canvas),
-                // width/height (The width/height of the image to use (stretch or reduce the image))
-
-                // BEST Achieved for now
+            if (_rotationRequired && this.__detectVerticalSquash(video, canvas.width, canvas.height) !== 1) {
+                // Will rotate image
                 canvas.width = canvas.width > canvas.height ? canvas.width : canvas.height;
                 context.rotate((Math.PI / 180) * 90);
-                // context.scale(1, 2); // correct image is 1,1
-                // Correct Image size like below, but it's not fill to the frame
-                context.drawImage(video, 0, -canvas.width / 1.25, canvas.height, canvas.width);
+                context.drawImage(video, 0, -canvas.width / _positionMove, canvas.height, canvas.width);
             } else if (_isWebKit && orientation === 'portrait') {
-                // Will
                 context.drawImage(video, 0, -canvas.width, canvas.height, canvas.width);
-            } else
+            } else {
                 context.drawImage(video, x, y, canvas.width, canvas.height);
+            }
 
             var data = canvas.toDataURL(type, quality);
 
-            // will fix Safari, first blank covershot bug
-            if (_isWebKit && data.length < 10000) return '';
-            else return data;
+            if (!this.__isCanvasBlank(canvas))
+                return data;
+            else
+                return null;
+        },
+
+        /**
+         * Check if snapshot image is blank image
+         *
+         * @param canvas
+         * @return {boolean}
+         * @private
+         */
+        __isCanvasBlank: function(canvas) {
+            return !canvas.getContext('2d')
+                .getImageData(0, 0, canvas.width, canvas.height).data
+                .some(function(channel) {
+                    return channel !== 0;
+                });
         },
 
         /**
@@ -25728,8 +25828,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.162",
-    "datetime": 1555274242655
+    "version": "0.0.170",
+    "datetime": 1559236162468
 };
 });
 
@@ -29739,26 +29839,54 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.NextVideo", ["module:Vid
 
         _started: function() {
             if (this.dyn.get("playlist")) {
+                var pl0, initialPlaylist;
                 var list = this.dyn.get("playlist");
                 var head = list.shift();
-                if (this.dyn.get("loop"))
-                    list.push(head);
-                this.dyn.set("playlist", list);
+                this.dyn.get("initialoptions").playlist.push(head);
                 if (list.length > 0) {
-                    var pl0 = list[0];
+                    pl0 = list[0];
                     this.dyn.set("poster", pl0.poster);
                     this.dyn.set("source", pl0.source);
                     this.dyn.set("sources", pl0.sources);
-                    this.dyn.trigger("playlist-next", pl0);
-                    this.dyn.reattachVideo();
+                    return this._playNext(pl0);
+                } else {
+                    initialPlaylist = this.dyn.get("initialoptions").playlist;
+                    this.dyn.set("lastplaylistitem", true);
+                    this.dyn.trigger("last-playlist-item");
+                    this.dyn.set("playlist", initialPlaylist);
+                    this.dyn.get("initialoptions").playlist = [];
+
+                    pl0 = initialPlaylist[0];
+                    this.dyn.set("poster", pl0.poster);
+                    this.dyn.set("source", pl0.source);
+                    this.dyn.set("sources", pl0.sources);
+                    if (this.dyn.get("loopall"))
+                        return this._playNext(pl0);
+                    else
+                        this.dyn.reattachVideo();
+                }
+            } else {
+                // If user will set loopall as true, single video also will be played
+                if (this.dyn.get("loopall")) {
+                    this.dyn.set("loop", true);
                     this.dyn.set("autoplay", true);
-                    this.next("LoadPlayer");
-                    return;
+                    this.dyn.reattachVideo();
                 }
             }
             this.next("PosterReady");
-        }
+        },
 
+        /**
+         * Will start auto play the next play list element
+         * @param {object} pl
+         * @private
+         */
+        _playNext: function(pl) {
+            this.dyn.trigger("playlist-next", pl);
+            this.dyn.reattachVideo();
+            this.dyn.set("autoplay", true);
+            this.next("LoadPlayer");
+        }
     });
 });
 
@@ -30001,6 +30129,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "autoplay": false,
                     "preload": false,
                     "loop": false,
+                    "loopall": false,
                     "popup": false,
                     "nofullscreen": false,
                     "playfullscreenonmobile": false,
@@ -30101,8 +30230,10 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "fullscreened": false,
                     "initialoptions": {
                         "hideoninactivity": null,
-                        "volumelevel": null
+                        "volumelevel": null,
+                        "playlist": []
                     },
+                    "lastplaylistitem": false,
                     "manuallypaused": false,
                     "playedonce": false,
                     "preventinteractionstatus": false, // need to prevent `Unexpected token: punc (()` Uglification issue
@@ -30128,6 +30259,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "noflash": "boolean",
                     "rerecordable": "boolean",
                     "loop": "boolean",
+                    "loopall": "boolean",
                     "autoplay": "boolean",
                     "preload": "boolean",
                     "ready": "boolean",
@@ -30379,7 +30511,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         forceflash: !!this.get("forceflash"),
                         noflash: !!this.get("noflash"),
                         preload: !!this.get("preload"),
-                        loop: !!this.get("loop"),
+                        loop: !!this.get("loop") || (this.get("lastplaylistitem") && this.get("loopall")),
                         reloadonplay: this.get('playlist') ? true : !!this.get("reloadonplay")
                     })).error(function(e) {
                         if (this.destroyed())
@@ -31178,14 +31310,16 @@ Scoped.define("module:VideoRecorder.Dynamics.Chooser", ["dynamics:Dynamic","modu
 
                     "allowcustomupload": true,
                     "allowedextensions": null,
-                    "onlyaudio": false
+                    "onlyaudio": false,
+                    "parentpopup": false
 
                 },
 
                 types: {
                     "allowedextensions": "array",
                     "recordviafilecapture": "boolean",
-                    "facecamera": "boolean"
+                    "facecamera": "boolean",
+                    "parentpopup": "boolean"
                 },
 
                 collections: ["actions"],
@@ -31240,7 +31374,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Chooser", ["dynamics:Dynamic","modu
                                     index: index,
                                     icon: "upload",
                                     label: this.string("upload-video"),
-                                    select: !(Info.isiOS() && Info.isCordova()),
+                                    select: !(Info.isiOS() && Info.isCordova()) && !this.get("parentpopup"),
                                     accept: Info.isMobile() && !(Info.isAndroid() && Info.isCordova()) ? "video/*,video/mp4" : custom_accept_string
                                 });
                                 break;
@@ -31848,7 +31982,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Player", ["module:Vi
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Strings","browser:Info","media:Player.Support"], function (State, Strings, Info, PlayerSupport, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Strings","base:Objs","browser:Info","module:PopupHelper","media:Player.Support"], function (State, Strings, Objs, Info, PopupHelper, PlayerSupport, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -31869,22 +32003,55 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:V
             });
         },
 
+        _popup: function() {
+            var popup = this.auto_destroy(new PopupHelper());
+            var dynamic = this.auto_destroy(new this.dyn.cls({
+                element: popup.containerInner,
+                attrs: Objs.extend(this.dyn.cloneAttrs(), this.dyn.popupAttrs())
+            }));
+            this._delegatedRecorder = dynamic;
+            this.dyn.delegateEvents(null, dynamic);
+            popup.on("hide", function() {
+                this._delegatedRecorder = null;
+                dynamic.destroy();
+                popup.destroy();
+            }, this);
+            popup.show();
+            dynamic.activate();
+        },
+
         record: function() {
+            if (this.dyn.get("popup")) {
+                this._popup();
+                return;
+            }
             this.dyn.set("autorecord", true);
             this.selectRecord();
         },
 
         selectRecordScreen: function() {
+            if (this.dyn.get("popup")) {
+                this._popup();
+                return;
+            }
             this.dyn.set("record_media", "screen");
             this.next("RequiredSoftwareCheck");
         },
 
         selectRecord: function() {
+            if (this.dyn.get("popup")) {
+                this._popup();
+                return;
+            }
             this.dyn.set("record_media", "camera");
             this.next("RequiredSoftwareCheck");
         },
 
         selectUpload: function(file) {
+            if (this.dyn.get("popup")) {
+                this._popup();
+                return;
+            }
             if (!(Info.isMobile() && Info.isAndroid() && Info.isCordova())) {
                 if (this.dyn.get("allowedextensions")) {
                     var filename = (file.files[0].name || "").toLowerCase();
@@ -31995,7 +32162,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:V
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCovershot", ["module:VideoRecorder.Dynamics.RecorderStates.State","media:Recorder.Support","base:Objs","base:Timers.Timer","browser:Events","browser:Info","base:Async"], function (State, RecorderSupport, Objs, Timer, DomEvents, Info, Async, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCovershot", ["module:VideoRecorder.Dynamics.RecorderStates.State","media:Recorder.Support","base:Objs","base:Timers.Timer","browser:Dom","browser:Events","browser:Info","base:Async"], function (State, RecorderSupport, Objs, Timer, Dom, DomEvents, Info, Async, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -32011,11 +32178,13 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCoversho
                 this.dyn.set("player_active", false);
 
 
-                // this.dyn._videoFilePlaybackable only for browsers
+                // this.dyn._videoFile only for playback able browsers
                 if (this.dyn._videoFile)
                     this.dyn.set("playbacksource", (window.URL || window.webkitURL).createObjectURL(this.dyn._videoFile));
-                else
-                    throw ('Could not find source file to be able start player');
+                else {
+                    console.warn('Could not find source file to be able start player');
+                    return this.next("Uploading");
+                }
 
                 var _video = document.createElement('video');
                 var _currentTime = 0;
@@ -32026,6 +32195,15 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCoversho
                 _video.volume = 0;
                 _video.muted = true;
 
+                // Wait for 5 seconds before checking if any video data was be able loaded, if not proceed
+                Async.eventually(function() {
+                    // Have no metadata
+                    if (_video.readyState < 1) {
+                        console.warn('Could not be able load video metadata');
+                        return this.next("Uploading");
+                    }
+                }, this, 5000);
+
                 var _playerLoadedData = this.auto_destroy(new DomEvents());
 
                 // Note that loadeddata event will not fire in mobile/tablet devices if data-saver is on in browser settings
@@ -32034,9 +32212,9 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCoversho
                 // HAVE_NOTHING == 0; HAVE_METADATA == 1; HAVE_CURRENT_DATA == 2; HAVE_FUTURE_DATA == 3; HAVE_ENOUGH_DATA == 4
                 _playerLoadedData.on(_video, "loadedmetadata", function(ev) {
                     _totalDuration = _video.duration;
-                    if (_totalDuration === Infinity) {
+                    if (_totalDuration === Infinity || !_totalDuration) {
                         console.warn('Could not generate video covershots from uploaded file');
-                        this.next("Uploading");
+                        return this.next("Uploading");
                     }
                     _seekPeriod = this._calculateSeekPeriod(_totalDuration);
                     if (_video.videoWidth > 0 && _video.videoHeight > 0) {
@@ -32064,12 +32242,12 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCoversho
                         });
                     } else {
                         console.warn('Could not find video dimensions information to be able create covershot');
-                        this.next("Uploading");
+                        return this.next("Uploading");
                     }
                 }, this);
 
                 _playerLoadedData.on(_video, "seeked", function(ev) {
-                    var __snap = RecorderSupport.createSnapshot(this.dyn.get("snapshottype"), _video);
+                    var __snap = RecorderSupport.createSnapshot(this.dyn.get("snapshottype"), _video, true);
                     if (__snap) {
                         // Will add snap images as thumbnails
                         if (this.dyn.get("createthumbnails")) {
@@ -32090,6 +32268,10 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCoversho
                     // Should trigger ended event
                     if ((_video.currentTime + _seekPeriod) >= _totalDuration) {
                         _video.currentTime = _video.currentTime + _seekPeriod;
+                        // Will fire ended event if not fired already, fixes IE/Edge related bug
+                        if (!_video.ended) {
+                            Dom.triggerDomEvent(_video, "ended");
+                        }
                     }
                 }, this);
 
@@ -32464,7 +32646,8 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module
 
         _hasStopped: function() {
             this.dyn.set("duration", Time.now() - this._startTime);
-            this.dyn._showBackgroundSnapshot();
+            if (this.dyn.snapshots.length > 0)
+                this.dyn._showBackgroundSnapshot();
             this.dyn._unbindMedia();
             this.dyn.trigger("recording_stopped");
         }
@@ -32812,7 +32995,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
         }, function(inherited) {
             return {
 
-                template: "\n<div data-selector=\"video-recorder-container\" ba-show=\"{{!player_active}}\"\n     class=\"{{css}}-container {{csstheme}} {{css}}-size-{{csssize}}\n     {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{css}}-{{ fullscreened ? 'fullscreen' : 'normal' }}-view\n     {{cssrecorder}}-{{ firefox ? 'firefox' : 'common'}}-browser\n     {{cssrecorder}}-{{themecolor}}-color\" ba-styles=\"{{widthHeightStyles}}\"\n>\n\n    <video tabindex=\"-1\" data-selector=\"recorder-status\" class=\"{{css}}-video {{css}}-{{hasrecorder ? 'hasrecorder' : 'norecorder'}}\" data-video=\"video\" playsinline></video>\n\t<ba-videorecorder-faceoutline class=\"{{css}}-overlay\" ba-if=\"{{faceoutline && hasrecorder}}\"></ba-videorecorder-faceoutline>\n    <div data-selector=\"recorder-overlay\" class='{{cssrecorder}}-overlay' ba-show=\"{{!hideoverlay}}\" data-overlay=\"overlay\">\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t    ba-tooltip=\"{{loadertooltip}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-label=\"{{loaderlabel}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t\tba-links=\"{{message_links}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t\tba-event:link=\"message_link_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dyntopmessage}}\n\t\t    ba-css=\"{{csstopmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmpltopmessage}}\"\n\t\t    ba-show=\"{{topmessage_active && (topmessage || hovermessage)}}\"\n\t\t    ba-topmessage=\"{{hovermessage || topmessage}}\"\n\t\t></ba-{{dyntopmessage}}>\n\n\t\t<ba-{{dynchooser}}\n\t\t\tba-onlyaudio=\"{{onlyaudio}}\"\n\t\t\tba-facecamera=\"{{facecamera}}\"\n\t\t\tba-recordviafilecapture=\"{{recordviafilecapture}}\"\n\t\t    ba-css=\"{{csschooser || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplchooser}}\"\n\t\t\tba-allowscreen=\"{{allowscreen}}\"\n\t\t    ba-if=\"{{chooser_active && !is_initial_state}}\"\n\t\t    ba-allowrecord=\"{{allowrecord}}\"\n\t\t    ba-allowupload=\"{{allowupload}}\"\n\t\t    ba-allowcustomupload=\"{{allowcustomupload}}\"\n\t\t    ba-allowedextensions=\"{{allowedextensions}}\"\n\t\t    ba-primaryrecord=\"{{primaryrecord}}\"\n\t\t    ba-timelimit=\"{{timelimit}}\"\n\t\t    ba-event:record=\"record_video\"\n\t\t\tba-event:record-screen=\"record_screen\"\n\t\t    ba-event:upload=\"video_file_selected\"\n\t\t></ba-{{dynchooser}}>\n\n\t\t<ba-{{dynimagegallery}}\n\t\t    ba-css=\"{{cssimagegallery || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplimagegallery}}\"\n\t\t    ba-if=\"{{imagegallery_active}}\"\n\t\t    ba-imagecount=\"{{gallerysnapshots}}\"\n\t\t    ba-imagenativewidth=\"{{nativeRecordingWidth}}\"\n\t\t    ba-imagenativeheight=\"{{nativeRecordingHeight}}\"\n\t\t    ba-event:image-selected=\"select_image\"\n\t\t></ba-{{dynimagegallery}}>\n\n\t\t<ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-cameras=\"{{cameras}}\"\n\t\t    ba-microphones=\"{{microphones}}\"\n\t\t    ba-noaudio=\"{{noaudio}}\"\n\t\t\tba-novideo=\"{{onlyaudio}}\"\n\t\t\tba-allowscreen=\"{{record_media==='screen'}}\"\n\t\t    ba-selectedcamera=\"{{selectedcamera || 0}}\"\n\t\t    ba-selectedmicrophone=\"{{selectedmicrophone || 0}}\"\n\t\t    ba-camerahealthy=\"{{camerahealthy}}\"\n\t\t    ba-microphonehealthy=\"{{microphonehealthy}}\"\n\t\t    ba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-settingsvisible=\"{{settingsvisible}}\"\n\t\t    ba-recordvisible=\"{{recordvisible}}\"\n\t\t\tba-cancelvisible=\"{{allowcancel && cancancel}}\"\n\t\t    ba-uploadcovershotvisible=\"{{uploadcovershotvisible}}\"\n\t\t    ba-rerecordvisible=\"{{rerecordvisible}}\"\n\t\t    ba-stopvisible=\"{{stopvisible}}\"\n\t\t    ba-skipvisible=\"{{skipvisible}}\"\n\t\t    ba-controlbarlabel=\"{{controlbarlabel}}\"\n\t\t\tba-mintimeindicator=\"{{mintimeindicator}}\"\n\t\t\tba-timeminlimit=\"{{timeminlimit}}\"\n\t\t    ba-event:select-camera=\"select_camera\"\n\t\t    ba-event:select-microphone=\"select_microphone\"\n\t\t    ba-event:invoke-record=\"record\"\n\t\t    ba-event:invoke-rerecord=\"rerecord\"\n\t\t    ba-event:invoke-stop=\"stop\"\n\t\t    ba-event:invoke-skip=\"invoke_skip\"\n\t\t\tba-event:upload-covershot=\"upload_covershot\"\n\t\t    ba-event:toggle-face-mode=\"toggle_face_mode\"\n\t\t></ba-{{dyncontrolbar}}>\n    </div>\n</div>\n\n\n<div data-selector=\"recorder-player\" ba-if=\"{{player_active}}\" ba-styles=\"{{widthHeightStyles}}\">\n\t<span ba-show=\"{{ie8}}\">&nbsp;</span>\n\t<ba-{{dynvideoplayer}}\n\t    ba-theme=\"{{theme || 'default'}}\"\n        ba-themecolor=\"{{themecolor}}\"\n\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n        ba-source=\"{{playbacksource}}\"\n        ba-poster=\"{{playbackposter}}\"\n        ba-hideoninactivity=\"{{false}}\"\n        ba-forceflash=\"{{forceflash}}\"\n        ba-noflash=\"{{noflash}}\"\n        ba-stretch=\"{{stretch}}\"\n\t\tba-onlyaudio=\"{{onlyaudio}}\"\n        ba-attrs=\"{{playerattrs}}\"\n        ba-data:id=\"player\"\n        ba-width=\"{{width}}\"\n        ba-height=\"{{height}}\"\n        ba-totalduration=\"{{duration / 1000}}\"\n        ba-rerecordable=\"{{rerecordable && (recordings === null || recordings > 0)}}\"\n        ba-submittable=\"{{manualsubmit && verified}}\"\n        ba-reloadonplay=\"{{true}}\"\n        ba-autoplay=\"{{autoplay}}\"\n        ba-nofullscreen=\"{{nofullscreen}}\"\n        ba-topmessage=\"{{playertopmessage}}\"\n        ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n        ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n        ba-tracktags=\"{{tracktags}}\"\n        ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n        ba-trackcuetext=\"{{trackcuetext}}\"\n        ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n\t\tba-event:loaded=\"ready_to_play\"\n        ba-event:rerecord=\"rerecord\"\n        ba-event:playing=\"playing\"\n        ba-event:paused=\"paused\"\n        ba-event:ended=\"ended\"\n        ba-event:submit=\"manual_submit\"\n        ba-event:upload-text-tracks=\"upload_text_tracks\"\n\t\tba-tracksshowselection=\"{{tracksshowselection}}\"\n\t\tba-trackselectorhovered=\"{{trackselectorhovered}}\"\n\t\tba-uploadlocales=\"{{uploadlocales}}\"\n\t\tba-event:selected_label_value=\"selected_label_value\"\n\t\tba-event:move_to_option=\"move_to_option\"\n\t>\n\t</ba-{{dynvideoplayer}}>\n</div>\n",
+                template: "\n<div data-selector=\"video-recorder-container\" ba-show=\"{{!player_active}}\"\n     class=\"{{css}}-container {{csstheme}} {{css}}-size-{{csssize}}\n     {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{css}}-{{ fullscreened ? 'fullscreen' : 'normal' }}-view\n     {{cssrecorder}}-{{ firefox ? 'firefox' : 'common'}}-browser\n     {{cssrecorder}}-{{themecolor}}-color\" ba-styles=\"{{widthHeightStyles}}\"\n>\n\n    <video tabindex=\"-1\" data-selector=\"recorder-status\" class=\"{{css}}-video {{css}}-{{hasrecorder ? 'hasrecorder' : 'norecorder'}}\" data-video=\"video\" playsinline></video>\n\t<ba-videorecorder-faceoutline class=\"{{css}}-overlay\" ba-if=\"{{faceoutline && hasrecorder}}\"></ba-videorecorder-faceoutline>\n    <div data-selector=\"recorder-overlay\" class='{{cssrecorder}}-overlay' ba-show=\"{{!hideoverlay}}\" data-overlay=\"overlay\">\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t    ba-tooltip=\"{{loadertooltip}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-label=\"{{loaderlabel}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t\tba-links=\"{{message_links}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t\tba-event:link=\"message_link_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dyntopmessage}}\n\t\t    ba-css=\"{{csstopmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmpltopmessage}}\"\n\t\t    ba-show=\"{{topmessage_active && (topmessage || hovermessage)}}\"\n\t\t    ba-topmessage=\"{{hovermessage || topmessage}}\"\n\t\t></ba-{{dyntopmessage}}>\n\n\t\t<ba-{{dynchooser}}\n\t\t\tba-onlyaudio=\"{{onlyaudio}}\"\n\t\t\tba-facecamera=\"{{facecamera}}\"\n\t\t\tba-recordviafilecapture=\"{{recordviafilecapture}}\"\n\t\t    ba-css=\"{{csschooser || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplchooser}}\"\n\t\t\tba-allowscreen=\"{{allowscreen}}\"\n\t\t\tba-parentpopup=\"{{popup}}\"\n\t\t    ba-if=\"{{chooser_active && !is_initial_state}}\"\n\t\t    ba-allowrecord=\"{{allowrecord}}\"\n\t\t    ba-allowupload=\"{{allowupload}}\"\n\t\t    ba-allowcustomupload=\"{{allowcustomupload}}\"\n\t\t    ba-allowedextensions=\"{{allowedextensions}}\"\n\t\t    ba-primaryrecord=\"{{primaryrecord}}\"\n\t\t    ba-timelimit=\"{{timelimit}}\"\n\t\t    ba-event:record=\"record_video\"\n\t\t\tba-event:record-screen=\"record_screen\"\n\t\t    ba-event:upload=\"video_file_selected\"\n\t\t></ba-{{dynchooser}}>\n\n\t\t<ba-{{dynimagegallery}}\n\t\t    ba-css=\"{{cssimagegallery || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplimagegallery}}\"\n\t\t    ba-if=\"{{imagegallery_active}}\"\n\t\t    ba-imagecount=\"{{gallerysnapshots}}\"\n\t\t    ba-imagenativewidth=\"{{nativeRecordingWidth}}\"\n\t\t    ba-imagenativeheight=\"{{nativeRecordingHeight}}\"\n\t\t    ba-event:image-selected=\"select_image\"\n\t\t></ba-{{dynimagegallery}}>\n\n\t\t<ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-cameras=\"{{cameras}}\"\n\t\t    ba-microphones=\"{{microphones}}\"\n\t\t    ba-noaudio=\"{{noaudio}}\"\n\t\t\tba-novideo=\"{{onlyaudio}}\"\n\t\t\tba-allowscreen=\"{{record_media==='screen'}}\"\n\t\t    ba-selectedcamera=\"{{selectedcamera || 0}}\"\n\t\t    ba-selectedmicrophone=\"{{selectedmicrophone || 0}}\"\n\t\t    ba-camerahealthy=\"{{camerahealthy}}\"\n\t\t    ba-microphonehealthy=\"{{microphonehealthy}}\"\n\t\t    ba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-settingsvisible=\"{{settingsvisible}}\"\n\t\t    ba-recordvisible=\"{{recordvisible}}\"\n\t\t\tba-cancelvisible=\"{{allowcancel && cancancel}}\"\n\t\t    ba-uploadcovershotvisible=\"{{uploadcovershotvisible}}\"\n\t\t    ba-rerecordvisible=\"{{rerecordvisible}}\"\n\t\t    ba-stopvisible=\"{{stopvisible}}\"\n\t\t    ba-skipvisible=\"{{skipvisible}}\"\n\t\t    ba-controlbarlabel=\"{{controlbarlabel}}\"\n\t\t\tba-mintimeindicator=\"{{mintimeindicator}}\"\n\t\t\tba-timeminlimit=\"{{timeminlimit}}\"\n\t\t    ba-event:select-camera=\"select_camera\"\n\t\t    ba-event:select-microphone=\"select_microphone\"\n\t\t    ba-event:invoke-record=\"record\"\n\t\t    ba-event:invoke-rerecord=\"rerecord\"\n\t\t    ba-event:invoke-stop=\"stop\"\n\t\t    ba-event:invoke-skip=\"invoke_skip\"\n\t\t\tba-event:upload-covershot=\"upload_covershot\"\n\t\t    ba-event:toggle-face-mode=\"toggle_face_mode\"\n\t\t></ba-{{dyncontrolbar}}>\n    </div>\n</div>\n\n\n<div data-selector=\"recorder-player\" ba-if=\"{{player_active}}\" ba-styles=\"{{widthHeightStyles}}\">\n\t<span ba-show=\"{{ie8}}\">&nbsp;</span>\n\t<ba-{{dynvideoplayer}}\n\t    ba-theme=\"{{theme || 'default'}}\"\n        ba-themecolor=\"{{themecolor}}\"\n\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n        ba-source=\"{{playbacksource}}\"\n        ba-poster=\"{{playbackposter}}\"\n        ba-hideoninactivity=\"{{false}}\"\n        ba-forceflash=\"{{forceflash}}\"\n        ba-noflash=\"{{noflash}}\"\n        ba-stretch=\"{{stretch}}\"\n\t\tba-onlyaudio=\"{{onlyaudio}}\"\n        ba-attrs=\"{{playerattrs}}\"\n        ba-data:id=\"player\"\n        ba-width=\"{{width}}\"\n        ba-height=\"{{height}}\"\n        ba-totalduration=\"{{duration / 1000}}\"\n        ba-rerecordable=\"{{rerecordable && (recordings === null || recordings > 0)}}\"\n        ba-submittable=\"{{manualsubmit && verified}}\"\n        ba-reloadonplay=\"{{true}}\"\n        ba-autoplay=\"{{autoplay}}\"\n        ba-nofullscreen=\"{{nofullscreen}}\"\n        ba-topmessage=\"{{playertopmessage}}\"\n        ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n        ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n        ba-tracktags=\"{{tracktags}}\"\n        ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n        ba-trackcuetext=\"{{trackcuetext}}\"\n        ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n\t\tba-event:loaded=\"ready_to_play\"\n        ba-event:rerecord=\"rerecord\"\n        ba-event:playing=\"playing\"\n        ba-event:paused=\"paused\"\n        ba-event:ended=\"ended\"\n        ba-event:submit=\"manual_submit\"\n        ba-event:upload-text-tracks=\"upload_text_tracks\"\n\t\tba-tracksshowselection=\"{{tracksshowselection}}\"\n\t\tba-trackselectorhovered=\"{{trackselectorhovered}}\"\n\t\tba-uploadlocales=\"{{uploadlocales}}\"\n\t\tba-event:selected_label_value=\"selected_label_value\"\n\t\tba-event:move_to_option=\"move_to_option\"\n\t>\n\t</ba-{{dynvideoplayer}}>\n</div>\n",
 
                 attrs: {
                     /* CSS */
@@ -32829,10 +33012,13 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "width": "",
                     "height": "",
                     "gallerysnapshots": 3,
+                    "popup-width": "",
+                    "popup-height": "",
 
                     /* Themes */
                     "theme": "",
                     "csstheme": "",
+                    "themecolor": "",
 
                     /* Dynamics */
                     "dynimagegallery": "videorecorder-imagegallery",
@@ -32919,6 +33105,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "recordings": null,
                     "ready": true,
                     "orientation": false,
+                    "popup": false,
+                    "popup-stretch": false,
                     "stretch": false,
                     "audio-test-mandatory": false,
                     "snapshotfromuploader": true,
@@ -32981,8 +33169,13 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "camerafacefront": "boolean",
                     "noaudio": "boolean",
                     "skipinitial": "boolean",
+                    "popup": "boolean",
+                    "popup-stretch": "boolean",
+                    "popup-width": "int",
+                    "popup-height": "int",
                     "enforce-duration": "bool",
                     "webrtcstreaming": "boolean",
+                    "themecolor": "string",
                     "webrtconmobile": "boolean",
                     "manual-upload": "boolean",
                     "webrtcstreamingifnecessary": "boolean",
@@ -33036,12 +33229,16 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                 create: function() {
                     // Init Audio Context
                     WebRTCSupport.globals();
+
                     if (this.get("theme") in Assets.recorderthemes) {
                         Objs.iter(Assets.recorderthemes[this.get("theme")], function(value, key) {
                             if (!this.isArgumentAttr(key))
                                 this.set(key, value);
                         }, this);
                     }
+                    if (!this.get("themecolor"))
+                        this.set("themecolor", "default");
+
                     this.set("ie8", Info.isInternetExplorer() && Info.internetExplorerVersion() < 9);
                     this.set("hideoverlay", false);
 
@@ -33225,7 +33422,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                 },
 
                 _initSettings: function() {
-                    // Without below line re-recorder will not lunch
+                    // Without below line re-recorder will not launch
                     this.snapshots = [];
                     this.thumbnails = [];
                     this.set("videometadata", {
@@ -33384,7 +33581,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     this.__backgroundSnapshot = this.recorder.createSnapshot(this.get("snapshottype"));
                     var el = this.activeElement().querySelector("[data-video]");
                     var dimensions = Dom.elementDimensions(el);
-                    this.__backgroundSnapshotDisplay = this.recorder.createSnapshotDisplay(el, this.__backgroundSnapshot, 0, 0, dimensions.width, dimensions.height);
+                    if (this.__backgroundSnapshot)
+                        this.__backgroundSnapshotDisplay = this.recorder.createSnapshotDisplay(el, this.__backgroundSnapshot, 0, 0, dimensions.width, dimensions.height);
                 },
 
                 _hideBackgroundSnapshot: function() {
@@ -33398,7 +33596,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     delete this.__backgroundSnapshot;
                 },
 
-                object_functions: ["record", "rerecord", "screen_record", "stop", "play", "pause", "reset"],
+                object_functions: ["record", "rerecord", "record_screen", "stop", "play", "pause", "reset"],
 
                 functions: {
 
@@ -33408,6 +33606,10 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     },
 
                     record: function() {
+                        if (this._delegatedRecorder) {
+                            this._delegatedRecorder.execute("record");
+                            return;
+                        }
                         this.host.state().record();
                     },
 
@@ -33416,6 +33618,10 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     },
 
                     record_screen: function() {
+                        if (this._delegatedRecorder) {
+                            this._delegatedRecorder.execute("record_screen");
+                            return;
+                        }
                         this.host.state().selectRecordScreen();
                     },
 
@@ -33469,6 +33675,10 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     },
 
                     rerecord: function() {
+                        if (this._delegatedRecorder) {
+                            this._delegatedRecorder.execute("rerecord");
+                            return;
+                        }
                         if (confirm(this.stringUnicode("rerecord-confirm"))) {
                             this.host.state().rerecord();
                             this._initSettings();
@@ -33476,14 +33686,26 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     },
 
                     stop: function() {
+                        if (this._delegatedRecorder) {
+                            this._delegatedRecorder.execute("stop");
+                            return;
+                        }
                         this.host.state().stop();
                     },
 
                     play: function() {
+                        if (this._delegatedRecorder) {
+                            this._delegatedRecorder.execute("play");
+                            return;
+                        }
                         this.host.state().play();
                     },
 
                     pause: function() {
+                        if (this._delegatedRecorder) {
+                            this._delegatedRecorder.execute("pause");
+                            return;
+                        }
                         this.host.state().pause();
                     },
 
@@ -33508,10 +33730,15 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     },
 
                     reset: function() {
+                        if (this._delegatedRecorder) {
+                            this._delegatedRecorder.execute("reset");
+                            return;
+                        }
                         this._stopRecording().callback(function() {
                             this._unbindMedia();
                             this._hideBackgroundSnapshot();
                             this._detachRecorder();
+                            this._initSettings();
                             this.host.state().next("Initial");
                         }, this);
                     },
@@ -33717,6 +33944,21 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                             Dom.elementAddClass(this.activeElement(), this.get("css") + "-stretch-" + newStretch);
                     }
                     this.__currentStretch = newStretch;
+                },
+
+                cloneAttrs: function() {
+                    return Objs.map(this.attrs, function(value, key) {
+                        return this.get(key);
+                    }, this);
+                },
+
+                popupAttrs: function() {
+                    return {
+                        popup: false,
+                        width: this.get("popup-width"),
+                        height: this.get("popup-height"),
+                        stretch: this.get("popup-stretch")
+                    };
                 }
 
             };
@@ -33729,7 +33971,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
         })
         .register("ba-videorecorder")
         .registerFunctions({
-            /**/"!player_active": function (obj) { with (obj) { return !player_active; } }, "css": function (obj) { with (obj) { return css; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "fullscreened ? 'fullscreen' : 'normal'": function (obj) { with (obj) { return fullscreened ? 'fullscreen' : 'normal'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "firefox ? 'firefox' : 'common'": function (obj) { with (obj) { return firefox ? 'firefox' : 'common'; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "hasrecorder ? 'hasrecorder' : 'norecorder'": function (obj) { with (obj) { return hasrecorder ? 'hasrecorder' : 'norecorder'; } }, "faceoutline && hasrecorder": function (obj) { with (obj) { return faceoutline && hasrecorder; } }, "!hideoverlay": function (obj) { with (obj) { return !hideoverlay; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "cssrecorder || css": function (obj) { with (obj) { return cssrecorder || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "loadertooltip": function (obj) { with (obj) { return loadertooltip; } }, "hovermessage": function (obj) { with (obj) { return hovermessage; } }, "loaderlabel": function (obj) { with (obj) { return loaderlabel; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "message_links": function (obj) { with (obj) { return message_links; } }, "dyntopmessage": function (obj) { with (obj) { return dyntopmessage; } }, "csstopmessage || css": function (obj) { with (obj) { return csstopmessage || css; } }, "tmpltopmessage": function (obj) { with (obj) { return tmpltopmessage; } }, "topmessage_active && (topmessage || hovermessage)": function (obj) { with (obj) { return topmessage_active && (topmessage || hovermessage); } }, "hovermessage || topmessage": function (obj) { with (obj) { return hovermessage || topmessage; } }, "dynchooser": function (obj) { with (obj) { return dynchooser; } }, "onlyaudio": function (obj) { with (obj) { return onlyaudio; } }, "facecamera": function (obj) { with (obj) { return facecamera; } }, "recordviafilecapture": function (obj) { with (obj) { return recordviafilecapture; } }, "csschooser || css": function (obj) { with (obj) { return csschooser || css; } }, "tmplchooser": function (obj) { with (obj) { return tmplchooser; } }, "allowscreen": function (obj) { with (obj) { return allowscreen; } }, "chooser_active && !is_initial_state": function (obj) { with (obj) { return chooser_active && !is_initial_state; } }, "allowrecord": function (obj) { with (obj) { return allowrecord; } }, "allowupload": function (obj) { with (obj) { return allowupload; } }, "allowcustomupload": function (obj) { with (obj) { return allowcustomupload; } }, "allowedextensions": function (obj) { with (obj) { return allowedextensions; } }, "primaryrecord": function (obj) { with (obj) { return primaryrecord; } }, "timelimit": function (obj) { with (obj) { return timelimit; } }, "dynimagegallery": function (obj) { with (obj) { return dynimagegallery; } }, "cssimagegallery || css": function (obj) { with (obj) { return cssimagegallery || css; } }, "tmplimagegallery": function (obj) { with (obj) { return tmplimagegallery; } }, "imagegallery_active": function (obj) { with (obj) { return imagegallery_active; } }, "gallerysnapshots": function (obj) { with (obj) { return gallerysnapshots; } }, "nativeRecordingWidth": function (obj) { with (obj) { return nativeRecordingWidth; } }, "nativeRecordingHeight": function (obj) { with (obj) { return nativeRecordingHeight; } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "noaudio": function (obj) { with (obj) { return noaudio; } }, "record_media==='screen'": function (obj) { with (obj) { return record_media==='screen'; } }, "selectedcamera || 0": function (obj) { with (obj) { return selectedcamera || 0; } }, "selectedmicrophone || 0": function (obj) { with (obj) { return selectedmicrophone || 0; } }, "camerahealthy": function (obj) { with (obj) { return camerahealthy; } }, "microphonehealthy": function (obj) { with (obj) { return microphonehealthy; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "allowcancel && cancancel": function (obj) { with (obj) { return allowcancel && cancancel; } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "mintimeindicator": function (obj) { with (obj) { return mintimeindicator; } }, "timeminlimit": function (obj) { with (obj) { return timeminlimit; } }, "player_active": function (obj) { with (obj) { return player_active; } }, "ie8": function (obj) { with (obj) { return ie8; } }, "dynvideoplayer": function (obj) { with (obj) { return dynvideoplayer; } }, "theme || 'default'": function (obj) { with (obj) { return theme || 'default'; } }, "playbacksource": function (obj) { with (obj) { return playbacksource; } }, "playbackposter": function (obj) { with (obj) { return playbackposter; } }, "false": function (obj) { with (obj) { return false; } }, "forceflash": function (obj) { with (obj) { return forceflash; } }, "noflash": function (obj) { with (obj) { return noflash; } }, "stretch": function (obj) { with (obj) { return stretch; } }, "playerattrs": function (obj) { with (obj) { return playerattrs; } }, "width": function (obj) { with (obj) { return width; } }, "height": function (obj) { with (obj) { return height; } }, "duration / 1000": function (obj) { with (obj) { return duration / 1000; } }, "rerecordable && (recordings === null || recordings > 0)": function (obj) { with (obj) { return rerecordable && (recordings === null || recordings > 0); } }, "manualsubmit && verified": function (obj) { with (obj) { return manualsubmit && verified; } }, "true": function (obj) { with (obj) { return true; } }, "autoplay": function (obj) { with (obj) { return autoplay; } }, "nofullscreen": function (obj) { with (obj) { return nofullscreen; } }, "playertopmessage": function (obj) { with (obj) { return playertopmessage; } }, "allowtexttrackupload": function (obj) { with (obj) { return allowtexttrackupload; } }, "uploadtexttracksvisible": function (obj) { with (obj) { return uploadtexttracksvisible; } }, "tracktags": function (obj) { with (obj) { return tracktags; } }, "tracktagsstyled": function (obj) { with (obj) { return tracktagsstyled; } }, "trackcuetext": function (obj) { with (obj) { return trackcuetext; } }, "acceptedtracktexts": function (obj) { with (obj) { return acceptedtracktexts; } }, "tracksshowselection": function (obj) { with (obj) { return tracksshowselection; } }, "trackselectorhovered": function (obj) { with (obj) { return trackselectorhovered; } }, "uploadlocales": function (obj) { with (obj) { return uploadlocales; } }/**/
+            /**/"!player_active": function (obj) { with (obj) { return !player_active; } }, "css": function (obj) { with (obj) { return css; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "fullscreened ? 'fullscreen' : 'normal'": function (obj) { with (obj) { return fullscreened ? 'fullscreen' : 'normal'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "firefox ? 'firefox' : 'common'": function (obj) { with (obj) { return firefox ? 'firefox' : 'common'; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "hasrecorder ? 'hasrecorder' : 'norecorder'": function (obj) { with (obj) { return hasrecorder ? 'hasrecorder' : 'norecorder'; } }, "faceoutline && hasrecorder": function (obj) { with (obj) { return faceoutline && hasrecorder; } }, "!hideoverlay": function (obj) { with (obj) { return !hideoverlay; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "cssrecorder || css": function (obj) { with (obj) { return cssrecorder || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "loadertooltip": function (obj) { with (obj) { return loadertooltip; } }, "hovermessage": function (obj) { with (obj) { return hovermessage; } }, "loaderlabel": function (obj) { with (obj) { return loaderlabel; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "message_links": function (obj) { with (obj) { return message_links; } }, "dyntopmessage": function (obj) { with (obj) { return dyntopmessage; } }, "csstopmessage || css": function (obj) { with (obj) { return csstopmessage || css; } }, "tmpltopmessage": function (obj) { with (obj) { return tmpltopmessage; } }, "topmessage_active && (topmessage || hovermessage)": function (obj) { with (obj) { return topmessage_active && (topmessage || hovermessage); } }, "hovermessage || topmessage": function (obj) { with (obj) { return hovermessage || topmessage; } }, "dynchooser": function (obj) { with (obj) { return dynchooser; } }, "onlyaudio": function (obj) { with (obj) { return onlyaudio; } }, "facecamera": function (obj) { with (obj) { return facecamera; } }, "recordviafilecapture": function (obj) { with (obj) { return recordviafilecapture; } }, "csschooser || css": function (obj) { with (obj) { return csschooser || css; } }, "tmplchooser": function (obj) { with (obj) { return tmplchooser; } }, "allowscreen": function (obj) { with (obj) { return allowscreen; } }, "popup": function (obj) { with (obj) { return popup; } }, "chooser_active && !is_initial_state": function (obj) { with (obj) { return chooser_active && !is_initial_state; } }, "allowrecord": function (obj) { with (obj) { return allowrecord; } }, "allowupload": function (obj) { with (obj) { return allowupload; } }, "allowcustomupload": function (obj) { with (obj) { return allowcustomupload; } }, "allowedextensions": function (obj) { with (obj) { return allowedextensions; } }, "primaryrecord": function (obj) { with (obj) { return primaryrecord; } }, "timelimit": function (obj) { with (obj) { return timelimit; } }, "dynimagegallery": function (obj) { with (obj) { return dynimagegallery; } }, "cssimagegallery || css": function (obj) { with (obj) { return cssimagegallery || css; } }, "tmplimagegallery": function (obj) { with (obj) { return tmplimagegallery; } }, "imagegallery_active": function (obj) { with (obj) { return imagegallery_active; } }, "gallerysnapshots": function (obj) { with (obj) { return gallerysnapshots; } }, "nativeRecordingWidth": function (obj) { with (obj) { return nativeRecordingWidth; } }, "nativeRecordingHeight": function (obj) { with (obj) { return nativeRecordingHeight; } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "noaudio": function (obj) { with (obj) { return noaudio; } }, "record_media==='screen'": function (obj) { with (obj) { return record_media==='screen'; } }, "selectedcamera || 0": function (obj) { with (obj) { return selectedcamera || 0; } }, "selectedmicrophone || 0": function (obj) { with (obj) { return selectedmicrophone || 0; } }, "camerahealthy": function (obj) { with (obj) { return camerahealthy; } }, "microphonehealthy": function (obj) { with (obj) { return microphonehealthy; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "allowcancel && cancancel": function (obj) { with (obj) { return allowcancel && cancancel; } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "mintimeindicator": function (obj) { with (obj) { return mintimeindicator; } }, "timeminlimit": function (obj) { with (obj) { return timeminlimit; } }, "player_active": function (obj) { with (obj) { return player_active; } }, "ie8": function (obj) { with (obj) { return ie8; } }, "dynvideoplayer": function (obj) { with (obj) { return dynvideoplayer; } }, "theme || 'default'": function (obj) { with (obj) { return theme || 'default'; } }, "playbacksource": function (obj) { with (obj) { return playbacksource; } }, "playbackposter": function (obj) { with (obj) { return playbackposter; } }, "false": function (obj) { with (obj) { return false; } }, "forceflash": function (obj) { with (obj) { return forceflash; } }, "noflash": function (obj) { with (obj) { return noflash; } }, "stretch": function (obj) { with (obj) { return stretch; } }, "playerattrs": function (obj) { with (obj) { return playerattrs; } }, "width": function (obj) { with (obj) { return width; } }, "height": function (obj) { with (obj) { return height; } }, "duration / 1000": function (obj) { with (obj) { return duration / 1000; } }, "rerecordable && (recordings === null || recordings > 0)": function (obj) { with (obj) { return rerecordable && (recordings === null || recordings > 0); } }, "manualsubmit && verified": function (obj) { with (obj) { return manualsubmit && verified; } }, "true": function (obj) { with (obj) { return true; } }, "autoplay": function (obj) { with (obj) { return autoplay; } }, "nofullscreen": function (obj) { with (obj) { return nofullscreen; } }, "playertopmessage": function (obj) { with (obj) { return playertopmessage; } }, "allowtexttrackupload": function (obj) { with (obj) { return allowtexttrackupload; } }, "uploadtexttracksvisible": function (obj) { with (obj) { return uploadtexttracksvisible; } }, "tracktags": function (obj) { with (obj) { return tracktags; } }, "tracktagsstyled": function (obj) { with (obj) { return tracktagsstyled; } }, "trackcuetext": function (obj) { with (obj) { return trackcuetext; } }, "acceptedtracktexts": function (obj) { with (obj) { return acceptedtracktexts; } }, "tracksshowselection": function (obj) { with (obj) { return tracksshowselection; } }, "trackselectorhovered": function (obj) { with (obj) { return trackselectorhovered; } }, "uploadlocales": function (obj) { with (obj) { return uploadlocales; } }/**/
         })
         .attachStringTable(Assets.strings)
         .addStrings({
@@ -39191,7 +39433,7 @@ Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('flash', 'root:BetaJS.Flash');
 Scoped.define("module:", function (){return{guid:"6c65838a-53fd-4fd1-8d48-e571a0500135"}});
 
-Scoped.define("private:Core", function (){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:93","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:34,latest:!0,prerelease:!0},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
+Scoped.define("private:Core", function (){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:93","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. / International",regions:{"eu-west-1":{prefix:"r1",location:"Ireland / EU","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:34,latest:!0,prerelease:!0},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
 
 Scoped.define("private:Application.Connect", ["base:Class","base:Objs","base:Ajax.AjaxWrapper"], ["browser:Ajax.IframePostmessageAjax","browser:Ajax.JsonpScriptAjax","browser:Ajax.XDomainRequestAjax","browser:Ajax.XmlHttpRequestAjax"], function (e,i,a,t){return e.extend({scoped:t},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.ajax=new a({sendContentType:!1,contentType:"urlencoded",wrapStatus:!0,wrapStatusParam:"_wrapstatus",noCache:!0,noCacheParam:"_nocache"})},destroy:function(){this.ajax.destroy(),t.destroy.call(this)},rawRequest:function(e,t){return this.ajax.execute({method:t.method,data:t.data,uri:e,resilience:t.resilience,sendContentType:t.sendContentType})},request:function(e,t){return this.rawRequest(this.application.urls.httpApiResourceUrl(e,t),t)},apiRequest:function(e,t){return this.rawRequest(this.application.urls.apiResourceUrl(e,t),i.extend({sendContentType:!0},t))}}})});
 
@@ -39235,7 +39477,7 @@ Scoped.define("module:ImageRecorderStates.Uploading", ["mediacomponents:ImageCap
 
 Scoped.define("module:PlayerStates.PosterError", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.State"], function (e,t){return e.extend({scoped:t},{dynamics:["loader"],_fail:function(){4!==this.dyn.get("video_data").state?(this.dyn.set("loader_active",!1),this.dyn.set("message_active",!0),this.dyn.set("message",this.dyn.string("video-access-error")),this.listenOn(this.dyn,"message:click",function(){this.next("LoadPlayer")},this)):this.next("VideoProcessing")},_started:function(){!0===this.dyn.get("video_status")&&this._fail(),this.listenOn(this.dyn,"change:video_status",function(){!0===this.dyn.get("video_status")&&this._fail()})}})});
 
-Scoped.define("module:PlayerStates.VideoProcessing", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function (e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("video-processing")),this.__video=this.dyn.get("video"),this.dyn.application.videos.watch(this.__video,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__videoUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}}))},_end:function(){this.dyn.application.videos.unwatch(this.__video,this),this.dyn.set("end-processing-time",a.now()),this.dyn._track("processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
+Scoped.define("module:PlayerStates.VideoProcessing", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function (e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("video-processing")),this.__video=this.dyn.get("video"),this.dyn.application.videos.watch(this.__video,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__videoUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}})),this.dyn.reattachImage()},_end:function(){this.dyn.application.videos.unwatch(this.__video,this),this.dyn.set("end-processing-time",a.now()),this.dyn._track("processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
 
 Scoped.define("module:PlayerStates.PlayVideo", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.PlayVideo"], function (e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn.application&&this.dyn.application.videos._playback(this.dyn.get("video"),null,this.dyn.get("auth")),this.dyn._track("play_start")}}})});
 
@@ -39297,7 +39539,7 @@ Scoped.define("module:ImageViewer", ["mediacomponents:ImageViewer.Dynamics.Image
 
 Scoped.define("module:PopupImageViewer", ["module:ImageViewer","mediacomponents:PopupHelper"], function (e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:Player", ["mediacomponents:VideoPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function (e,t,i,a,s,o,r,n,l,c,d,u,p,h){return e.extend({scoped:h},[p,function(e){return{attrs:{"stream-width":null,"stream-height":null,"effect-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,video:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1,"audio-transcription-as-subtitles":!1},types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool","audio-transcription-as-subtitles":"bool"},create:function(){if(this._invokeCallback=n.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),this.get("effect-profile")&&a.is_array(this.get("effect-profile"))&&this.set("effect-profile",this.get("effect-profile")[0]),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("video_status",null)},_notifications:{_activate:"_createWithApplication"},_createWithApplication:function(){if(this._obtainApplication(),this.application)if(this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")){if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(e){return this.__sourceByVideo(e)},this));var e=this.get("playlist")[0];this.set("poster",e.poster),this.set("source",e.source),this.set("video",e.token),this.on("playlist-next",function(e){this.set("video",e.token)},this)}this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setVideoSources(),this.set("ready",!0),this._track("embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this)}else t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");else t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:video":function(){this.set("stream",null),this.__setVideoSources()},paused:function(){this._track("play_pause",{media_time:this.get("position")})},playing:function(){this._track("play_playing",{media_time:this.get("position")})},ended:function(){this._track("play_end",{media_time:this.get("duration")})},seek:function(e){this._track("play_seek",{media_time:e})}},__setVideoSources:function(){this.get("video")&&this.get("application_status")&&(this.set("sharevideourl",this.application.videos.publicVideoUrl(this.get("video")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),this.application.videos.cache(this.get("video"),{auth:this.get("auth")}).callback(this.__videoUpdate,this),this.get("ready")&&this.reattachVideo())},__sourceByVideo:function(t,e){var i=this.get("video_data");i&&i.duration&&i.duration&&this.set("duration",i.duration);var a=l.filter(i&&i.streams?i.streams:[],function(e){return!(e.token!==i.original_stream.token&&e.parent_stream!==i.original_stream.token||5!==e.state||3!==e.streamable||this.get("effect-profile")&&e.effect_profile!==this.get("effect-profile"))},this);if(this.get("playlist")&&(a=[],e=null),e||this.get("stream-width")||this.get("stream-height")||a.length<2){var s=e?this.application.streams:this.application.videos,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{stream_width:this.get("stream-width"),stream_height:this.get("stream-height"),effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{poster:s.imageUrl.apply(s,r),source:s.videoUrl.apply(s,r),token:t}}var n=[],o=[],c={effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh"),auth:this.get("auth")};l.iter(a,function(e){n.push({src:this.application.streams.videoUrl(t,e.token,c),poster:this.application.streams.imageUrl(t,e.token,c),token:e.token}),o.push({width:e.video_width,height:e.video_height,filter:{token:e.token}})},this);var d=o[0];return{poster:null,source:null,sources:n,streams:o,currentstream:d,token:t}},__setSources:function(){this.set("uploadoptions",{textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream")||this.properties().getProp("video_data.original_stream.token"),this.get("auth"))}),this.setAll(this.__sourceByVideo(this.get("video"),this.get("stream")))},__audioTranscriptionToVTT:function(e,t,i){i=i||5;for(var a=e.length,s=0,r=["WEBVTT"];s<a;){var n=t[s].start,o=t[s].end,c=[e[s]];for(s++,j=i-1;0<j&&s<a;)o=t[s].end,c.push(e[s]),s++,j--;r.push(""),r.push(u.format("HH:MM:ss.l",n)+" --\x3e "+u.format("HH:MM:ss.l",o)),r.push(c.join(" "))}return r.join("\n")},__videoUpdate:function(e,t){if(!this.destroyed())if(e)this.set("video_status",!1),e.status_code()===o.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("video-not-found")}):e.status_code()===o.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("video-access-forbidden")}):this.state().next("FatalError",{message:this.string("video-unknown-error")});else{this.set("video_data",t);var i=[];try{var a=t.default_stream.audio_transcription||t.original_stream.audio_transcription;a&&this.get("audio-transcription-as-subtitles")&&i.push({lang:"en",kind:"subtitles",label:"Transcription",content:this.__audioTranscriptionToVTT(a.words,a.times)});var s=t.default_stream.subtitles||t.original_stream.subtitles;s&&l.iter(s,function(e,t){i.push({lang:t,kind:"subtitles",label:e.label,content:e.data})})}catch(n){}if(this.set("tracktags",i),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("video-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("video-unknown-error")});if(this.set("video_status",!0),4===t.state)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if(this.get("effect-profile")){var r=!1;if(l.iter(t.streams,function(e){e.effect_profile===this.get("effect-profile")&&4<e.state&&(r=!0)},this),!r)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if("VideoProcessing"===this.state().state_name())return this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer")}if("VideoProcessing"===this.state().state_name())return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.videos.refreshToken(this.get("video")))return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=c.now(),s=d.create();s.success(function(){this.application.analytics.track("2",e,{video_token:this.get("video_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},l.extend({embed_type:"player"},t),l.extend({duration:this.get("video_data").duration||this.get("duration"),width:this.get("stream")?this.get("stream").width:this.videoWidth(),height:this.get("stream")?this.get("stream").height:this.videoHeight(),tags:this.get("video_data").tags},i),a)},this),this.get("video_data")?s.asyncSuccess():this.once("change:video_data",function(){s.asyncSuccess()},this)}}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoplayer").register("ziggeoplayer").attachStringTable(r.mainLocale).addStrings({"video-not-found":"We could not find the specified video file.","video-access-forbidden":"You are not permitted to access this video file.","video-unknown-error":"We cannot access this video at the moment. Please try again later.","video-rejected":"The video has been rejected.","video-processing":"The video is processing - stay tuned.","video-access-error":"The video is currently under moderation. You may click to retry."})});
+Scoped.define("module:Player", ["mediacomponents:VideoPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function (e,t,i,a,s,o,r,n,l,c,d,u,p,h){return e.extend({scoped:h},[p,function(e){return{attrs:{"stream-width":null,"stream-height":null,"effect-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,video:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1,"audio-transcription-as-subtitles":!1},types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool","audio-transcription-as-subtitles":"bool"},create:function(){if(this._invokeCallback=n.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),this.get("effect-profile")&&a.is_array(this.get("effect-profile"))&&this.set("effect-profile",this.get("effect-profile")[0]),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("video_status",null)},_notifications:{_activate:"_createWithApplication"},_createWithApplication:function(){if(this._obtainApplication(),this.application)if(this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")){if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(e){return this.__sourceByVideo(e)},this));var e=this.get("playlist")[0];this.set("poster",e.poster),this.set("source",e.source),this.set("video",e.token),this.on("playlist-next",function(e){this.set("video",e.token)},this)}this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setVideoSources(),this.set("ready",!0),this._track("embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this)}else t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");else t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:video":function(){this.set("stream",null),this.__setVideoSources()},paused:function(){this._track("play_pause",{media_time:this.get("position")})},playing:function(){this._track("play_playing",{media_time:this.get("position")})},ended:function(){this._track("play_end",{media_time:this.get("duration")})},seek:function(e){this._track("play_seek",{media_time:e})}},__setVideoSources:function(){this.get("video")&&this.get("application_status")&&(this.set("sharevideourl",this.application.videos.publicVideoUrl(this.get("video")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),this.application.videos.cache(this.get("video"),{auth:this.get("auth")}).callback(this.__videoUpdate,this),this.get("ready")&&this.reattachVideo())},__sourceByVideo:function(t,e){var i=this.get("video_data");i&&i.duration&&i.duration&&this.set("duration",i.duration);var a=l.filter(i&&i.streams?i.streams:[],function(e){return!(e.token!==i.original_stream.token&&e.parent_stream!==i.original_stream.token||5!==e.state||3!==e.streamable||(this.get("effect-profile")||e.effect_profile)&&e.effect_profile!==this.get("effect-profile"))},this);if(this.get("playlist")&&(a=[],e=null),e||this.get("stream-width")||this.get("stream-height")||a.length<2){var s=e?this.application.streams:this.application.videos,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{stream_width:this.get("stream-width"),stream_height:this.get("stream-height"),effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{poster:s.imageUrl.apply(s,r),source:s.videoUrl.apply(s,r),token:t}}var n=[],o=[],c={effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh"),auth:this.get("auth")};l.iter(a,function(e){n.push({src:this.application.streams.videoUrl(t,e.token,c),poster:this.application.streams.imageUrl(t,e.token,c),token:e.token}),o.push({width:e.video_width,height:e.video_height,filter:{token:e.token}})},this);var d=o[0];return{poster:null,source:null,sources:n,streams:o,currentstream:d,token:t}},__setSources:function(){this.set("uploadoptions",{textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream")||this.properties().getProp("video_data.original_stream.token"),this.get("auth"))}),this.setAll(this.__sourceByVideo(this.get("video"),this.get("stream")))},__audioTranscriptionToVTT:function(e,t,i){i=i||5;for(var a=e.length,s=0,r=["WEBVTT"];s<a;){var n=t[s].start,o=t[s].end,c=[e[s]];for(s++,j=i-1;0<j&&s<a;)o=t[s].end,c.push(e[s]),s++,j--;r.push(""),r.push(u.format("HH:MM:ss.l",n)+" --\x3e "+u.format("HH:MM:ss.l",o)),r.push(c.join(" "))}return r.join("\n")},__videoUpdate:function(e,t){if(!this.destroyed())if(e)this.set("video_status",!1),e.status_code()===o.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("video-not-found")}):e.status_code()===o.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("video-access-forbidden")}):this.state().next("FatalError",{message:this.string("video-unknown-error")});else{this.set("video_data",t);var i=[];try{var a=t.default_stream.audio_transcription||t.original_stream.audio_transcription;a&&this.get("audio-transcription-as-subtitles")&&i.push({lang:"en",kind:"subtitles",label:"Transcription",content:this.__audioTranscriptionToVTT(a.words,a.times)});var s=t.default_stream.subtitles||t.original_stream.subtitles;s&&l.iter(s,function(e,t){i.push({lang:t,kind:"subtitles",label:e.label,content:e.data})})}catch(n){}if(this.set("tracktags",i),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("video-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("video-unknown-error")});if(this.set("video_status",!0),4===t.state)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if(this.get("effect-profile")){var r=!1;if(l.iter(t.streams,function(e){e.effect_profile===this.get("effect-profile")&&4<e.state&&(r=!0)},this),!r)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if("VideoProcessing"===this.state().state_name())return this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer")}if("VideoProcessing"===this.state().state_name())return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.videos.refreshToken(this.get("video")))return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=c.now(),s=d.create();s.success(function(){this.application.analytics.track("2",e,{video_token:this.get("video_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},l.extend({embed_type:"player"},t),l.extend({duration:this.get("video_data").duration||this.get("duration"),width:this.get("stream")?this.get("stream").width:this.videoWidth(),height:this.get("stream")?this.get("stream").height:this.videoHeight(),tags:this.get("video_data").tags},i),a)},this),this.get("video_data")?s.asyncSuccess():this.once("change:video_data",function(){s.asyncSuccess()},this)}}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoplayer").register("ziggeoplayer").attachStringTable(r.mainLocale).addStrings({"video-not-found":"We could not find the specified video file.","video-access-forbidden":"You are not permitted to access this video file.","video-unknown-error":"We cannot access this video at the moment. Please try again later.","video-rejected":"The video has been rejected.","video-processing":"The video is processing - stay tuned.","video-access-error":"The video is currently under moderation. You may click to retry."})});
 
 Scoped.define("module:PopupPlayer", ["module:Player","mediacomponents:PopupHelper"], function (e,t,i){return e.extend({scoped:i},t.mixin)});
 
