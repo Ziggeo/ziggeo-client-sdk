@@ -8,6 +8,21 @@ module.exports = function(grunt) {
     require("betajs-scoped");
     var BetaJS = require("betajs");
 
+    var CustomCompileOptions = {
+        themes: {
+            modern: true,
+            cube: true,
+            space: true,
+            minimalist: true,
+            theatre: true,
+            elevate: true
+        },
+        locales: true
+        //locales: ['en']
+    };
+
+    const notNull = function (s) { return !!s; };
+
     gruntHelper.config = {
         pkg: pkg,
         scoped: {
@@ -58,7 +73,7 @@ module.exports = function(grunt) {
                         "module": "root:BetaJS.MediaComponents"
                     },
                     full: true
-                }, {
+                }, CustomCompileOptions.themes.modern ? {
                     src: require.resolve("betajs-media-components/dist/themes/modern/script.js"),
                     bindings: {
                         "browser": "root:BetaJS.Browser",
@@ -66,7 +81,7 @@ module.exports = function(grunt) {
                         "module": "root:BetaJS.MediaComponents"
                     },
                     full: true
-                }, {
+                } : null, CustomCompileOptions.themes.cube ? {
                     src: require.resolve("betajs-media-components/dist/themes/cube/script.js"),
                     bindings: {
                         "browser": "root:BetaJS.Browser",
@@ -74,7 +89,7 @@ module.exports = function(grunt) {
                         "module": "root:BetaJS.MediaComponents"
                     },
                     full: true
-                }, {
+                } : null, CustomCompileOptions.themes.space ? {
                     src: require.resolve("betajs-media-components/dist/themes/space/script.js"),
                     bindings: {
                         "browser": "root:BetaJS.Browser",
@@ -82,7 +97,7 @@ module.exports = function(grunt) {
                         "module": "root:BetaJS.MediaComponents"
                     },
                     full: true
-                }, {
+                } : null, CustomCompileOptions.themes.minimalist ? {
                     src: require.resolve("betajs-media-components/dist/themes/minimalist/script.js"),
                     bindings: {
                         "browser": "root:BetaJS.Browser",
@@ -90,7 +105,7 @@ module.exports = function(grunt) {
                         "module": "root:BetaJS.MediaComponents"
                     },
                     full: true
-                }, {
+                } : null, CustomCompileOptions.themes.theatre ? {
                     src: require.resolve("betajs-media-components/dist/themes/theatre/script.js"),
                     bindings: {
                         "browser": "root:BetaJS.Browser",
@@ -98,7 +113,7 @@ module.exports = function(grunt) {
                         "module": "root:BetaJS.MediaComponents"
                     },
                     full: true
-                }, {
+                } : null, CustomCompileOptions.themes.elevate ? {
                     src: require.resolve("betajs-media-components/dist/themes/elevate/script.js"),
                     bindings: {
                         "browser": "root:BetaJS.Browser",
@@ -106,7 +121,7 @@ module.exports = function(grunt) {
                         "module": "root:BetaJS.MediaComponents"
                     },
                     full: true
-                }, {
+                } : null, {
                     src: "src/scripts/ziggeo-preprocessed.js",
                     bindings: {
                         "browser": "root:BetaJS.Browser",
@@ -125,7 +140,7 @@ module.exports = function(grunt) {
                         "module": "global:ZiggeoApi.V2"
                     },
                     full: true
-                }]
+                }].filter(notNull)
             }
         }
     };
@@ -144,18 +159,20 @@ module.exports = function(grunt) {
     })
     .concatTask("css-concat", [
         require.resolve("betajs-media-components/dist/betajs-media-components.css"),
-        require.resolve("betajs-media-components/dist/themes/modern/style.css"),
-        require.resolve("betajs-media-components/dist/themes/cube/style.css"),
-        require.resolve("betajs-media-components/dist/themes/elevate/style.css"),
-        require.resolve("betajs-media-components/dist/themes/minimalist/style.css"),
-        require.resolve("betajs-media-components/dist/themes/theatre/style.css"),
-        require.resolve("betajs-media-components/dist/themes/space/style.css"),
+        CustomCompileOptions.themes.modern ? require.resolve("betajs-media-components/dist/themes/modern/style.css") : null,
+        CustomCompileOptions.themes.cube ? require.resolve("betajs-media-components/dist/themes/cube/style.css") : null,
+        CustomCompileOptions.themes.elevate ? require.resolve("betajs-media-components/dist/themes/elevate/style.css") : null,
+        CustomCompileOptions.themes.minimalist ? require.resolve("betajs-media-components/dist/themes/minimalist/style.css") : null,
+        CustomCompileOptions.themes.theatre ? require.resolve("betajs-media-components/dist/themes/theatre/style.css") : null,
+        CustomCompileOptions.themes.space ? require.resolve("betajs-media-components/dist/themes/space/style.css") : null,
         "./src/css/*.css"
-    ], 'temp/ziggeo-raw.css')
+    ].filter(notNull), 'temp/ziggeo-raw.css')
     .replacerTask('css-replace', "temp/ziggeo-raw.css", "temp/ziggeo.css", {"ziggeo-ie8.eot": "bjsmc-ie8.eot"})
     .cssminTask('css-min', 'temp/ziggeo.css', 'build/ziggeo.css')
     .csslinterTask('css-lint', ['temp/ziggeo.css'])
-    .yamltojsTask('js-locales', ["src/locales/*.yml"], 'temp/ziggeo-locales-raw.js', './compile/locale.tpl', function (s) {
+    .yamltojsTask('js-locales', CustomCompileOptions.locales === true ? ["src/locales/*.yml"] : CustomCompileOptions.locales.map(function (l) {
+        return "src/locales/" + l + ".yml";
+    }), 'temp/ziggeo-locales-raw.js', './compile/locale.tpl', function (s) {
         return require('he').encode(s);
     })
     .concatTask("js-locales-concat", [
