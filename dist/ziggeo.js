@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.34.6 - 2019-08-14
+ziggeo-client-sdk - v2.34.7 - 2019-08-17
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -16094,8 +16094,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.127",
-    "datetime": 1565643954533
+    "version": "0.0.129",
+    "datetime": 1566093092173
 };
 });
 
@@ -21693,7 +21693,7 @@ Scoped.define("module:WebRTC.PeerRecorder", ["base:Class","base:Events.EventsMix
                         sdp: description,
                         userData: this._userData
                     }));
-                }, this))['catch'](this._errorCallback("PEER_LOCAL_DESCRIPTION"));
+                }, this))['catch'](this._errorCallback("Peer Local Description"));
             },
 
             _enhanceSDP: function(sdpStr, enhanceData) {
@@ -21735,7 +21735,7 @@ Scoped.define("module:WebRTC.PeerRecorder", ["base:Class","base:Events.EventsMix
             _wsOnClose: function() {},
 
             _error: function(errorName, errorData) {
-                this.trigger("error", errorName, errorData);
+                this.trigger("error", errorName + " " + errorData.toString(), errorData);
                 this.stop();
             },
 
@@ -26342,8 +26342,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.187",
-    "datetime": 1565797543509
+    "version": "0.0.189",
+    "datetime": 1566093262201
 };
 });
 
@@ -33892,8 +33892,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                         recordAudio: !this.get("noaudio"),
                         recordingWidth: this.get("nativeRecordingWidth"),
                         recordingHeight: this.get("nativeRecordingHeight"),
-                        audioBitrate: this.get("audiobitrate"),
-                        videoBitrate: this.get("videobitrate"),
+                        audioBitrate: typeof this.get("audiobitrate") === "number" ? this.get("audiobitrate") : undefined,
+                        videoBitrate: typeof this.get("videobitrate") === "number" ? this.get("videobitrate") : undefined,
                         flashFullSecurityDialog: !this.get("flashincognitosupport"),
                         rtmpStreamType: this.get("rtmpstreamtype"),
                         rtmpMicrophoneCodec: this.get("rtmpmicrophonecodec"),
