@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.34.10 - 2019-10-09
+ziggeo-client-sdk - v2.34.11 - 2019-10-10
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -16244,8 +16244,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.140",
-    "datetime": 1570677602132
+    "version": "0.0.142",
+    "datetime": 1570747420803
 };
 });
 
@@ -21984,6 +21984,7 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 this._hasVideo = false;
                 this._screen = options.screen;
                 this._flip = !!options.flip;
+                this._initialVideoTrackSettings = {};
             },
 
             _getConstraints: function() {
@@ -22227,13 +22228,13 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
              * @private
              */
             _prepareMultiStreamCanvas: function() {
-                var _height = this._video.clientHeight || this._video.videoHeight;
-                var _width = this._video.clientWidth || this._video.videoWidth;
+                var _height = this._initialVideoTrackSettings.height || this._video.clientHeight || this._video.videoHeight;
+                var _width = this._initialVideoTrackSettings.width || this._video.clientWidth || this._video.videoWidth;
                 if (typeof this.__multiStreamCanvas === 'undefined') {
                     this.__multiStreamCanvas = document.createElement('canvas');
                 }
-                this.__multiStreamCanvas.setAttribute('width', _width + 'px');
-                this.__multiStreamCanvas.setAttribute('height', _height + 'px');
+                this.__multiStreamCanvas.setAttribute('width', _width);
+                this.__multiStreamCanvas.setAttribute('height', _height);
                 this.__multiStreamCanvas.setAttribute('style', 'position:fixed; left: 200%; pointer-events: none'); // Out off from the screen
                 this.__multiStreamCtx = this.__multiStreamCanvas.getContext('2d');
                 // document.body.append(this.__multiStreamCanvas);
@@ -22251,6 +22252,9 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                         // Will fix Chrome Cropping
                         if (this._options.screen) {
                             var _self = this;
+                            // Get actual video track dimensions before it was draw inside canvas
+                            if (!this._videoTrack.canvas)
+                                this._initialVideoTrackSettings = this._videoTrack.getSettings();
                             this._videoTrack.applyConstraints({
                                 resizeMode: 'none'
                             }).then(function() {
