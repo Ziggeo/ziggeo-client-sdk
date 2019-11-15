@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.34.12 - 2019-10-18
+ziggeo-client-sdk - v2.34.13 - 2019-11-14
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -1362,7 +1362,7 @@ try {
 		oldScoped = window.Scoped.detach(true);
 } catch (e) {} 
 /** @flow **//*!
-betajs-scoped - v0.0.19 - 2018-04-07
+betajs-scoped - v0.0.22 - 2019-10-23
 Copyright (c) Oliver Friedmann
 Apache-2.0 Software License.
 */
@@ -1600,13 +1600,15 @@ return {
 	 */
 	upgrade: function (namespace/* : ?string */) {
 		var current = Globals.get(namespace || Attach.__namespace);
-		if (current && Helper.typeOf(current) == "object" && current.guid == this.guid && Helper.typeOf(current.version) == "string") {
+		if (current && Helper.typeOf(current) === "object" && current.guid === this.guid && Helper.typeOf(current.version) === "string") {
+			if (this.upgradable === false || current.upgradable === false)
+				return current;
 			var my_version = this.version.split(".");
 			var current_version = current.version.split(".");
 			var newer = false;
 			for (var i = 0; i < Math.min(my_version.length, current_version.length); ++i) {
 				newer = parseInt(my_version[i], 10) > parseInt(current_version[i], 10);
-				if (my_version[i] != current_version[i]) 
+				if (my_version[i] !== current_version[i])
 					break;
 			}
 			return newer ? this.attach(namespace) : current;				
@@ -1625,7 +1627,7 @@ return {
 		if (namespace)
 			Attach.__namespace = namespace;
 		var current = Globals.get(Attach.__namespace);
-		if (current == this)
+		if (current === this)
 			return this;
 		Attach.__revert = current;
 		if (current) {
@@ -1670,7 +1672,7 @@ return {
 	 */
 	exports: function (mod, object, forceExport) {
 		mod = mod || (typeof module != "undefined" ? module : null);
-		if (typeof mod == "object" && mod && "exports" in mod && (forceExport || mod.exports == this || !mod.exports || Helper.isEmpty(mod.exports)))
+		if (typeof mod == "object" && mod && "exports" in mod && (forceExport || mod.exports === this || !mod.exports || Helper.isEmpty(mod.exports)))
 			mod.exports = object || this;
 		return this;
 	}	
@@ -2186,7 +2188,7 @@ function newScope (parent, parentNS, rootNS, globalNS) {
 		
 		
 		/**
-		 * Extends a potentiall existing name space once a list of name space locators is available.
+		 * Extends a potentially existing name space once a list of name space locators is available.
 		 * 
 		 * @param {string} namespaceLocator the name space that is to be defined
 		 * @param {array} dependencies a list of name space locator dependencies (optional)
@@ -2322,7 +2324,9 @@ var Public = Helper.extend(rootScope, (function () {
 return {
 		
 	guid: "4b6878ee-cb6a-46b3-94ac-27d91f58d666",
-	version: '0.0.19',
+	version: '0.0.22',
+
+	upgradable: true,
 		
 	upgrade: Attach.upgrade,
 	attach: Attach.attach,
@@ -2369,12 +2373,12 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.195",
-    "datetime": 1567481828197
+    "version": "1.0.196",
+    "datetime": 1572452532045
 };
 });
 
-Scoped.define("module:Types", function () {
+Scoped.define("module:Types", function() {
     /**
      * Type-Testing and Type-Parsing
      * 
@@ -2685,7 +2689,7 @@ Scoped.define("module:Types", function () {
     };
 });
 
-Scoped.define("module:Functions", ["module:Types"], function (Types) {
+Scoped.define("module:Functions", ["module:Types"], function(Types) {
 
     /**
      * Function and Function Argument Support
@@ -2848,7 +2852,7 @@ Scoped.define("module:Functions", ["module:Types"], function (Types) {
     };
 });
 
-Scoped.define("module:Objs", ["module:Types","module:Functions"], function (Types, Functions) {
+Scoped.define("module:Objs", ["module:Types","module:Functions"], function(Types, Functions) {
 
     /**
      * Object and Array Manipulation Routines
@@ -3567,7 +3571,7 @@ Scoped.define("module:Objs", ["module:Types","module:Functions"], function (Type
          * @param {object} secondary Object to be merged into.
          * @param {object} primary Object to be merged in
          * 
-         * @return {object} Recurisvely merged object
+         * @return {object} Recursively merged object
          */
         tree_merge: function(secondary, primary) {
             secondary = secondary || {};
@@ -3640,12 +3644,30 @@ Scoped.define("module:Objs", ["module:Types","module:Functions"], function (Type
             for (var i = 0; i < count; ++i)
                 result.push(callback.call(context || this, i));
             return result;
+        },
+
+        /**
+         * Merge key / values from two objects; merge value with callback function on intersection of both objects
+         *
+         * @param {object} obj1 first object
+         * @param {object} obj2 second object
+         * @param {function} merger merging function
+         * @param {object} mergerCtx optional context
+         */
+        customMerge: function(obj1, obj2, merger, mergerCtx) {
+            var result = {};
+            for (var key1 in obj1)
+                result[key1] = key1 in obj2 ? merger.call(mergerCtx, key1, obj1[key1], obj2[key1]) : obj1[key1];
+            for (var key2 in obj2)
+                if (!(key2 in obj1))
+                    result[key2] = obj2[key2];
+            return result;
         }
 
     };
 });
 
-Scoped.define("module:Ids", ["module:Types","module:Objs"], function (Types, Objs) {
+Scoped.define("module:Ids", ["module:Types","module:Objs"], function(Types, Objs) {
 
     /**
      * Id Generation
@@ -3707,7 +3729,7 @@ Scoped.define("module:Ids", ["module:Types","module:Objs"], function (Types, Obj
     };
 });
 
-Scoped.define("module:Class", ["module:Types","module:Objs","module:Functions","module:Ids"], function (Types, Objs, Functions, Ids) {
+Scoped.define("module:Class", ["module:Types","module:Objs","module:Functions","module:Ids"], function(Types, Objs, Functions, Ids) {
     var Class = function() {};
 
     /** @suppress {checkTypes} */
@@ -3936,6 +3958,13 @@ Scoped.define("module:Class", ["module:Types","module:Objs","module:Functions","
                     return parent.extend.apply(parent, args);
                 });
             }
+        },
+
+        /**
+         * Placeholder for an abstract function that should never be called.
+         */
+        abstractFunction: function() {
+            throw "AbstractFunction";
         },
 
         /**
@@ -4264,7 +4293,7 @@ Scoped.define("module:Class", ["module:Types","module:Objs","module:Functions","
 
 });
 
-Scoped.define("module:Time", [], function () {
+Scoped.define("module:Time", [], function() {
     /**
      * Time Helper Functions
      * 
@@ -4625,7 +4654,7 @@ Scoped.define("module:Time", [], function () {
 
 });
 
-Scoped.define("module:Timers.Timer", ["module:Class","module:Objs","module:Time"], function (Class, Objs, Time, scoped) {
+Scoped.define("module:Timers.Timer", ["module:Class","module:Objs","module:Time"], function(Class, Objs, Time, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -4788,7 +4817,7 @@ Scoped.define("module:Timers.Timer", ["module:Class","module:Objs","module:Time"
     });
 });
 
-Scoped.define("module:Async", ["module:Types","module:Functions","module:Time"], function (Types, Functions, Time) {
+Scoped.define("module:Async", ["module:Types","module:Functions","module:Time"], function(Types, Functions, Time) {
 
     var clearTimeoutGlobal = function(h) {
         return clearTimeout(h);
@@ -4966,7 +4995,7 @@ Scoped.define("module:Async", ["module:Types","module:Functions","module:Time"],
 
 });
 
-Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async","module:Objs"], function (Types, Functions, Async, Objs) {
+Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async","module:Objs"], function(Types, Functions, Async, Objs) {
 
     /**
      * Promise Class
@@ -5038,20 +5067,27 @@ Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async
         },
 
         /**
-         * Turns a function call into a promise, mapping exceptions to errors.
+         * Turns a function call or a native promise into a promise, mapping exceptions to errors.
          * 
-         * @param {function} f function
+         * @param {function} f function or native promise
          * @param {object} ctx optional function context
          * @param {array} params optional function parameters
          * 
          * @return {object} promise
          */
         box: function(f, ctx, params) {
-            try {
-                var result = f.apply(ctx || this, params || []);
-                return this.is(result) ? result : this.value(result);
-            } catch (e) {
-                return this.error(e);
+            if (f && 'then' in f && 'catch' in f) {
+                var promise = this.create();
+                f.then(promise.asyncSuccessFunc());
+                f['catch'](promise.asyncErrorFunc());
+                return promise;
+            } else {
+                try {
+                    var result = f.apply(ctx || this, params || []);
+                    return this.is(result) ? result : this.value(result);
+                } catch (e) {
+                    return this.error(e);
+                }
             }
         },
 
@@ -5372,6 +5408,18 @@ Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async
          */
         asuccess: function(f, context, options) {
             return this.success(Async.asyncify(f), context, options);
+        },
+
+        /**
+         * Set an object value once value is known.
+         *
+         * @param {object} obj object
+         * @param {string} key key to set value for
+         */
+        valueify: function(obj, key) {
+            return this.success(function(value) {
+                obj[key] = value;
+            });
         },
 
         /**
@@ -5715,7 +5763,7 @@ Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async
     return Promise;
 });
 
-Scoped.define("module:Iterators.Iterator", ["module:Class","module:Functions","module:Async","module:Promise"], function (Class, Functions, Async, Promise, scoped) {
+Scoped.define("module:Iterators.Iterator", ["module:Class","module:Functions","module:Async","module:Promise"], function(Class, Functions, Async, Promise, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -5816,7 +5864,7 @@ Scoped.define("module:Iterators.Iterator", ["module:Class","module:Functions","m
     });
 });
 
-Scoped.define("module:Iterators.ArrayIterator", ["module:Iterators.Iterator"], function (Iterator, scoped) {
+Scoped.define("module:Iterators.ArrayIterator", ["module:Iterators.Iterator"], function(Iterator, scoped) {
     return Iterator.extend({
         scoped: scoped
     }, function(inherited) {
@@ -5876,7 +5924,7 @@ Scoped.define("module:Iterators.ArrayIterator", ["module:Iterators.Iterator"], f
     });
 });
 
-Scoped.define("module:Lists.AbstractList", ["module:Class","module:Objs","module:Types","module:Iterators.ArrayIterator"], function (Class, Objs, Types, ArrayIterator, scoped) {
+Scoped.define("module:Lists.AbstractList", ["module:Class","module:Objs","module:Types","module:Iterators.ArrayIterator"], function(Class, Objs, Types, ArrayIterator, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -6076,7 +6124,7 @@ Scoped.define("module:Lists.AbstractList", ["module:Class","module:Objs","module
     });
 });
 
-Scoped.define("module:Lists.LinkedList", ["module:Lists.AbstractList"], function (AbstractList, scoped) {
+Scoped.define("module:Lists.LinkedList", ["module:Lists.AbstractList"], function(AbstractList, scoped) {
     return AbstractList.extend({
         scoped: scoped
     }, function(inherited) {
@@ -6146,7 +6194,7 @@ Scoped.define("module:Lists.LinkedList", ["module:Lists.AbstractList"], function
     });
 });
 
-Scoped.define("module:Events.EventsMixin", ["module:Timers.Timer","module:Async","module:Lists.LinkedList","module:Functions","module:Types","module:Objs"], function (Timer, Async, LinkedList, Functions, Types, Objs) {
+Scoped.define("module:Events.EventsMixin", ["module:Timers.Timer","module:Async","module:Lists.LinkedList","module:Functions","module:Types","module:Objs"], function(Timer, Async, LinkedList, Functions, Types, Objs) {
 
     /**
      * Events Mixin
@@ -6499,7 +6547,7 @@ Scoped.define("module:Events.EventsMixin", ["module:Timers.Timer","module:Async"
     };
 });
 
-Scoped.define("module:Strings", ["module:Objs"], function (Objs) {
+Scoped.define("module:Strings", ["module:Objs"], function(Objs) {
     /**
      * String Utilities
      *
@@ -7075,7 +7123,7 @@ Scoped.define("module:Strings", ["module:Objs"], function (Objs) {
 
 });
 
-Scoped.define("module:Tokens", function () {
+Scoped.define("module:Tokens", function() {
     /**
      * Unique Token Generation
      * 
@@ -7119,7 +7167,7 @@ Scoped.define("module:Tokens", function () {
     };
 });
 
-Scoped.define("module:Properties.ObservableMixin", [], function () {
+Scoped.define("module:Properties.ObservableMixin", [], function() {
 
     /**
      * Properties Observable Mixin
@@ -7151,7 +7199,7 @@ Scoped.define("module:Properties.ObservableMixin", [], function () {
     };
 });
 
-Scoped.define("module:Objs.Scopes", ["module:Types"], function (Types) {
+Scoped.define("module:Objs.Scopes", ["module:Types"], function(Types) {
     /**
      * Scoped access of keys within objects.
      * 
@@ -7255,7 +7303,7 @@ Scoped.define("module:Objs.Scopes", ["module:Types"], function (Types) {
     };
 });
 
-Scoped.define("module:Properties.PropertiesMixin", ["module:Objs.Scopes","module:Objs","module:Strings","module:Types","module:Functions"], function (Scopes, Objs, Strings, Types, Functions) {
+Scoped.define("module:Properties.PropertiesMixin", ["module:Objs.Scopes","module:Objs","module:Strings","module:Types","module:Functions"], function(Scopes, Objs, Strings, Types, Functions) {
 
     /**
      * Properties Mixin
@@ -7971,7 +8019,7 @@ Scoped.define("module:Properties.PropertiesMixin", ["module:Objs.Scopes","module
     };
 });
 
-Scoped.define("module:Properties.Properties", ["module:Class","module:Objs","module:Events.EventsMixin","module:Properties.ObservableMixin","module:Properties.PropertiesMixin"], function (Class, Objs, EventsMixin, ObservableMixin, PropertiesMixin, scoped) {
+Scoped.define("module:Properties.Properties", ["module:Class","module:Objs","module:Events.EventsMixin","module:Properties.ObservableMixin","module:Properties.PropertiesMixin"], function(Class, Objs, EventsMixin, ObservableMixin, PropertiesMixin, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, ObservableMixin, PropertiesMixin, function(inherited) {
@@ -8004,7 +8052,7 @@ Scoped.define("module:Properties.Properties", ["module:Class","module:Objs","mod
     }]);
 });
 
-Scoped.define("module:Comparators", ["module:Types","module:Properties.Properties"], function (Types, Properties) {
+Scoped.define("module:Comparators", ["module:Types","module:Properties.Properties"], function(Types, Properties) {
 
     /**
      * Comparator Functions
@@ -8105,7 +8153,7 @@ Scoped.define("module:Comparators", ["module:Types","module:Properties.Propertie
     };
 });
 
-Scoped.define("module:Sort", ["module:Comparators","module:Types","module:Objs"], function (Comparators, Types, Objs) {
+Scoped.define("module:Sort", ["module:Comparators","module:Types","module:Objs"], function(Comparators, Types, Objs) {
 
     /**
      * Sort objects and arrays.
@@ -8233,7 +8281,7 @@ Scoped.define("module:Sort", ["module:Comparators","module:Types","module:Objs"]
     };
 });
 
-Scoped.define("module:Net.Uri", ["module:Objs","module:Types","module:Strings","module:Sort"], function (Objs, Types, Strings, Sort) {
+Scoped.define("module:Net.Uri", ["module:Objs","module:Types","module:Strings","module:Sort"], function(Objs, Types, Strings, Sort) {
 
     var parse_strict_regex = /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/;
     var parse_loose_regex = /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
@@ -8394,7 +8442,7 @@ Scoped.define("module:Net.Uri", ["module:Objs","module:Types","module:Strings","
     };
 });
 
-Scoped.define("module:Classes.OptimisticConditionalInstance", ["module:Class","module:Objs","module:Promise"], function (Class, Objs, Promise, scoped) {
+Scoped.define("module:Classes.OptimisticConditionalInstance", ["module:Class","module:Objs","module:Promise"], function(Class, Objs, Promise, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -8517,7 +8565,7 @@ Scoped.define("module:Classes.OptimisticConditionalInstance", ["module:Class","m
     });
 });
 
-Scoped.define("module:Classes.ConditionalInstance", ["module:Class","module:Objs"], function (Class, Objs, scoped) {
+Scoped.define("module:Classes.ConditionalInstance", ["module:Class","module:Objs"], function(Class, Objs, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -8631,7 +8679,7 @@ Scoped.define("module:Classes.ConditionalInstance", ["module:Class","module:Objs
     });
 });
 
-Scoped.define("module:Exceptions.Exception", ["module:Class","module:Comparators"], function (Class, Comparators, scoped) {
+Scoped.define("module:Exceptions.Exception", ["module:Class","module:Comparators"], function(Class, Comparators, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -8747,7 +8795,7 @@ Scoped.define("module:Exceptions.Exception", ["module:Class","module:Comparators
     });
 });
 
-Scoped.define("module:Ajax.AjaxException", ["module:Exceptions.Exception"], function (Exception, scoped) {
+Scoped.define("module:Ajax.AjaxException", ["module:Exceptions.Exception"], function(Exception, scoped) {
     return Exception.extend({
         scoped: scoped
     }, function(inherited) {
@@ -8772,7 +8820,7 @@ Scoped.define("module:Ajax.AjaxException", ["module:Exceptions.Exception"], func
     });
 });
 
-Scoped.define("module:Ajax.NoCandidateAjaxException", ["module:Ajax.AjaxException"], function (Exception, scoped) {
+Scoped.define("module:Ajax.NoCandidateAjaxException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
     return Exception.extend({
         scoped: scoped
     }, function(inherited) {
@@ -8788,7 +8836,7 @@ Scoped.define("module:Ajax.NoCandidateAjaxException", ["module:Ajax.AjaxExceptio
     });
 });
 
-Scoped.define("module:Ajax.ReturnDataParseException", ["module:Ajax.AjaxException"], function (Exception, scoped) {
+Scoped.define("module:Ajax.ReturnDataParseException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
     return Exception.extend({
         scoped: scoped
     }, function(inherited) {
@@ -8816,7 +8864,7 @@ Scoped.define("module:Ajax.ReturnDataParseException", ["module:Ajax.AjaxExceptio
     });
 });
 
-Scoped.define("module:Ajax.RequestException", ["module:Ajax.AjaxException","module:Objs"], function (Exception, Objs, scoped) {
+Scoped.define("module:Ajax.RequestException", ["module:Ajax.AjaxException","module:Objs"], function(Exception, Objs, scoped) {
     return Exception.extend({
         scoped: scoped
     }, function(inherited) {
@@ -8886,7 +8934,7 @@ Scoped.define("module:Ajax.RequestException", ["module:Ajax.AjaxException","modu
     });
 });
 
-Scoped.define("module:Ajax.TimeoutException", ["module:Ajax.AjaxException"], function (Exception, scoped) {
+Scoped.define("module:Ajax.TimeoutException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
     return Exception.extend({
         scoped: scoped
     }, function(inherited) {
@@ -8902,7 +8950,7 @@ Scoped.define("module:Ajax.TimeoutException", ["module:Ajax.AjaxException"], fun
     });
 });
 
-Scoped.define("module:Net.HttpHeader", function () {
+Scoped.define("module:Net.HttpHeader", function() {
     /**
      * Http Header Codes and Functions
      * 
@@ -8963,7 +9011,7 @@ Scoped.define("module:Net.HttpHeader", function () {
     };
 });
 
-Scoped.define("module:Ajax.Support", ["module:Ajax.NoCandidateAjaxException","module:Ajax.ReturnDataParseException","module:Ajax.RequestException","module:Ajax.TimeoutException","module:Promise","module:Objs","module:Types","module:Net.Uri","module:Net.HttpHeader","module:Async","module:Time"], function (NoCandidateAjaxException, ReturnDataParseException, RequestException, TimeoutException, Promise, Objs, Types, Uri, HttpHeader, Async, Time) {
+Scoped.define("module:Ajax.Support", ["module:Ajax.NoCandidateAjaxException","module:Ajax.ReturnDataParseException","module:Ajax.RequestException","module:Ajax.TimeoutException","module:Promise","module:Objs","module:Types","module:Net.Uri","module:Net.HttpHeader","module:Async","module:Time"], function(NoCandidateAjaxException, ReturnDataParseException, RequestException, TimeoutException, Promise, Objs, Types, Uri, HttpHeader, Async, Time) {
 
     /**
      * Ajax Support Module
@@ -9203,7 +9251,7 @@ Scoped.define("module:Ajax.Support", ["module:Ajax.NoCandidateAjaxException","mo
     };
 });
 
-Scoped.define("module:Scheduling.Helper", [], function () {
+Scoped.define("module:Scheduling.Helper", [], function() {
     return {
 
         schedulable: function(callback, initialSteps, scheduler, context) {
@@ -9216,7 +9264,7 @@ Scoped.define("module:Scheduling.Helper", [], function () {
     };
 });
 
-Scoped.define("module:Events.ListenMixin", ["module:Ids","module:Objs","module:Types"], function (Ids, Objs, Types) {
+Scoped.define("module:Events.ListenMixin", ["module:Ids","module:Objs","module:Types"], function(Ids, Objs, Types) {
     /**
      * Listen Mixin, automatically de-registering all listeners on destruction.
      * 
@@ -9300,7 +9348,7 @@ Scoped.define("module:Events.ListenMixin", ["module:Ids","module:Objs","module:T
     };
 });
 
-Scoped.define("module:Classes.Taggable", ["module:Objs"], function (Objs) {
+Scoped.define("module:Classes.Taggable", ["module:Objs"], function(Objs) {
 
     /**
      * Taggable Mixin for handling instance tags
@@ -9390,7 +9438,7 @@ Scoped.define("module:Classes.Taggable", ["module:Objs"], function (Objs) {
     };
 });
 
-Scoped.define("module:Classes.StringTable", ["module:Class","module:Classes.Taggable","module:Functions","module:Objs"], function (Class, Taggable, Functions, Objs, scoped) {
+Scoped.define("module:Classes.StringTable", ["module:Class","module:Classes.Taggable","module:Functions","module:Objs"], function(Class, Taggable, Functions, Objs, scoped) {
     return Class.extend({
         scoped: scoped
     }, [Taggable, function(inherited) {
@@ -9503,7 +9551,7 @@ Scoped.define("module:Classes.StringTable", ["module:Class","module:Classes.Tagg
     }]);
 });
 
-Scoped.define("module:Classes.LocaleMixin", function () {
+Scoped.define("module:Classes.LocaleMixin", function() {
 
     /**
      * Locale Mixin for adding Locale access to a Class
@@ -9566,7 +9614,7 @@ Scoped.define("module:Classes.LocaleMixin", function () {
     };
 });
 
-Scoped.define("module:Classes.LocaleTable", ["module:Classes.StringTable","module:Classes.LocaleMixin"], function (StringTable, LocaleMixin, scoped) {
+Scoped.define("module:Classes.LocaleTable", ["module:Classes.StringTable","module:Classes.LocaleMixin"], function(StringTable, LocaleMixin, scoped) {
     return StringTable.extend({
         scoped: scoped
     }, [LocaleMixin,
@@ -9606,7 +9654,7 @@ Scoped.define("module:Classes.LocaleTable", ["module:Classes.StringTable","modul
     ]);
 });
 
-Scoped.define("module:TimeFormat", ["module:Time","module:Strings","module:Objs"], function (Time, Strings, Objs) {
+Scoped.define("module:TimeFormat", ["module:Time","module:Strings","module:Objs"], function(Time, Strings, Objs) {
     /**
      * Module for formatting Time / Date
      * 
@@ -9894,7 +9942,7 @@ Scoped.define("module:TimeFormat", ["module:Time","module:Strings","module:Objs"
     };
 });
 
-Scoped.define("module:Classes.ObjectIdScopeMixin", function () {
+Scoped.define("module:Classes.ObjectIdScopeMixin", function() {
 
     /**
      * Object Id Scope Mixin
@@ -9919,7 +9967,7 @@ Scoped.define("module:Classes.ObjectIdScopeMixin", function () {
     };
 });
 
-Scoped.define("module:Classes.ObjectIdScope", ["module:Class","module:Classes.ObjectIdScopeMixin"], function (Class, Mixin, scoped) {
+Scoped.define("module:Classes.ObjectIdScope", ["module:Class","module:Classes.ObjectIdScopeMixin"], function(Class, Mixin, scoped) {
     return Class.extend({
         scoped: scoped
     }, Mixin, function(inherited) {
@@ -9945,7 +9993,7 @@ Scoped.define("module:Classes.ObjectIdScope", ["module:Class","module:Classes.Ob
     });
 });
 
-Scoped.define("module:Classes.ObjectIdMixin", ["module:Classes.ObjectIdScope"], function (ObjectIdScope) {
+Scoped.define("module:Classes.ObjectIdMixin", ["module:Classes.ObjectIdScope"], function(ObjectIdScope) {
 
     /**
      * Object Id Mixin
@@ -9978,7 +10026,7 @@ Scoped.define("module:Classes.ObjectIdMixin", ["module:Classes.ObjectIdScope"], 
     };
 });
 
-Scoped.define("module:Lists.ArrayList", ["module:Lists.AbstractList","module:Ids","module:Objs"], function (AbstractList, Ids, Objs, scoped) {
+Scoped.define("module:Lists.ArrayList", ["module:Lists.AbstractList","module:Ids","module:Objs"], function(AbstractList, Ids, Objs, scoped) {
     return AbstractList.extend({
         scoped: scoped
     }, function(inherited) {
@@ -10153,7 +10201,7 @@ Scoped.define("module:Lists.ArrayList", ["module:Lists.AbstractList","module:Ids
     });
 });
 
-Scoped.define("module:Iterators.MappedIterator", ["module:Iterators.Iterator"], function (Iterator, scoped) {
+Scoped.define("module:Iterators.MappedIterator", ["module:Iterators.Iterator"], function(Iterator, scoped) {
     return Iterator.extend({
         scoped: scoped
     }, function(inherited) {
@@ -10197,7 +10245,7 @@ Scoped.define("module:Iterators.MappedIterator", ["module:Iterators.Iterator"], 
     });
 });
 
-Scoped.define("module:Iterators.ConcatIterator", ["module:Iterators.Iterator"], function (Iterator, scoped) {
+Scoped.define("module:Iterators.ConcatIterator", ["module:Iterators.Iterator"], function(Iterator, scoped) {
     return Iterator.extend({
         scoped: scoped
     }, function(inherited) {
@@ -10246,7 +10294,7 @@ Scoped.define("module:Iterators.ConcatIterator", ["module:Iterators.Iterator"], 
     });
 });
 
-Scoped.define("module:Iterators.FilteredIterator", ["module:Iterators.Iterator"], function (Iterator, scoped) {
+Scoped.define("module:Iterators.FilteredIterator", ["module:Iterators.Iterator"], function(Iterator, scoped) {
     return Iterator.extend({
         scoped: scoped
     }, function(inherited) {
@@ -10307,7 +10355,7 @@ Scoped.define("module:Iterators.FilteredIterator", ["module:Iterators.Iterator"]
     });
 });
 
-Scoped.define("module:Iterators.ObjectValuesIterator", ["module:Iterators.ArrayIterator","module:Objs"], function (ArrayIterator, Objs, scoped) {
+Scoped.define("module:Iterators.ObjectValuesIterator", ["module:Iterators.ArrayIterator","module:Objs"], function(ArrayIterator, Objs, scoped) {
     return ArrayIterator.extend({
         scoped: scoped
     }, function(inherited) {
@@ -10332,7 +10380,7 @@ Scoped.define("module:Iterators.ObjectValuesIterator", ["module:Iterators.ArrayI
     });
 });
 
-Scoped.define("module:Collections.Collection", ["module:Class","module:Events.EventsMixin","module:Objs","module:Functions","module:Lists.ArrayList","module:Ids","module:Properties.ObservableMixin","module:Properties.Properties","module:Iterators.ArrayIterator","module:Iterators.MappedIterator","module:Iterators.ConcatIterator","module:Iterators.FilteredIterator","module:Iterators.ObjectValuesIterator","module:Types","module:Promise"], function (Class, EventsMixin, Objs, Functions, ArrayList, Ids, ObservableMixin, Properties, ArrayIterator, MappedIterator, ConcatIterator, FilteredIterator, ObjectValuesIterator, Types, Promise, scoped) {
+Scoped.define("module:Collections.Collection", ["module:Class","module:Events.EventsMixin","module:Objs","module:Functions","module:Lists.ArrayList","module:Ids","module:Properties.ObservableMixin","module:Properties.Properties","module:Iterators.ArrayIterator","module:Iterators.MappedIterator","module:Iterators.ConcatIterator","module:Iterators.FilteredIterator","module:Iterators.ObjectValuesIterator","module:Types","module:Promise"], function(Class, EventsMixin, Objs, Functions, ArrayList, Ids, ObservableMixin, Properties, ArrayIterator, MappedIterator, ConcatIterator, FilteredIterator, ObjectValuesIterator, Types, Promise, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, ObservableMixin, function(inherited) {
@@ -10947,7 +10995,7 @@ Scoped.define("module:Collections.Collection", ["module:Class","module:Events.Ev
     }]);
 });
 
-Scoped.define("module:Events.Events", ["module:Class","module:Events.EventsMixin"], function (Class, Mixin, scoped) {
+Scoped.define("module:Events.Events", ["module:Class","module:Events.EventsMixin"], function(Class, Mixin, scoped) {
     /**
      * Events Class
      * 
@@ -10959,7 +11007,7 @@ Scoped.define("module:Events.Events", ["module:Class","module:Events.EventsMixin
     }, Mixin);
 });
 
-Scoped.define("module:Trees.TreeNavigator", function () {
+Scoped.define("module:Trees.TreeNavigator", function() {
 
     /**
      * Abstract Tree Navigator Mixin
@@ -11028,7 +11076,7 @@ Scoped.define("module:Trees.TreeNavigator", function () {
     };
 });
 
-Scoped.define("module:Parser.LexerException", ["module:Exceptions.Exception"], function (Exception, scoped) {
+Scoped.define("module:Parser.LexerException", ["module:Exceptions.Exception"], function(Exception, scoped) {
     return Exception.extend({
         scoped: scoped
     }, function(inherited) {
@@ -11056,7 +11104,7 @@ Scoped.define("module:Parser.LexerException", ["module:Exceptions.Exception"], f
     });
 });
 
-Scoped.define("module:Parser.Lexer", ["module:Class","module:Types","module:Objs","module:Parser.LexerException"], function (Class, Types, Objs, LexerException, scoped) {
+Scoped.define("module:Parser.Lexer", ["module:Class","module:Types","module:Objs","module:Parser.LexerException"], function(Class, Types, Objs, LexerException, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -11127,7 +11175,7 @@ Scoped.define("module:Parser.Lexer", ["module:Class","module:Types","module:Objs
     });
 });
 
-Scoped.define("module:Trees.TreeQueryObject", ["module:Class","module:Events.EventsMixin","module:Objs","module:Types"], function (Class, EventsMixin, Objs, Types, scoped) {
+Scoped.define("module:Trees.TreeQueryObject", ["module:Class","module:Events.EventsMixin","module:Objs","module:Types"], function(Class, EventsMixin, Objs, Types, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -11341,7 +11389,7 @@ Scoped.define("module:Trees.TreeQueryObject", ["module:Class","module:Events.Eve
     }]);
 });
 
-Scoped.define("module:Trees.TreeQueryEngine", ["module:Class","module:Parser.Lexer","module:Trees.TreeQueryObject"], function (Class, Lexer, TreeQueryObject, scoped) {
+Scoped.define("module:Trees.TreeQueryEngine", ["module:Class","module:Parser.Lexer","module:Trees.TreeQueryObject"], function(Class, Lexer, TreeQueryObject, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -11406,7 +11454,7 @@ Scoped.define("module:Trees.TreeQueryEngine", ["module:Class","module:Parser.Lex
     });
 });
 
-Scoped.define("module:JavaScript", ["module:Objs"], function (Objs) {
+Scoped.define("module:JavaScript", ["module:Objs"], function(Objs) {
     /**
      * JavaScript Simple Parse Functions
      * 
@@ -11492,7 +11540,7 @@ Scoped.define("module:JavaScript", ["module:Objs"], function (Objs) {
 
 });
 
-Scoped.define("module:Classes.SharedObjectFactory", ["module:Class"], function (Class, scoped) {
+Scoped.define("module:Classes.SharedObjectFactory", ["module:Class"], function(Class, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -11575,7 +11623,7 @@ Scoped.define("module:Classes.SharedObjectFactory", ["module:Class"], function (
     });
 });
 
-Scoped.define("module:Classes.ClassRegistry", ["module:Class","module:Types","module:Functions","module:Objs"], function (Class, Types, Functions, Objs, scoped) {
+Scoped.define("module:Classes.ClassRegistry", ["module:Class","module:Types","module:Functions","module:Objs"], function(Class, Types, Functions, Objs, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -11668,7 +11716,7 @@ Scoped.define("module:Classes.ClassRegistry", ["module:Class","module:Types","mo
     });
 });
 
-Scoped.define("module:Exceptions.ExceptionThrower", ["module:Class"], function (Class, scoped) {
+Scoped.define("module:Exceptions.ExceptionThrower", ["module:Class"], function(Class, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -11697,7 +11745,7 @@ Scoped.define("module:Exceptions.ExceptionThrower", ["module:Class"], function (
     });
 });
 
-Scoped.define("module:Exceptions.AsyncExceptionThrower", ["module:Exceptions.ExceptionThrower","module:Async"], function (ExceptionThrower, Async, scoped) {
+Scoped.define("module:Exceptions.AsyncExceptionThrower", ["module:Exceptions.ExceptionThrower","module:Async"], function(ExceptionThrower, Async, scoped) {
     return ExceptionThrower.extend({
         scoped: scoped
     }, function(inherited) {
@@ -11721,7 +11769,7 @@ Scoped.define("module:Exceptions.AsyncExceptionThrower", ["module:Exceptions.Exc
     });
 });
 
-Scoped.define("module:Loggers.Logger", ["module:Class","module:Objs","module:Functions"], function (Class, Objs, Functions, scoped) {
+Scoped.define("module:Loggers.Logger", ["module:Class","module:Objs","module:Functions"], function(Class, Objs, Functions, scoped) {
     var Cls = Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -11918,7 +11966,7 @@ Scoped.define("module:Loggers.Logger", ["module:Class","module:Objs","module:Fun
     return Cls;
 });
 
-Scoped.define("module:Loggers.LoggableMixin", ["module:Loggers.Logger","module:Objs","module:Functions"], function (Logger) {
+Scoped.define("module:Loggers.LoggableMixin", ["module:Loggers.Logger","module:Objs","module:Functions"], function(Logger) {
 
     /**
      * LoggableMixin Mixin
@@ -11952,7 +12000,7 @@ Scoped.define("module:Loggers.LoggableMixin", ["module:Loggers.Logger","module:O
     };
 });
 
-Scoped.define("module:Collections.FilteredCollection", ["module:Collections.Collection"], function (Collection, scoped) {
+Scoped.define("module:Collections.FilteredCollection", ["module:Collections.Collection"], function(Collection, scoped) {
     return Collection.extend({
         scoped: scoped
     }, function(inherited) {
@@ -12065,7 +12113,7 @@ Scoped.define("module:Collections.FilteredCollection", ["module:Collections.Coll
     });
 });
 
-Scoped.define("module:States.State", ["module:Class","module:Types","module:Strings","module:Async","module:Objs"], function (Class, Types, Strings, Async, Objs, scoped) {
+Scoped.define("module:States.State", ["module:Class","module:Types","module:Strings","module:Async","module:Objs"], function(Class, Types, Strings, Async, Objs, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -12351,7 +12399,7 @@ Scoped.define("module:States.State", ["module:Class","module:Types","module:Stri
     });
 });
 
-Scoped.define("module:States.Host", ["module:Properties.Properties","module:Events.EventsMixin","module:States.State","module:Types","module:Strings","module:Classes.ClassRegistry"], function (Class, EventsMixin, State, Types, Strings, ClassRegistry, scoped) {
+Scoped.define("module:States.Host", ["module:Properties.Properties","module:Events.EventsMixin","module:States.State","module:Types","module:Strings","module:Classes.ClassRegistry"], function(Class, EventsMixin, State, Types, Strings, ClassRegistry, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -12613,7 +12661,7 @@ Scoped.define("module:States.Host", ["module:Properties.Properties","module:Even
     }]);
 });
 
-Scoped.define("module:Ajax.AbstractAjaxWrapper", ["module:Class","module:Objs"], function (Class, Objs, scoped) {
+Scoped.define("module:Ajax.AbstractAjaxWrapper", ["module:Class","module:Objs"], function(Class, Objs, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -12655,7 +12703,7 @@ Scoped.define("module:Ajax.AbstractAjaxWrapper", ["module:Class","module:Objs"],
     });
 });
 
-Scoped.define("module:Ajax.AjaxWrapper", ["module:Ajax.AbstractAjaxWrapper","module:Ajax.Support"], function (AbstractAjaxWrapper, Support, scoped) {
+Scoped.define("module:Ajax.AjaxWrapper", ["module:Ajax.AbstractAjaxWrapper","module:Ajax.Support"], function(AbstractAjaxWrapper, Support, scoped) {
     /**
      * Ajax Wrapper Class
      *
@@ -12670,7 +12718,7 @@ Scoped.define("module:Ajax.AjaxWrapper", ["module:Ajax.AbstractAjaxWrapper","mod
     });
 });
 
-Scoped.define("module:Net.Cookies", ["module:Objs","module:Types"], function (Objs, Types) {
+Scoped.define("module:Net.Cookies", ["module:Objs","module:Types"], function(Objs, Types) {
     return {
 
         getCookielikeValue: function(cookies, key) {
@@ -12720,7 +12768,7 @@ Scoped.define("module:Net.Cookies", ["module:Objs","module:Types"], function (Ob
     };
 });
 
-Scoped.define("module:Classes.LocaleAggregator", ["module:Class","module:Classes.LocaleMixin","module:Objs"], function (Class, LocaleMixin, Objs, scoped) {
+Scoped.define("module:Classes.LocaleAggregator", ["module:Class","module:Classes.LocaleMixin","module:Objs"], function(Class, LocaleMixin, Objs, scoped) {
     return Class.extend({
         scoped: scoped
     }, [LocaleMixin, function(inherited) {
@@ -12778,7 +12826,7 @@ Scoped.define("module:Classes.LocaleAggregator", ["module:Class","module:Classes
 var Scoped = this.subScope();
 Scoped.binding('base', 'root:BetaJS');
 Scoped.binding('module', 'root:BetaJS.Browser');
-Scoped.define("module:FlashDetect", ["base:Class"], function (Class, scoped) {
+Scoped.define("module:FlashDetect", ["base:Class"], function(Class, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -12905,7 +12953,7 @@ Scoped.define("module:FlashDetect", ["base:Class"], function (Class, scoped) {
     });
 });
 
-Scoped.define("module:Info", ["base:Objs","module:FlashDetect"], function (Objs, FlashDetect) {
+Scoped.define("module:Info", ["base:Objs","module:FlashDetect"], function(Objs, FlashDetect) {
     return {
 
         __navigator: null,
@@ -13112,6 +13160,15 @@ Scoped.define("module:Info", ["base:Objs","module:FlashDetect"], function (Objs,
             return this.__cached("isLinux", function(nav) {
                 return !this.isAndroid() && nav.appVersion.toLowerCase().indexOf("linux") != -1;
             });
+        },
+
+        /**
+         * Checking if device is touchable device
+         *
+         * @return {boolean}
+         */
+        isTouchable: function() {
+            return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0));
         },
 
         internetExplorerVersion: function() {
@@ -13406,7 +13463,7 @@ Scoped.define("module:Info", ["base:Objs","module:FlashDetect"], function (Objs,
     };
 });
 
-Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"], function (Types, Objs, Info, Async) {
+Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"], function(Types, Objs, Info, Async) {
 
     var TEMPLATE_TAG_MAP = {
         "tr": ["table", "tbody"],
@@ -13995,7 +14052,7 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
     };
 });
 
-Scoped.define("module:FlashHelper", ["base:Time","base:Objs","base:Types","base:Net.Uri","base:Ids","module:Info","module:Dom"], function (Time, Objs, Types, Uri, Ids, Info, Dom) {
+Scoped.define("module:FlashHelper", ["base:Time","base:Objs","base:Types","base:Net.Uri","base:Ids","module:Info","module:Dom"], function(Time, Objs, Types, Uri, Ids, Info, Dom) {
     return {
 
         getFlashObject: function(container) {
@@ -14144,7 +14201,7 @@ Scoped.define("module:FlashHelper", ["base:Time","base:Objs","base:Types","base:
     };
 });
 
-Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions","module:Dom"], function (Class, Objs, Functions, Dom, scoped) {
+Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions","module:Dom"], function(Class, Objs, Functions, Dom, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -14211,7 +14268,7 @@ Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions","modul
     });
 });
 
-Scoped.define("module:DomMutation.NodeRemoveObserver", ["base:Classes.ConditionalInstance","base:Events.EventsMixin"], function (ConditionalInstance, EventsMixin, scoped) {
+Scoped.define("module:DomMutation.NodeRemoveObserver", ["base:Classes.ConditionalInstance","base:Events.EventsMixin"], function(ConditionalInstance, EventsMixin, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -14232,7 +14289,7 @@ Scoped.define("module:DomMutation.NodeRemoveObserver", ["base:Classes.Conditiona
     }]);
 });
 
-Scoped.define("module:DomMutation.MutationObserverNodeRemoveObserver", ["module:DomMutation.NodeRemoveObserver","base:Objs"], function (Observer, Objs, scoped) {
+Scoped.define("module:DomMutation.MutationObserverNodeRemoveObserver", ["module:DomMutation.NodeRemoveObserver","base:Objs"], function(Observer, Objs, scoped) {
     return Observer.extend({
         scoped: scoped
     }, function(inherited) {
@@ -14271,7 +14328,7 @@ Scoped.define("module:DomMutation.MutationObserverNodeRemoveObserver", ["module:
     });
 });
 
-Scoped.define("module:DomMutation.DOMNodeRemovedNodeRemoveObserver", ["module:DomMutation.NodeRemoveObserver","module:Info","module:Events"], function (Observer, Info, Events, scoped) {
+Scoped.define("module:DomMutation.DOMNodeRemovedNodeRemoveObserver", ["module:DomMutation.NodeRemoveObserver","module:Info","module:Events"], function(Observer, Info, Events, scoped) {
     return Observer.extend({
         scoped: scoped
     }, function(inherited) {
@@ -14296,7 +14353,7 @@ Scoped.define("module:DomMutation.DOMNodeRemovedNodeRemoveObserver", ["module:Do
 
 });
 
-Scoped.define("module:DomMutation.TimerNodeRemoveObserver", ["module:DomMutation.NodeRemoveObserver","base:Timers.Timer"], function (Observer, Timer, scoped) {
+Scoped.define("module:DomMutation.TimerNodeRemoveObserver", ["module:DomMutation.NodeRemoveObserver","base:Timers.Timer"], function(Observer, Timer, scoped) {
     return Observer.extend({
         scoped: scoped
     }, function(inherited) {
@@ -14334,14 +14391,14 @@ Scoped.define("module:DomMutation.TimerNodeRemoveObserver", ["module:DomMutation
 
 });
 
-Scoped.extend("module:DomMutation.NodeRemoveObserver", ["module:DomMutation.NodeRemoveObserver","module:DomMutation.MutationObserverNodeRemoveObserver","module:DomMutation.DOMNodeRemovedNodeRemoveObserver","module:DomMutation.TimerNodeRemoveObserver"], function (Observer, MutationObserverNodeRemoveObserver, DOMNodeRemovedNodeRemoveObserver, TimerNodeRemoveObserver) {
+Scoped.extend("module:DomMutation.NodeRemoveObserver", ["module:DomMutation.NodeRemoveObserver","module:DomMutation.MutationObserverNodeRemoveObserver","module:DomMutation.DOMNodeRemovedNodeRemoveObserver","module:DomMutation.TimerNodeRemoveObserver"], function(Observer, MutationObserverNodeRemoveObserver, DOMNodeRemovedNodeRemoveObserver, TimerNodeRemoveObserver) {
     Observer.register(MutationObserverNodeRemoveObserver, 3);
     Observer.register(DOMNodeRemovedNodeRemoveObserver, 2);
     Observer.register(TimerNodeRemoveObserver, 1);
     return {};
 });
 
-Scoped.define("module:DomMutation.NodeResizeObserver", ["base:Class","base:Events.EventsMixin","module:Events"], function (Class, EventsMixin, Events, scoped) {
+Scoped.define("module:DomMutation.NodeResizeObserver", ["base:Class","base:Events.EventsMixin","module:Events"], function(Class, EventsMixin, Events, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -14363,7 +14420,7 @@ Scoped.define("module:DomMutation.NodeResizeObserver", ["base:Class","base:Event
     }]);
 });
 
-Scoped.define("module:DomExtend.DomExtension", ["base:Class","base:Objs","base:Functions","base:Async","module:Dom","module:DomMutation.NodeRemoveObserver","module:DomMutation.NodeResizeObserver"], function (Class, Objs, Functions, Async, Dom, NodeRemoveObserver, NodeResizeObserver, scoped) {
+Scoped.define("module:DomExtend.DomExtension", ["base:Class","base:Objs","base:Functions","base:Async","module:Dom","module:DomMutation.NodeRemoveObserver","module:DomMutation.NodeResizeObserver"], function(Class, Objs, Functions, Async, Dom, NodeRemoveObserver, NodeResizeObserver, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -14498,7 +14555,7 @@ Scoped.define("module:DomExtend.DomExtension", ["base:Class","base:Objs","base:F
     });
 });
 
-Scoped.define("module:Upload.FileUploader", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Types","base:Async","base:Promise"], function (ConditionalInstance, EventsMixin, Objs, Types, Async, Promise, scoped) {
+Scoped.define("module:Upload.FileUploader", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Types","base:Async","base:Promise"], function(ConditionalInstance, EventsMixin, Objs, Types, Async, Promise, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -14632,7 +14689,7 @@ Scoped.define("module:Upload.FileUploader", ["base:Classes.ConditionalInstance",
     });
 });
 
-Scoped.define("module:Upload.FormDataFileUploader", ["module:Upload.FileUploader","module:Info","base:Ajax.Support","base:Objs"], function (FileUploader, Info, AjaxSupport, Objs, scoped) {
+Scoped.define("module:Upload.FormDataFileUploader", ["module:Upload.FileUploader","module:Info","base:Ajax.Support","base:Objs"], function(FileUploader, Info, AjaxSupport, Objs, scoped) {
     return FileUploader.extend({
         scoped: scoped
     }, {
@@ -14664,7 +14721,7 @@ Scoped.define("module:Upload.FormDataFileUploader", ["module:Upload.FileUploader
     });
 });
 
-Scoped.define("module:Upload.FormIframeFileUploader", ["module:Upload.FileUploader","base:Net.Uri","base:Objs","base:Async"], function (FileUploader, Uri, Objs, Async, scoped) {
+Scoped.define("module:Upload.FormIframeFileUploader", ["module:Upload.FileUploader","base:Net.Uri","base:Objs","base:Async"], function(FileUploader, Uri, Objs, Async, scoped) {
     return FileUploader.extend({
         scoped: scoped
     }, {
@@ -14750,7 +14807,7 @@ Scoped.define("module:Upload.FormIframeFileUploader", ["module:Upload.FileUpload
     });
 });
 
-Scoped.define("module:Upload.CordovaFileUploader", ["module:Upload.FileUploader","module:Info","base:Promise"], function (FileUploader, Info, Promise, scoped) {
+Scoped.define("module:Upload.CordovaFileUploader", ["module:Upload.FileUploader","module:Info","base:Promise"], function(FileUploader, Info, Promise, scoped) {
     return FileUploader.extend({
         scoped: scoped
     }, {
@@ -14815,7 +14872,7 @@ Scoped.define("module:Upload.CordovaFileUploader", ["module:Upload.FileUploader"
     });
 });
 
-Scoped.define("module:Upload.MultiUploader", ["module:Upload.FileUploader","base:Objs"], function (FileUploader, Objs, scoped) {
+Scoped.define("module:Upload.MultiUploader", ["module:Upload.FileUploader","base:Objs"], function(FileUploader, Objs, scoped) {
     return FileUploader.extend({
         scoped: scoped
     }, function(inherited) {
@@ -14930,7 +14987,7 @@ Scoped.define("module:Upload.MultiUploader", ["module:Upload.FileUploader","base
     });
 });
 
-Scoped.define("module:Blobs", ["base:Promise"], function (Promise) {
+Scoped.define("module:Blobs", ["base:Promise"], function(Promise) {
     return {
 
         createBlobByArrayBufferView: function(arrayBuffer, offset, size, type) {
@@ -14983,7 +15040,7 @@ Scoped.define("module:Blobs", ["base:Promise"], function (Promise) {
     };
 });
 
-Scoped.define("module:Upload.ChunkedFileUploader", ["module:Upload.FileUploader","module:Upload.MultiUploader","module:Blobs","base:Promise","base:Objs","base:Tokens","base:Ajax.Support"], function (FileUploader, MultiUploader, Blobs, Promise, Objs, Tokens, AjaxSupport, scoped) {
+Scoped.define("module:Upload.ChunkedFileUploader", ["module:Upload.FileUploader","module:Upload.MultiUploader","module:Blobs","base:Promise","base:Objs","base:Tokens","base:Ajax.Support"], function(FileUploader, MultiUploader, Blobs, Promise, Objs, Tokens, AjaxSupport, scoped) {
 
     return FileUploader.extend({
         scoped: scoped
@@ -15080,7 +15137,7 @@ Scoped.define("module:Upload.ChunkedFileUploader", ["module:Upload.FileUploader"
 
 });
 
-Scoped.extend("module:Upload.FileUploader", ["module:Upload.FileUploader","module:Upload.FormDataFileUploader","module:Upload.FormIframeFileUploader","module:Upload.CordovaFileUploader","module:Upload.ChunkedFileUploader"], function (FileUploader, FormDataFileUploader, FormIframeFileUploader, CordovaFileUploader, ChunkedFileUploader) {
+Scoped.extend("module:Upload.FileUploader", ["module:Upload.FileUploader","module:Upload.FormDataFileUploader","module:Upload.FormIframeFileUploader","module:Upload.CordovaFileUploader","module:Upload.ChunkedFileUploader"], function(FileUploader, FormDataFileUploader, FormIframeFileUploader, CordovaFileUploader, ChunkedFileUploader) {
     FileUploader.register(FormDataFileUploader, 2);
     FileUploader.register(FormIframeFileUploader, 1);
     FileUploader.register(CordovaFileUploader, 4);
@@ -15088,7 +15145,7 @@ Scoped.extend("module:Upload.FileUploader", ["module:Upload.FileUploader","modul
     return {};
 });
 
-Scoped.define("module:Upload.CustomUploader", ["module:Upload.FileUploader"], function (FileUploader, scoped) {
+Scoped.define("module:Upload.CustomUploader", ["module:Upload.FileUploader"], function(FileUploader, scoped) {
     return FileUploader.extend({
         scoped: scoped
     }, {
@@ -15112,7 +15169,7 @@ Scoped.define("module:Upload.CustomUploader", ["module:Upload.FileUploader"], fu
     });
 });
 
-Scoped.define("module:Loader", ["base:Ajax.Support","module:Info"], function (AjaxSupport, Info) {
+Scoped.define("module:Loader", ["base:Ajax.Support","module:Info"], function(AjaxSupport, Info) {
     return {
 
         loadScript: function(url, callback, context) {
@@ -15209,7 +15266,7 @@ Scoped.define("module:Loader", ["base:Ajax.Support","module:Info"], function (Aj
     };
 });
 
-Scoped.define("module:Hotkeys", ["base:Objs"], function (Objs) {
+Scoped.define("module:Hotkeys", ["base:Objs"], function(Objs) {
     return {
 
         SHIFT_NUMS: {
@@ -15389,7 +15446,7 @@ Scoped.define("module:Hotkeys", ["base:Objs"], function (Objs) {
     };
 });
 
-Scoped.define("module:Ajax.IframePostmessageAjax", ["base:Ajax.Support","base:Net.Uri","base:Net.HttpHeader","base:Promise","base:Types","base:Ajax.RequestException","base:Tokens","base:Objs"], function (AjaxSupport, Uri, HttpHeader, Promise, Types, RequestException, Tokens, Objs) {
+Scoped.define("module:Ajax.IframePostmessageAjax", ["base:Ajax.Support","base:Net.Uri","base:Net.HttpHeader","base:Promise","base:Types","base:Ajax.RequestException","base:Tokens","base:Objs"], function(AjaxSupport, Uri, HttpHeader, Promise, Types, RequestException, Tokens, Objs) {
 
     var id = 1;
 
@@ -15468,7 +15525,7 @@ Scoped.define("module:Ajax.IframePostmessageAjax", ["base:Ajax.Support","base:Ne
     return Module;
 });
 
-Scoped.define("module:Ajax.JsonpScriptAjax", ["base:Ajax.Support","base:Net.Uri","base:Net.HttpHeader","base:Promise","base:Types","base:Ajax.RequestException","base:Tokens","base:Objs","base:Async","module:Info"], function (AjaxSupport, Uri, HttpHeader, Promise, Types, RequestException, Tokens, Objs, Async, Info) {
+Scoped.define("module:Ajax.JsonpScriptAjax", ["base:Ajax.Support","base:Net.Uri","base:Net.HttpHeader","base:Promise","base:Types","base:Ajax.RequestException","base:Tokens","base:Objs","base:Async","module:Info"], function(AjaxSupport, Uri, HttpHeader, Promise, Types, RequestException, Tokens, Objs, Async, Info) {
 
     var id = 1;
 
@@ -15547,7 +15604,7 @@ Scoped.define("module:Ajax.JsonpScriptAjax", ["base:Ajax.Support","base:Net.Uri"
     return Module;
 });
 
-Scoped.define("module:Ajax.XDomainRequestAjax", ["base:Ajax.Support","base:Net.Uri","base:Net.HttpHeader","base:Promise","base:Types","base:Ajax.RequestException","module:Info","base:Async","base:Ids"], function (AjaxSupport, Uri, HttpHeader, Promise, Types, RequestException, Info, Async, Ids) {
+Scoped.define("module:Ajax.XDomainRequestAjax", ["base:Ajax.Support","base:Net.Uri","base:Net.HttpHeader","base:Promise","base:Types","base:Ajax.RequestException","module:Info","base:Async","base:Ids"], function(AjaxSupport, Uri, HttpHeader, Promise, Types, RequestException, Info, Async, Ids) {
 
     var Module = {
 
@@ -15616,7 +15673,7 @@ Scoped.define("module:Ajax.XDomainRequestAjax", ["base:Ajax.Support","base:Net.U
     return Module;
 });
 
-Scoped.define("module:Ajax.XmlHttpRequestAjax", ["base:Ajax.Support","base:Net.Uri","base:Net.HttpHeader","base:Promise","base:Types","base:Objs","base:Ajax.RequestException","module:Info"], function (AjaxSupport, Uri, HttpHeader, Promise, Types, Objs, RequestException, Info) {
+Scoped.define("module:Ajax.XmlHttpRequestAjax", ["base:Ajax.Support","base:Net.Uri","base:Net.HttpHeader","base:Promise","base:Types","base:Objs","base:Ajax.RequestException","module:Info"], function(AjaxSupport, Uri, HttpHeader, Promise, Types, Objs, RequestException, Info) {
 
     var Module = {
 
@@ -15714,7 +15771,7 @@ Scoped.define("module:Ajax.XmlHttpRequestAjax", ["base:Ajax.Support","base:Net.U
     return Module;
 });
 
-Scoped.define("module:Cookies", ["base:Net.Cookies"], function (Cookies) {
+Scoped.define("module:Cookies", ["base:Net.Cookies"], function(Cookies) {
     return {
 
         get: function(key) {
@@ -15740,7 +15797,7 @@ Scoped.define("module:Cookies", ["base:Net.Cookies"], function (Cookies) {
     };
 });
 
-Scoped.define("module:DomMutation.NodeInsertObserver", ["base:Classes.ConditionalInstance","base:Events.EventsMixin"], function (ConditionalInstance, EventsMixin, scoped) {
+Scoped.define("module:DomMutation.NodeInsertObserver", ["base:Classes.ConditionalInstance","base:Events.EventsMixin"], function(ConditionalInstance, EventsMixin, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -15764,7 +15821,7 @@ Scoped.define("module:DomMutation.NodeInsertObserver", ["base:Classes.Conditiona
     }]);
 });
 
-Scoped.define("module:DomMutation.MutationObserverNodeInsertObserver", ["module:DomMutation.NodeInsertObserver","base:Objs"], function (Observer, Objs, scoped) {
+Scoped.define("module:DomMutation.MutationObserverNodeInsertObserver", ["module:DomMutation.NodeInsertObserver","base:Objs"], function(Observer, Objs, scoped) {
     return Observer.extend({
         scoped: scoped
     }, function(inherited) {
@@ -15805,7 +15862,7 @@ Scoped.define("module:DomMutation.MutationObserverNodeInsertObserver", ["module:
     });
 });
 
-Scoped.define("module:DomMutation.DOMNodeInsertedNodeInsertObserver", ["module:DomMutation.NodeInsertObserver","module:Events"], function (Observer, Events, scoped) {
+Scoped.define("module:DomMutation.DOMNodeInsertedNodeInsertObserver", ["module:DomMutation.NodeInsertObserver","module:Events"], function(Observer, Events, scoped) {
     return Observer.extend({
         scoped: scoped
     }, function(inherited) {
@@ -15830,7 +15887,7 @@ Scoped.define("module:DomMutation.DOMNodeInsertedNodeInsertObserver", ["module:D
     });
 });
 
-Scoped.extend("module:DomMutation.NodeInsertObserver", ["module:DomMutation.NodeInsertObserver","module:DomMutation.MutationObserverNodeInsertObserver","module:DomMutation.DOMNodeInsertedNodeInsertObserver"], function (Observer, MutationObserverNodeInsertObserver, DOMNodeInsertedNodeInsertObserver) {
+Scoped.extend("module:DomMutation.NodeInsertObserver", ["module:DomMutation.NodeInsertObserver","module:DomMutation.MutationObserverNodeInsertObserver","module:DomMutation.DOMNodeInsertedNodeInsertObserver"], function(Observer, MutationObserverNodeInsertObserver, DOMNodeInsertedNodeInsertObserver) {
     Observer.register(MutationObserverNodeInsertObserver, 3);
     Observer.register(DOMNodeInsertedNodeInsertObserver, 2);
     return {};
@@ -15858,7 +15915,7 @@ Scoped.extend("module:", ["module:"], function () {
 	};
 });
 
-Scoped.define("module:FlashClassRegistry", ["base:Class"], function (Class,
+Scoped.define("module:FlashClassRegistry", ["base:Class"], function(Class,
 		scoped) {
 	return Class.extend({
 		scoped : scoped
@@ -15880,7 +15937,7 @@ Scoped.define("module:FlashClassRegistry", ["base:Class"], function (Class,
 	});
 });
 
-Scoped.define("module:FlashObjectWrapper", ["base:Class","base:Objs","base:Functions"], function (Class, Objs, Functions, scoped) {
+Scoped.define("module:FlashObjectWrapper", ["base:Class","base:Objs","base:Functions"], function(Class, Objs, Functions, scoped) {
 	return Class.extend({
 		scoped : scoped
 	}, function(inherited) {
@@ -15931,7 +15988,7 @@ Scoped.define("module:FlashObjectWrapper", ["base:Class","base:Objs","base:Funct
 	});
 });
 
-Scoped.define("module:FlashClassWrapper", ["base:Class","base:Objs","base:Functions"], function (Class, Objs, Functions, scoped) {
+Scoped.define("module:FlashClassWrapper", ["base:Class","base:Objs","base:Functions"], function(Class, Objs, Functions, scoped) {
 	return Class.extend({
 		scoped : scoped
 	}, function(inherited) {
@@ -15974,7 +16031,7 @@ Scoped.define("module:FlashClassWrapper", ["base:Class","base:Objs","base:Functi
 	});
 });
 
-Scoped.define("module:FlashEmbedding", ["base:Class","base:Events.EventsMixin","browser:Dom","base:Strings","base:Functions","base:Types","base:Objs","base:Ids","base:Time","base:Timers.Timer","base:Async","base:Tokens","module:FlashObjectWrapper","module:FlashClassWrapper","browser:FlashHelper","module:"], function (Class, EventsMixin, Dom, Strings, Functions, Types, Objs, Ids, Time, Timer, Async, Tokens, FlashObjectWrapper, FlashClassWrapper, FlashHelper, mod, scoped) {
+Scoped.define("module:FlashEmbedding", ["base:Class","base:Events.EventsMixin","browser:Dom","base:Strings","base:Functions","base:Types","base:Objs","base:Ids","base:Time","base:Timers.Timer","base:Async","base:Tokens","module:FlashObjectWrapper","module:FlashClassWrapper","browser:FlashHelper","module:"], function(Class, EventsMixin, Dom, Strings, Functions, Types, Objs, Ids, Time, Timer, Async, Tokens, FlashObjectWrapper, FlashClassWrapper, FlashHelper, mod, scoped) {
 	return Class.extend({ scoped : scoped }, [EventsMixin, function(inherited) {
 		return {
 
@@ -16244,12 +16301,12 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.142",
-    "datetime": 1570747420803
+    "version": "0.0.145",
+    "datetime": 1573682443220
 };
 });
 
-Scoped.define("module:AudioPlayer.AudioPlayerWrapper", ["base:Classes.OptimisticConditionalInstance","base:Events.EventsMixin","base:Types","base:Objs","base:Strings","browser:Events"], function (OptimisticConditionalInstance, EventsMixin, Types, Objs, Strings, DomEvents, scoped) {
+Scoped.define("module:AudioPlayer.AudioPlayerWrapper", ["base:Classes.OptimisticConditionalInstance","base:Events.EventsMixin","base:Types","base:Objs","base:Strings","browser:Events"], function(OptimisticConditionalInstance, EventsMixin, Types, Objs, Strings, DomEvents, scoped) {
     return OptimisticConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -16397,7 +16454,7 @@ Scoped.define("module:AudioPlayer.AudioPlayerWrapper", ["base:Classes.Optimistic
     });
 });
 
-Scoped.define("module:AudioPlayer.Html5AudioPlayerWrapper", ["module:AudioPlayer.AudioPlayerWrapper","browser:Info","base:Promise","base:Objs","base:Timers.Timer","base:Strings","base:Async","browser:Dom","browser:Events"], function (AudioPlayerWrapper, Info, Promise, Objs, Timer, Strings, Async, Dom, DomEvents, scoped) {
+Scoped.define("module:AudioPlayer.Html5AudioPlayerWrapper", ["module:AudioPlayer.AudioPlayerWrapper","browser:Info","base:Promise","base:Objs","base:Timers.Timer","base:Strings","base:Async","browser:Dom","browser:Events"], function(AudioPlayerWrapper, Info, Promise, Objs, Timer, Strings, Async, Dom, DomEvents, scoped) {
     return AudioPlayerWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -16579,12 +16636,12 @@ Scoped.define("module:AudioPlayer.Html5AudioPlayerWrapper", ["module:AudioPlayer
     });
 });
 
-Scoped.extend("module:AudioPlayer.AudioPlayerWrapper", ["module:AudioPlayer.AudioPlayerWrapper","module:AudioPlayer.Html5AudioPlayerWrapper"], function (AudioPlayerWrapper, Html5AudioPlayerWrapper) {
+Scoped.extend("module:AudioPlayer.AudioPlayerWrapper", ["module:AudioPlayer.AudioPlayerWrapper","module:AudioPlayer.Html5AudioPlayerWrapper"], function(AudioPlayerWrapper, Html5AudioPlayerWrapper) {
     AudioPlayerWrapper.register(Html5AudioPlayerWrapper, 2);
     return {};
 });
 
-Scoped.define("module:AudioPlayer.FlashPlayer", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Promise"], function (Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Promise, scoped) {
+Scoped.define("module:AudioPlayer.FlashPlayer", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Promise"], function(Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Promise, scoped) {
     var Cls = Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -16782,7 +16839,7 @@ Scoped.define("module:AudioPlayer.FlashPlayer", ["browser:DomExtend.DomExtension
     return Cls;
 });
 
-Scoped.define("module:AudioPlayer.FlashPlayerWrapper", ["module:AudioPlayer.AudioPlayerWrapper","module:AudioPlayer.FlashPlayer","browser:Info","base:Promise","browser:Dom"], function (AudioPlayerWrapper, FlashPlayer, Info, Promise, Dom, scoped) {
+Scoped.define("module:AudioPlayer.FlashPlayerWrapper", ["module:AudioPlayer.AudioPlayerWrapper","module:AudioPlayer.FlashPlayer","browser:Info","base:Promise","browser:Dom"], function(AudioPlayerWrapper, FlashPlayer, Info, Promise, Dom, scoped) {
     return AudioPlayerWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -16856,12 +16913,12 @@ Scoped.define("module:AudioPlayer.FlashPlayerWrapper", ["module:AudioPlayer.Audi
     });
 });
 
-Scoped.extend("module:AudioPlayer.AudioPlayerWrapper", ["module:AudioPlayer.AudioPlayerWrapper","module:AudioPlayer.FlashPlayerWrapper"], function (AudioPlayerWrapper, FlashPlayerWrapper) {
+Scoped.extend("module:AudioPlayer.AudioPlayerWrapper", ["module:AudioPlayer.AudioPlayerWrapper","module:AudioPlayer.FlashPlayerWrapper"], function(AudioPlayerWrapper, FlashPlayerWrapper) {
     AudioPlayerWrapper.register(FlashPlayerWrapper, 1);
     return {};
 });
 
-Scoped.define("module:AudioRecorder.AudioRecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Promise"], function (ConditionalInstance, EventsMixin, Objs, Promise, scoped) {
+Scoped.define("module:AudioRecorder.AudioRecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Promise"], function(ConditionalInstance, EventsMixin, Objs, Promise, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -16943,7 +17000,7 @@ Scoped.define("module:AudioRecorder.AudioRecorderWrapper", ["base:Classes.Condit
     });
 });
 
-Scoped.define("module:Encoding.WaveEncoder.Support", ["base:Promise","base:Scheduling.Helper"], function (Promise, SchedulingHelper) {
+Scoped.define("module:Encoding.WaveEncoder.Support", ["base:Promise","base:Scheduling.Helper"], function(Promise, SchedulingHelper) {
     return {
 
         dumpInputBuffer: function(inputBuffer, audioChannels, bufferSize, offset) {
@@ -17014,7 +17071,7 @@ Scoped.define("module:Encoding.WaveEncoder.Support", ["base:Promise","base:Sched
     };
 });
 
-Scoped.define("module:Encoding.WebmEncoder.Support", ["base:Promise","base:Scheduling.Helper","base:Types"], function (Promise, SchedulingHelper, Types) {
+Scoped.define("module:Encoding.WebmEncoder.Support", ["base:Promise","base:Scheduling.Helper","base:Types"], function(Promise, SchedulingHelper, Types) {
     return {
 
         parseWebP: function(riff) {
@@ -17293,7 +17350,7 @@ Scoped.define("module:Encoding.WebmEncoder.Support", ["base:Promise","base:Sched
     };
 });
 
-Scoped.define("module:ImageRecorder.ImageRecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Promise"], function (ConditionalInstance, EventsMixin, Objs, Promise, scoped) {
+Scoped.define("module:ImageRecorder.ImageRecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Promise"], function(ConditionalInstance, EventsMixin, Objs, Promise, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -17373,7 +17430,7 @@ Scoped.define("module:ImageRecorder.ImageRecorderWrapper", ["base:Classes.Condit
     });
 });
 
-Scoped.define("module:Player.Broadcasting", ["base:Class","browser:Loader","browser:Events"], function (Class, Loader, DomEvents, scoped) {
+Scoped.define("module:Player.Broadcasting", ["base:Class","browser:Loader","browser:Events"], function(Class, Loader, DomEvents, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -17682,7 +17739,7 @@ Scoped.define("module:Player.Broadcasting", ["base:Class","browser:Loader","brow
     });
 });
 
-Scoped.define("module:Player.FlashPlayer", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Promise"], function (Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Promise, scoped) {
+Scoped.define("module:Player.FlashPlayer", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Promise"], function(Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Promise, scoped) {
     var Cls = Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -17968,7 +18025,7 @@ Scoped.define("module:Player.FlashPlayer", ["browser:DomExtend.DomExtension","br
     return Cls;
 });
 
-Scoped.define("module:Player.Support", ["base:Promise","base:Objs"], function (Promise, Objs) {
+Scoped.define("module:Player.Support", ["base:Promise","base:Objs"], function(Promise, Objs) {
     return {
 
         resolutionToLabel: function(width, height) {
@@ -18044,7 +18101,7 @@ Scoped.define("module:Player.Support", ["base:Promise","base:Objs"], function (P
     };
 });
 
-Scoped.define("module:Player.VideoPlayerWrapper", ["base:Classes.OptimisticConditionalInstance","base:Events.EventsMixin","base:Types","base:Objs","base:Strings","browser:Events"], function (OptimisticConditionalInstance, EventsMixin, Types, Objs, Strings, DomEvents, scoped) {
+Scoped.define("module:Player.VideoPlayerWrapper", ["base:Classes.OptimisticConditionalInstance","base:Events.EventsMixin","base:Types","base:Objs","base:Strings","browser:Events"], function(OptimisticConditionalInstance, EventsMixin, Types, Objs, Strings, DomEvents, scoped) {
     return OptimisticConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -18235,7 +18292,7 @@ Scoped.define("module:Player.VideoPlayerWrapper", ["base:Classes.OptimisticCondi
     });
 });
 
-Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:Player.VideoPlayerWrapper","browser:Info","base:Promise","base:Objs","base:Timers.Timer","base:Strings","base:Async","browser:Dom","browser:Events"], function (VideoPlayerWrapper, Info, Promise, Objs, Timer, Strings, Async, Dom, DomEvents, scoped) {
+Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:Player.VideoPlayerWrapper","browser:Info","base:Promise","base:Objs","base:Timers.Timer","base:Strings","base:Async","browser:Dom","browser:Events"], function(VideoPlayerWrapper, Info, Promise, Objs, Timer, Strings, Async, Dom, DomEvents, scoped) {
     return VideoPlayerWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -18535,7 +18592,7 @@ Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:Player.VideoPlay
     });
 });
 
-Scoped.define("module:Player.FlashPlayerWrapper", ["module:Player.VideoPlayerWrapper","module:Player.FlashPlayer","browser:Info","base:Promise","browser:Dom"], function (VideoPlayerWrapper, FlashPlayer, Info, Promise, Dom, scoped) {
+Scoped.define("module:Player.FlashPlayerWrapper", ["module:Player.VideoPlayerWrapper","module:Player.FlashPlayer","browser:Info","base:Promise","browser:Dom"], function(VideoPlayerWrapper, FlashPlayer, Info, Promise, Dom, scoped) {
     return VideoPlayerWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -18619,17 +18676,17 @@ Scoped.define("module:Player.FlashPlayerWrapper", ["module:Player.VideoPlayerWra
     });
 });
 
-Scoped.extend("module:Player.VideoPlayerWrapper", ["module:Player.VideoPlayerWrapper","module:Player.Html5VideoPlayerWrapper"], function (VideoPlayerWrapper, Html5VideoPlayerWrapper) {
+Scoped.extend("module:Player.VideoPlayerWrapper", ["module:Player.VideoPlayerWrapper","module:Player.Html5VideoPlayerWrapper"], function(VideoPlayerWrapper, Html5VideoPlayerWrapper) {
     VideoPlayerWrapper.register(Html5VideoPlayerWrapper, 2);
     return {};
 });
 
-Scoped.extend("module:Player.VideoPlayerWrapper", ["module:Player.VideoPlayerWrapper","module:Player.FlashPlayerWrapper"], function (VideoPlayerWrapper, FlashPlayerWrapper) {
+Scoped.extend("module:Player.VideoPlayerWrapper", ["module:Player.VideoPlayerWrapper","module:Player.FlashPlayerWrapper"], function(VideoPlayerWrapper, FlashPlayerWrapper) {
     VideoPlayerWrapper.register(FlashPlayerWrapper, 1);
     return {};
 });
 
-Scoped.define("module:Flash.Support", ["base:Promise","base:Timers.Timer","base:Async","base:Objs","flash:FlashClassRegistry","flash:FlashEmbedding","browser:Info"], function (Promise, Timer, Async, Objs, FlashClassRegistry, FlashEmbedding, Info) {
+Scoped.define("module:Flash.Support", ["base:Promise","base:Timers.Timer","base:Async","base:Objs","flash:FlashClassRegistry","flash:FlashEmbedding","browser:Info"], function(Promise, Timer, Async, Objs, FlashClassRegistry, FlashEmbedding, Info) {
     return {
 
         flashCanConnect: function(url, timeout) {
@@ -18715,7 +18772,7 @@ Scoped.define("module:Flash.Support", ["base:Promise","base:Timers.Timer","base:
     };
 });
 
-Scoped.define("module:Recorder.PixelSampleMixin", [], function () {
+Scoped.define("module:Recorder.PixelSampleMixin", [], function() {
     return {
 
         lightLevel: function(samples) {
@@ -18762,7 +18819,7 @@ Scoped.define("module:Recorder.PixelSampleMixin", [], function () {
     };
 });
 
-Scoped.define("module:Flash.FlashAudioRecorder", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Timers.Timer","base:Time","base:Promise","base:Events.EventsMixin","module:Recorder.PixelSampleMixin"], function (Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Timer, Time, Promise, EventsMixin, PixelSampleMixin, scoped) {
+Scoped.define("module:Flash.FlashAudioRecorder", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Timers.Timer","base:Time","base:Promise","base:Events.EventsMixin","module:Recorder.PixelSampleMixin"], function(Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Timer, Time, Promise, EventsMixin, PixelSampleMixin, scoped) {
     var Cls = Class.extend({
         scoped: scoped
     }, [EventsMixin, PixelSampleMixin, function(inherited) {
@@ -19113,7 +19170,7 @@ Scoped.define("module:Flash.FlashAudioRecorder", ["browser:DomExtend.DomExtensio
     return Cls;
 });
 
-Scoped.define("module:AudioRecorder.FlashAudioRecorderWrapper", ["module:AudioRecorder.AudioRecorderWrapper","module:Flash.FlashAudioRecorder","browser:Dom","browser:Info","base:Promise","base:Objs","base:Timers.Timer","browser:Upload.CustomUploader","browser:Upload.MultiUploader"], function (AudioRecorderWrapper, FlashAudioRecorder, Dom, Info, Promise, Objs, Timer, CustomUploader, MultiUploader, scoped) {
+Scoped.define("module:AudioRecorder.FlashAudioRecorderWrapper", ["module:AudioRecorder.AudioRecorderWrapper","module:Flash.FlashAudioRecorder","browser:Dom","browser:Info","base:Promise","base:Objs","base:Timers.Timer","browser:Upload.CustomUploader","browser:Upload.MultiUploader"], function(AudioRecorderWrapper, FlashAudioRecorder, Dom, Info, Promise, Objs, Timer, CustomUploader, MultiUploader, scoped) {
     return AudioRecorderWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -19262,12 +19319,12 @@ Scoped.define("module:AudioRecorder.FlashAudioRecorderWrapper", ["module:AudioRe
     });
 });
 
-Scoped.extend("module:AudioRecorder.AudioRecorderWrapper", ["module:AudioRecorder.AudioRecorderWrapper","module:AudioRecorder.FlashAudioRecorderWrapper"], function (AudioRecorderWrapper, FlashAudioRecorderWrapper) {
+Scoped.extend("module:AudioRecorder.AudioRecorderWrapper", ["module:AudioRecorder.AudioRecorderWrapper","module:AudioRecorder.FlashAudioRecorderWrapper"], function(AudioRecorderWrapper, FlashAudioRecorderWrapper) {
     AudioRecorderWrapper.register(FlashAudioRecorderWrapper, 1);
     return {};
 });
 
-Scoped.define("module:Flash.FlashImageRecorder", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Timers.Timer","base:Time","base:Promise","base:Events.EventsMixin","module:Recorder.PixelSampleMixin"], function (Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Timer, Time, Promise, EventsMixin, PixelSampleMixin, scoped) {
+Scoped.define("module:Flash.FlashImageRecorder", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Timers.Timer","base:Time","base:Promise","base:Events.EventsMixin","module:Recorder.PixelSampleMixin"], function(Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Timer, Time, Promise, EventsMixin, PixelSampleMixin, scoped) {
     var Cls = Class.extend({
         scoped: scoped
     }, [EventsMixin, PixelSampleMixin, function(inherited) {
@@ -19613,7 +19670,7 @@ Scoped.define("module:Flash.FlashImageRecorder", ["browser:DomExtend.DomExtensio
     return Cls;
 });
 
-Scoped.define("module:ImageRecorder.FlashImageRecorderWrapper", ["module:ImageRecorder.ImageRecorderWrapper","module:Flash.FlashImageRecorder","browser:Dom","browser:Info","base:Promise","base:Objs","base:Timers.Timer","browser:Upload.CustomUploader","browser:Upload.MultiUploader"], function (FlashImageRecorderWrapper, FlashRecorder, Dom, Info, Promise, Objs, Timer, CustomUploader, MultiUploader, scoped) {
+Scoped.define("module:ImageRecorder.FlashImageRecorderWrapper", ["module:ImageRecorder.ImageRecorderWrapper","module:Flash.FlashImageRecorder","browser:Dom","browser:Info","base:Promise","base:Objs","base:Timers.Timer","browser:Upload.CustomUploader","browser:Upload.MultiUploader"], function(FlashImageRecorderWrapper, FlashRecorder, Dom, Info, Promise, Objs, Timer, CustomUploader, MultiUploader, scoped) {
     return FlashImageRecorderWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -19745,12 +19802,12 @@ Scoped.define("module:ImageRecorder.FlashImageRecorderWrapper", ["module:ImageRe
     });
 });
 
-Scoped.extend("module:ImageRecorder.ImageRecorderWrapper", ["module:ImageRecorder.ImageRecorderWrapper","module:ImageRecorder.FlashImageRecorderWrapper"], function (ImageRecorderWrapper, FlashImageRecorderWrapper) {
+Scoped.extend("module:ImageRecorder.ImageRecorderWrapper", ["module:ImageRecorder.ImageRecorderWrapper","module:ImageRecorder.FlashImageRecorderWrapper"], function(ImageRecorderWrapper, FlashImageRecorderWrapper) {
     ImageRecorderWrapper.register(FlashImageRecorderWrapper, 1);
     return {};
 });
 
-Scoped.define("module:Flash.FlashRecorder", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Timers.Timer","base:Time","base:Promise","base:Events.EventsMixin","module:Recorder.PixelSampleMixin"], function (Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Timer, Time, Promise, EventsMixin, PixelSampleMixin, scoped) {
+Scoped.define("module:Flash.FlashRecorder", ["browser:DomExtend.DomExtension","browser:Dom","browser:Info","flash:FlashClassRegistry","flash:FlashEmbedding","base:Strings","base:Async","base:Objs","base:Functions","base:Types","base:Timers.Timer","base:Time","base:Promise","base:Events.EventsMixin","module:Recorder.PixelSampleMixin"], function(Class, Dom, Info, FlashClassRegistry, FlashEmbedding, Strings, Async, Objs, Functions, Types, Timer, Time, Promise, EventsMixin, PixelSampleMixin, scoped) {
     var Cls = Class.extend({
         scoped: scoped
     }, [EventsMixin, PixelSampleMixin, function(inherited) {
@@ -20342,7 +20399,7 @@ Scoped.define("module:Flash.FlashRecorder", ["browser:DomExtend.DomExtension","b
     return Cls;
 });
 
-Scoped.define("module:Recorder.VideoRecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Promise"], function (ConditionalInstance, EventsMixin, Objs, Promise, scoped) {
+Scoped.define("module:Recorder.VideoRecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Promise"], function(ConditionalInstance, EventsMixin, Objs, Promise, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -20469,7 +20526,7 @@ Scoped.define("module:Recorder.VideoRecorderWrapper", ["base:Classes.Conditional
     });
 });
 
-Scoped.define("module:Recorder.FlashVideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:Flash.FlashRecorder","browser:Dom","browser:Info","base:Promise","base:Objs","base:Timers.Timer","browser:Upload.CustomUploader","browser:Upload.MultiUploader"], function (VideoRecorderWrapper, FlashRecorder, Dom, Info, Promise, Objs, Timer, CustomUploader, MultiUploader, scoped) {
+Scoped.define("module:Recorder.FlashVideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:Flash.FlashRecorder","browser:Dom","browser:Info","base:Promise","base:Objs","base:Timers.Timer","browser:Upload.CustomUploader","browser:Upload.MultiUploader"], function(VideoRecorderWrapper, FlashRecorder, Dom, Info, Promise, Objs, Timer, CustomUploader, MultiUploader, scoped) {
     return VideoRecorderWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -20686,12 +20743,12 @@ Scoped.define("module:Recorder.FlashVideoRecorderWrapper", ["module:Recorder.Vid
     });
 });
 
-Scoped.extend("module:Recorder.VideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:Recorder.FlashVideoRecorderWrapper"], function (VideoRecorderWrapper, FlashVideoRecorderWrapper) {
+Scoped.extend("module:Recorder.VideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:Recorder.FlashVideoRecorderWrapper"], function(VideoRecorderWrapper, FlashVideoRecorderWrapper) {
     VideoRecorderWrapper.register(FlashVideoRecorderWrapper, 1);
     return {};
 });
 
-Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info","browser:Dom","base:Time"], function (Promise, Objs, Info, Dom, Time) {
+Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info","browser:Dom","base:Time"], function(Promise, Objs, Info, Dom, Time) {
     return {
 
         canvasSupportsImageFormat: function(imageFormat) {
@@ -20870,6 +20927,7 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
          */
         userMedia2: function(options) {
             var opts = {};
+            var promise;
             if (options.audio)
                 opts.audio = options.audio;
             if (options.screen && !options.video)
@@ -20893,6 +20951,47 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                         exact: options.video.cameraFaceFront ? "user" : "environment"
                     };
                 return this.userMedia(opts);
+            } else if (options.screen && typeof navigator.mediaDevices.getDisplayMedia !== 'undefined') {
+                /**
+                 * https://w3c.github.io/mediacapture-screen-share/#constrainable-properties-for-captured-display-surfaces
+                 * partial interface MediaDevices {
+                 *    Promise<MediaStream> getDisplayMedea(optional DisplayMediaStreamConstraints constraints = {});
+                 * };
+                 * enum DisplayCaptureSurfaceType { "monitor", "window", "application", "browser"};
+                 * enum CursorCaptureConstraint { "never", "always", "motion" };
+                 */
+                promise = Promise.create();
+                var _self = this;
+                var displayMediaPromise = navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: 'motion',
+                        resizeMode: 'none',
+                        displaySurface: 'application'
+                    },
+                    audio: true
+                });
+                displayMediaPromise.then(function(videoStream) {
+                    if (videoStream.getAudioTracks().length < 1) {
+                        _self.userMedia({
+                                video: false,
+                                audio: true
+                            })
+                            .mapError(function(err) {
+                                promise.asyncSuccess(videoStream);
+                            })
+                            .mapSuccess(function(audioStream) {
+                                promise.asyncSuccess(new MediaStream([videoStream.getTracks()[0], audioStream.getAudioTracks()[0]]));
+                            });
+                    } else {
+                        promise.asyncSuccess(videoStream);
+                    }
+                });
+
+                // Declaring catch this way will fix IE8 related `SCRIPT1010: Expected identifier`
+                displayMediaPromise['catch'](function(err) {
+                    promise.asyncError(err);
+                });
+                return promise;
             } else if (Info.isFirefox()) {
                 opts.video = {};
                 if (options.screen) {
@@ -20930,7 +21029,7 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                 return this.userMedia(opts);
             } else if (Info.isEdge() && options.screen) {
                 if (navigator.getDisplayMedia) {
-                    var promise = Promise.create();
+                    promise = Promise.create();
                     var pr = navigator.getDisplayMedia({
                         video: true
                     });
@@ -21001,7 +21100,7 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                         type: "ping",
                         data: pingTest
                     }).mapSuccess(function(pingResponse) {
-                        var promise = Promise.create();
+                        promise = Promise.create();
                         if (!pingResponse || pingResponse.type !== "success" || pingResponse.data !== pingTest)
                             return Promise.error("This browser does not support screen recording.");
                         else
@@ -21164,7 +21263,7 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
     };
 });
 
-Scoped.define("module:Recorder.Support", ["module:WebRTC.Support","browser:Upload.FileUploader","browser:Upload.CustomUploader","browser:Dom","browser:Info","base:Promise","base:Objs"], function (Support, FileUploader, CustomUploader, Dom, Info, Promise, Objs) {
+Scoped.define("module:Recorder.Support", ["module:WebRTC.Support","browser:Upload.FileUploader","browser:Upload.CustomUploader","browser:Dom","browser:Info","base:Promise","base:Objs"], function(Support, FileUploader, CustomUploader, Dom, Info, Promise, Objs) {
     return {
 
         /**
@@ -21407,7 +21506,7 @@ Scoped.define("module:Recorder.Support", ["module:WebRTC.Support","browser:Uploa
     };
 });
 
-Scoped.define("module:WebRTC.AudioAnalyser", ["base:Class","browser:Info","module:WebRTC.Support"], function (Class, Info, Support, scoped) {
+Scoped.define("module:WebRTC.AudioAnalyser", ["base:Class","browser:Info","module:WebRTC.Support"], function(Class, Info, Support, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -21453,13 +21552,13 @@ Scoped.define("module:WebRTC.AudioAnalyser", ["base:Class","browser:Info","modul
 
         supported: function() {
             // It works on iOS and on Safari, but it takes over the audio from the stream indefinitely
-            return !!Support.globals().AudioContext && !Info.isSafari() && !Info.isiOS();
+            return !!Support.globals().AudioContext && !!Support.globals().audioContext && !Info.isSafari() && !Info.isiOS();
         }
 
     });
 });
 
-Scoped.define("module:WebRTC.AudioRecorder", ["base:Class","base:Events.EventsMixin","base:Objs","base:Promise","base:Functions","module:WebRTC.Support","module:Encoding.WaveEncoder.Support"], function (Class, EventsMixin, Objs, Promise, Functions, Support, WaveEncoder, scoped) {
+Scoped.define("module:WebRTC.AudioRecorder", ["base:Class","base:Events.EventsMixin","base:Objs","base:Promise","base:Functions","module:WebRTC.Support","module:Encoding.WaveEncoder.Support"], function(Class, EventsMixin, Objs, Promise, Functions, Support, WaveEncoder, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -21616,7 +21715,7 @@ Scoped.define("module:WebRTC.AudioRecorder", ["base:Class","base:Events.EventsMi
     });
 });
 
-Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMixin","base:Functions","base:Promise","browser:Info","module:WebRTC.Support"], function (Class, EventsMixin, Functions, Promise, Info, Support, scoped) {
+Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMixin","base:Functions","base:Promise","browser:Info","module:WebRTC.Support"], function(Class, EventsMixin, Functions, Promise, Info, Support, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -21770,7 +21869,7 @@ Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMi
     });
 });
 
-Scoped.define("module:WebRTC.PeerRecorder", ["base:Class","base:Events.EventsMixin","base:Functions","base:Objs","base:Promise","base:Async","browser:Info","module:WebRTC.Support"], function (Class, EventsMixin, Functions, Objs, Promise, Async, Info, Support, scoped) {
+Scoped.define("module:WebRTC.PeerRecorder", ["base:Class","base:Events.EventsMixin","base:Functions","base:Objs","base:Promise","base:Async","browser:Info","module:WebRTC.Support"], function(Class, EventsMixin, Functions, Objs, Promise, Async, Info, Support, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -21968,7 +22067,7 @@ Scoped.define("module:WebRTC.PeerRecorder", ["base:Class","base:Events.EventsMix
     });
 });
 
-Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Async","base:Promise","base:Time","module:WebRTC.Support","module:Recorder.Support","module:Recorder.PixelSampleMixin"], function (ConditionalInstance, EventsMixin, Objs, Async, Promise, Time, Support, RecorderSupport, PixelSampleMixin, scoped) {
+Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Async","base:Promise","base:Time","module:WebRTC.Support","module:Recorder.Support","module:Recorder.PixelSampleMixin"], function(ConditionalInstance, EventsMixin, Objs, Async, Promise, Time, Support, RecorderSupport, PixelSampleMixin, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, PixelSampleMixin, function(inherited) {
@@ -21984,7 +22083,12 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 this._hasVideo = false;
                 this._screen = options.screen;
                 this._flip = !!options.flip;
-                this._initialVideoTrackSettings = {};
+                this._videoTrackSettings = {
+                    slippedFromOrigin: {
+                        height: 1.00,
+                        width: 1.00
+                    }
+                };
             },
 
             _getConstraints: function() {
@@ -22065,11 +22169,9 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 return Support.userMedia2(this._multiStreamConstraints, this).success(function(stream) {
                     this._multiStreams.push(stream);
                     this._addNewVideoElement(promise);
-
                     this.on("multistream-canvas-drawn", function() {
                         return promise.asyncSuccess();
                     }, this);
-
                 }, this);
             },
 
@@ -22228,8 +22330,8 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
              * @private
              */
             _prepareMultiStreamCanvas: function() {
-                var _height = this._initialVideoTrackSettings.height || this._video.clientHeight || this._video.videoHeight;
-                var _width = this._initialVideoTrackSettings.width || this._video.clientWidth || this._video.videoWidth;
+                var _height = this._videoTrackSettings.height || this._video.clientHeight || this._video.videoHeight;
+                var _width = this._videoTrackSettings.width || this._video.clientWidth || this._video.videoWidth;
                 if (typeof this.__multiStreamCanvas === 'undefined') {
                     this.__multiStreamCanvas = document.createElement('canvas');
                 }
@@ -22248,26 +22350,57 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
             _setLocalTrackSettings: function(stream) {
                 if (typeof stream.getVideoTracks() !== 'undefined') {
                     if (stream.getVideoTracks()[0]) {
+                        var self = this;
                         this._videoTrack = stream.getVideoTracks()[0];
-                        // Will fix Chrome Cropping
-                        if (this._options.screen) {
-                            var _self = this;
-                            // Get actual video track dimensions before it was draw inside canvas
-                            if (!this._videoTrack.canvas)
-                                this._initialVideoTrackSettings = this._videoTrack.getSettings();
+                        // Will fix older version Chrome Cropping
+                        if (!this._options.getDisplayMediaSupported) {
                             this._videoTrack.applyConstraints({
                                 resizeMode: 'none'
                             }).then(function() {
-                                if (typeof _self._videoTrack.getSettings() !== 'undefined')
-                                    _self._videoTrackSettings = _self._videoTrack.getSettings();
+                                if (typeof self._videoTrack.getSettings !== 'undefined')
+                                    self._videoTrackSettings = Objs.extend(sourceVideoSettings, self._videoTrackSettings);
                             });
                         } else {
-                            if (typeof this._videoTrack.getSettings() !== 'undefined')
-                                this._videoTrackSettings = this._videoTrack.getSettings();
+                            if (typeof this._videoTrack.getSettings !== 'undefined') {
+                                var sourceVideoSettings = this._videoTrack.getSettings();
+                                if (typeof this._videoTrackSettings.videoInnerFrame === 'undefined')
+                                    this._videoTrackSettings = Objs.extend(sourceVideoSettings, this._videoTrackSettings);
+
+                                this._video.onloadedmetadata = function(v) {
+                                    var _videoElement = v.target;
+                                    var _lookedWidth, _lookedHeight, _slippedWidth, _slippedHeight;
+                                    var _asR = sourceVideoSettings.aspectRatio || (sourceVideoSettings.width / sourceVideoSettings.height);
+                                    if (!isNaN(_asR)) {
+                                        var _maxWidth = _videoElement.offsetWidth;
+                                        var _maxHeight = _videoElement.offsetHeight;
+                                        // FireFox don't calculates aspectRatio like Chrome does
+                                        _lookedWidth = _maxWidth <= _maxHeight * _asR ? _maxWidth : Math.round(_maxHeight * _asR);
+                                        _lookedHeight = _maxWidth > _maxHeight * _asR ? _maxHeight : Math.round(_maxWidth / _asR);
+
+                                        _slippedWidth = sourceVideoSettings.width > _lookedWidth ? sourceVideoSettings.width / _lookedWidth : _lookedWidth / sourceVideoSettings.width;
+                                        _slippedHeight = sourceVideoSettings.height > _lookedHeight ? sourceVideoSettings.height / _lookedHeight : _lookedHeight / sourceVideoSettings.height;
+
+                                        self._videoTrackSettings = Objs.extend(sourceVideoSettings, {
+                                            videoElement: {
+                                                width: _maxWidth,
+                                                height: _maxHeight
+                                            },
+                                            videoInnerFrame: {
+                                                width: _lookedWidth,
+                                                height: _lookedHeight
+                                            },
+                                            slippedFromOrigin: {
+                                                width: _slippedWidth,
+                                                height: _slippedHeight
+                                            }
+                                        });
+                                    }
+                                };
+                            }
                         }
                     }
                 }
-                if (typeof stream.getAudioTracks() !== 'undefined') {
+                if (typeof stream.getAudioTracks !== 'undefined') {
                     if (stream.getAudioTracks()[0]) {
                         this._audioTrack = stream.getAudioTracks()[0];
                         if (typeof this._audioTrack.getSettings() !== 'undefined')
@@ -22464,7 +22597,7 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
     });
 });
 
-Scoped.define("module:AudioRecorder.WebRTCAudioRecorderWrapper", ["module:AudioRecorder.AudioRecorderWrapper","module:WebRTC.RecorderWrapper","module:WebRTC.Support","module:WebRTC.AudioAnalyser","browser:Dom","browser:Info","base:Time","base:Objs","browser:Upload.FileUploader","browser:Upload.MultiUploader","base:Promise"], function (AudioRecorderWrapper, RecorderWrapper, Support, AudioAnalyser, Dom, Info, Time, Objs, FileUploader, MultiUploader, Promise, scoped) {
+Scoped.define("module:AudioRecorder.WebRTCAudioRecorderWrapper", ["module:AudioRecorder.AudioRecorderWrapper","module:WebRTC.RecorderWrapper","module:WebRTC.Support","module:WebRTC.AudioAnalyser","browser:Dom","browser:Info","base:Time","base:Objs","browser:Upload.FileUploader","browser:Upload.MultiUploader","base:Promise"], function(AudioRecorderWrapper, RecorderWrapper, Support, AudioAnalyser, Dom, Info, Time, Objs, FileUploader, MultiUploader, Promise, scoped) {
     return AudioRecorderWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -22608,12 +22741,12 @@ Scoped.define("module:AudioRecorder.WebRTCAudioRecorderWrapper", ["module:AudioR
     });
 });
 
-Scoped.extend("module:AudioRecorder.AudioRecorderWrapper", ["module:AudioRecorder.AudioRecorderWrapper","module:AudioRecorder.WebRTCAudioRecorderWrapper"], function (AudioRecorderWrapper, WebRTCAudioRecorderWrapper) {
+Scoped.extend("module:AudioRecorder.AudioRecorderWrapper", ["module:AudioRecorder.AudioRecorderWrapper","module:AudioRecorder.WebRTCAudioRecorderWrapper"], function(AudioRecorderWrapper, WebRTCAudioRecorderWrapper) {
     AudioRecorderWrapper.register(WebRTCAudioRecorderWrapper, 2);
     return {};
 });
 
-Scoped.define("module:ImageRecorder.WebRTCImageRecorderWrapper", ["module:ImageRecorder.ImageRecorderWrapper","module:WebRTC.RecorderWrapper","module:WebRTC.Support","browser:Dom","browser:Info","base:Time","base:Objs","browser:Upload.FileUploader","browser:Upload.MultiUploader","base:Promise"], function (ImageRecorderWrapper, RecorderWrapper, Support, Dom, Info, Time, Objs, FileUploader, MultiUploader, Promise, scoped) {
+Scoped.define("module:ImageRecorder.WebRTCImageRecorderWrapper", ["module:ImageRecorder.ImageRecorderWrapper","module:WebRTC.RecorderWrapper","module:WebRTC.Support","browser:Dom","browser:Info","base:Time","base:Objs","browser:Upload.FileUploader","browser:Upload.MultiUploader","base:Promise"], function(ImageRecorderWrapper, RecorderWrapper, Support, Dom, Info, Time, Objs, FileUploader, MultiUploader, Promise, scoped) {
     return ImageRecorderWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -22767,12 +22900,12 @@ Scoped.define("module:ImageRecorder.WebRTCImageRecorderWrapper", ["module:ImageR
     });
 });
 
-Scoped.extend("module:ImageRecorder.ImageRecorderWrapper", ["module:ImageRecorder.ImageRecorderWrapper","module:ImageRecorder.WebRTCImageRecorderWrapper"], function (ImageRecorderWrapper, WebRTCImageRecorderWrapper) {
+Scoped.extend("module:ImageRecorder.ImageRecorderWrapper", ["module:ImageRecorder.ImageRecorderWrapper","module:ImageRecorder.WebRTCImageRecorderWrapper"], function(ImageRecorderWrapper, WebRTCImageRecorderWrapper) {
     ImageRecorderWrapper.register(WebRTCImageRecorderWrapper, 2);
     return {};
 });
 
-Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:WebRTC.RecorderWrapper","module:WebRTC.Support","module:WebRTC.AudioAnalyser","browser:Dom","browser:Info","base:Time","base:Objs","base:Timers.Timer","base:Comparators","browser:Upload.FileUploader","browser:Upload.MultiUploader","base:Promise"], function (VideoRecorderWrapper, RecorderWrapper, Support, AudioAnalyser, Dom, Info, Time, Objs, Timer, Comparators, FileUploader, MultiUploader, Promise, scoped) {
+Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:WebRTC.RecorderWrapper","module:WebRTC.Support","module:WebRTC.AudioAnalyser","browser:Dom","browser:Info","base:Time","base:Objs","base:Timers.Timer","base:Comparators","browser:Upload.FileUploader","browser:Upload.MultiUploader","base:Promise"], function(VideoRecorderWrapper, RecorderWrapper, Support, AudioAnalyser, Dom, Info, Time, Objs, Timer, Comparators, FileUploader, MultiUploader, Promise, scoped) {
     return VideoRecorderWrapper.extend({
         scoped: scoped
     }, function(inherited) {
@@ -22798,7 +22931,8 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
                     webrtcStreaming: this._options.webrtcStreaming,
                     webrtcStreamingIfNecessary: this._options.webrtcStreamingIfNecessary,
                     localPlaybackRequested: this._options.localPlaybackRequested,
-                    screen: this._options.screen
+                    screen: this._options.screen,
+                    getDisplayMediaSupported: typeof navigator.mediaDevices.getDisplayMedia !== 'undefined'
                 });
                 this._recorder.on("bound", function() {
                     if (this._analyser)
@@ -23151,6 +23285,8 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
             if (!RecorderWrapper.anySupport(options))
                 return false;
             if (options.screen) {
+                if ((Info.isChrome() || Info.isFirefox() || Info.isOpera()) && typeof navigator.mediaDevices.getDisplayMedia !== 'undefined')
+                    return true;
                 if (Support.globals().supportedConstraints.mediaSource && Info.isFirefox() && Info.firefoxVersion() > 55)
                     return true;
                 if (Info.isChrome() && options.screen.chromeExtensionId)
@@ -23165,12 +23301,12 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
     });
 });
 
-Scoped.extend("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:Recorder.WebRTCVideoRecorderWrapper"], function (VideoRecorderWrapper, WebRTCVideoRecorderWrapper) {
+Scoped.extend("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.VideoRecorderWrapper","module:Recorder.WebRTCVideoRecorderWrapper"], function(VideoRecorderWrapper, WebRTCVideoRecorderWrapper) {
     VideoRecorderWrapper.register(WebRTCVideoRecorderWrapper, 2);
     return {};
 });
 
-Scoped.define("module:WebRTC.PeerRecorderWrapper", ["module:WebRTC.RecorderWrapper","module:WebRTC.PeerRecorder","module:WebRTC.MediaRecorder","browser:Info","base:Async"], function (RecorderWrapper, PeerRecorder, MediaRecorder, Info, Async, scoped) {
+Scoped.define("module:WebRTC.PeerRecorderWrapper", ["module:WebRTC.RecorderWrapper","module:WebRTC.PeerRecorder","module:WebRTC.MediaRecorder","browser:Info","base:Async"], function(RecorderWrapper, PeerRecorder, MediaRecorder, Info, Async, scoped) {
     return RecorderWrapper.extend({
         scoped: scoped
     }, {
@@ -23250,7 +23386,7 @@ Scoped.define("module:WebRTC.PeerRecorderWrapper", ["module:WebRTC.RecorderWrapp
     });
 });
 
-Scoped.define("module:WebRTC.PeerRecorderWrapperIfNecessary", ["module:WebRTC.PeerRecorderWrapper","base:Objs"], function (PeerRecorderWrapper, Objs, scoped) {
+Scoped.define("module:WebRTC.PeerRecorderWrapperIfNecessary", ["module:WebRTC.PeerRecorderWrapper","base:Objs"], function(PeerRecorderWrapper, Objs, scoped) {
     return PeerRecorderWrapper.extend({
         scoped: scoped
     }, {}, function(inherited) {
@@ -23269,7 +23405,7 @@ Scoped.define("module:WebRTC.PeerRecorderWrapperIfNecessary", ["module:WebRTC.Pe
     });
 });
 
-Scoped.define("module:WebRTC.MediaRecorderWrapper", ["module:WebRTC.RecorderWrapper","module:WebRTC.MediaRecorder"], function (RecorderWrapper, MediaRecorder, scoped) {
+Scoped.define("module:WebRTC.MediaRecorderWrapper", ["module:WebRTC.RecorderWrapper","module:WebRTC.MediaRecorder"], function(RecorderWrapper, MediaRecorder, scoped) {
     return RecorderWrapper.extend({
         scoped: scoped
     }, {
@@ -23327,7 +23463,7 @@ Scoped.define("module:WebRTC.MediaRecorderWrapper", ["module:WebRTC.RecorderWrap
     });
 });
 
-Scoped.define("module:WebRTC.WhammyRecorder", ["base:Class","base:Events.EventsMixin","base:Objs","base:Time","base:Functions","base:Promise","base:Async","module:WebRTC.Support","module:Encoding.WebmEncoder.Support"], function (Class, EventsMixin, Objs, Time, Functions, Promise, Async, Support, WebmSupport, scoped) {
+Scoped.define("module:WebRTC.WhammyRecorder", ["base:Class","base:Events.EventsMixin","base:Objs","base:Time","base:Functions","base:Promise","base:Async","module:WebRTC.Support","module:Encoding.WebmEncoder.Support"], function(Class, EventsMixin, Objs, Time, Functions, Promise, Async, Support, WebmSupport, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -23502,7 +23638,7 @@ Scoped.define("module:WebRTC.WhammyRecorder", ["base:Class","base:Events.EventsM
     });
 });
 
-Scoped.define("module:WebRTC.WhammyAudioRecorderWrapper", ["module:WebRTC.RecorderWrapper","module:WebRTC.AudioRecorder","module:WebRTC.WhammyRecorder","browser:Info","base:Promise"], function (RecorderWrapper, AudioRecorder, WhammyRecorder, Info, Promise, scoped) {
+Scoped.define("module:WebRTC.WhammyAudioRecorderWrapper", ["module:WebRTC.RecorderWrapper","module:WebRTC.AudioRecorder","module:WebRTC.WhammyRecorder","browser:Info","base:Promise"], function(RecorderWrapper, AudioRecorder, WhammyRecorder, Info, Promise, scoped) {
     return RecorderWrapper.extend({
         scoped: scoped
     }, {
@@ -23613,7 +23749,7 @@ Scoped.define("module:WebRTC.WhammyAudioRecorderWrapper", ["module:WebRTC.Record
     });
 });
 
-Scoped.extend("module:WebRTC.RecorderWrapper", ["module:WebRTC.RecorderWrapper","module:WebRTC.PeerRecorderWrapper","module:WebRTC.MediaRecorderWrapper","module:WebRTC.WhammyAudioRecorderWrapper","module:WebRTC.PeerRecorderWrapperIfNecessary"], function (RecorderWrapper, PeerRecorderWrapper, MediaRecorderWrapper, WhammyAudioRecorderWrapper, PeerRecorderWrapperIfNecessary) {
+Scoped.extend("module:WebRTC.RecorderWrapper", ["module:WebRTC.RecorderWrapper","module:WebRTC.PeerRecorderWrapper","module:WebRTC.MediaRecorderWrapper","module:WebRTC.WhammyAudioRecorderWrapper","module:WebRTC.PeerRecorderWrapperIfNecessary"], function(RecorderWrapper, PeerRecorderWrapper, MediaRecorderWrapper, WhammyAudioRecorderWrapper, PeerRecorderWrapperIfNecessary) {
     RecorderWrapper.register(PeerRecorderWrapper, 4);
     RecorderWrapper.register(MediaRecorderWrapper, 3);
     RecorderWrapper.register(WhammyAudioRecorderWrapper, 2);
@@ -23628,7 +23764,7 @@ var Scoped = this.subScope();
 Scoped.binding('base', 'root:BetaJS');
 Scoped.binding('browser', 'root:BetaJS.Browser');
 Scoped.binding('module', 'root:BetaJS.Dynamics');
-Scoped.define("module:Data.ScopeManager", ["base:Class","base:Trees.TreeNavigator","base:Classes.ObjectIdScopeMixin","base:Trees.TreeQueryEngine"], function (Class, TreeNavigator, ObjectIdScopeMixin, TreeQueryEngine, scoped) {
+Scoped.define("module:Data.ScopeManager", ["base:Class","base:Trees.TreeNavigator","base:Classes.ObjectIdScopeMixin","base:Trees.TreeQueryEngine"], function(Class, TreeNavigator, ObjectIdScopeMixin, TreeQueryEngine, scoped) {
     return Class.extend({
         scoped: scoped
     }, [TreeNavigator, ObjectIdScopeMixin, function(inherited) {
@@ -23685,7 +23821,7 @@ Scoped.define("module:Data.ScopeManager", ["base:Class","base:Trees.TreeNavigato
     }]);
 });
 
-Scoped.define("module:Data.AbstractMultiScope", ["base:Class","base:Events.EventsMixin","base:Events.ListenMixin","base:Properties.ObservableMixin"], function (Class, EventsMixin, ListenMixin, ObservableMixin, scoped) {
+Scoped.define("module:Data.AbstractMultiScope", ["base:Class","base:Events.EventsMixin","base:Events.ListenMixin","base:Properties.ObservableMixin"], function(Class, EventsMixin, ListenMixin, ObservableMixin, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, ListenMixin, ObservableMixin, function(inherited) {
@@ -23784,7 +23920,7 @@ Scoped.define("module:Data.AbstractMultiScope", ["base:Class","base:Events.Event
     }]);
 });
 
-Scoped.define("module:Data.MultiScope", ["module:Data.AbstractMultiScope","base:Iterators.ArrayIterator"], function (Class, ArrayIterator, scoped) {
+Scoped.define("module:Data.MultiScope", ["module:Data.AbstractMultiScope","base:Iterators.ArrayIterator"], function(Class, ArrayIterator, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -23832,7 +23968,7 @@ Scoped.define("module:Data.MultiScope", ["module:Data.AbstractMultiScope","base:
     });
 });
 
-Scoped.define("module:Data.ManualMultiScope", ["module:Data.AbstractMultiScope"], function (Class, scoped) {
+Scoped.define("module:Data.ManualMultiScope", ["module:Data.AbstractMultiScope"], function(Class, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -23860,7 +23996,7 @@ Scoped.define("module:Data.ManualMultiScope", ["module:Data.AbstractMultiScope"]
     });
 });
 
-Scoped.define("module:Data.Friendgroup", ["base:Class","base:Types","base:Objs","base:Iterators.ObjectValuesIterator","module:Data.ManualMultiScope"], function (Class, Types, Objs, ObjectValuesIterator, ManualMultiScope, scoped) {
+Scoped.define("module:Data.Friendgroup", ["base:Class","base:Types","base:Objs","base:Iterators.ObjectValuesIterator","module:Data.ManualMultiScope"], function(Class, Types, Objs, ObjectValuesIterator, ManualMultiScope, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -23924,7 +24060,7 @@ Scoped.define("module:Data.Friendgroup", ["base:Class","base:Types","base:Objs",
     });
 });
 
-Scoped.define("module:Data.Scope", ["base:Class","base:Events.EventsMixin","base:Events.ListenMixin","base:Classes.ObjectIdMixin","base:Functions","base:Types","base:Strings","base:Objs","base:Ids","base:Properties.Properties","base:Collections.Collection","base:Events.Events","base:Properties.ObservableMixin","module:Data.ScopeManager","module:Data.MultiScope","module:Data.AbstractMultiScope","module:Data.Friendgroup"], function (Class, EventsMixin, ListenMixin, ObjectIdMixin, Functions, Types, Strings, Objs, Ids, Properties, Collection, Events, ObservableMixin, ScopeManager, MultiScope, AbstractMultiScope, Friendgroup, scoped) {
+Scoped.define("module:Data.Scope", ["base:Class","base:Events.EventsMixin","base:Events.ListenMixin","base:Classes.ObjectIdMixin","base:Functions","base:Types","base:Strings","base:Objs","base:Ids","base:Properties.Properties","base:Collections.Collection","base:Events.Events","base:Properties.ObservableMixin","module:Data.ScopeManager","module:Data.MultiScope","module:Data.AbstractMultiScope","module:Data.Friendgroup"], function(Class, EventsMixin, ListenMixin, ObjectIdMixin, Functions, Types, Strings, Objs, Ids, Properties, Collection, Events, ObservableMixin, ScopeManager, MultiScope, AbstractMultiScope, Friendgroup, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, ListenMixin, ObjectIdMixin, ObservableMixin, function(inherited) {
@@ -24212,7 +24348,7 @@ Scoped.define("module:Data.Scope", ["base:Class","base:Events.EventsMixin","base
     });
 });
 
-Scoped.define("module:Parser", ["base:Types","base:Objs","base:JavaScript"], function (Types, Objs, JavaScript) {
+Scoped.define("module:Parser", ["base:Types","base:Objs","base:JavaScript"], function(Types, Objs, JavaScript) {
     return {
 
         __cache: {},
@@ -24327,7 +24463,7 @@ Scoped.define("module:Parser", ["base:Types","base:Objs","base:JavaScript"], fun
     };
 });
 
-Scoped.define("module:Data.Mesh", ["base:Class","base:Events.EventsMixin","base:Properties.ObservableMixin","base:Objs","base:Types","base:Strings","base:Ids","base:Functions","base:Classes.SharedObjectFactory"], function (Class, EventsMixin, ObservableMixin, Objs, Types, Strings, Ids, Functions, SharedObjectFactory, scoped) {
+Scoped.define("module:Data.Mesh", ["base:Class","base:Events.EventsMixin","base:Properties.ObservableMixin","base:Objs","base:Types","base:Strings","base:Ids","base:Functions","base:Classes.SharedObjectFactory"], function(Class, EventsMixin, ObservableMixin, Objs, Types, Strings, Ids, Functions, SharedObjectFactory, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -24603,7 +24739,7 @@ Scoped.define("module:Data.Mesh", ["base:Class","base:Events.EventsMixin","base:
     }]);
 });
 
-Scoped.define("module:Registries", ["base:Classes.ClassRegistry","base:Exceptions.AsyncExceptionThrower","browser:Dom","base:Strings"], function (ClassRegistry, AsyncExceptionThrower, Dom, Strings) {
+Scoped.define("module:Registries", ["base:Classes.ClassRegistry","base:Exceptions.AsyncExceptionThrower","browser:Dom","base:Strings"], function(ClassRegistry, AsyncExceptionThrower, Dom, Strings) {
     return {
 
         handler: new ClassRegistry({}, true),
@@ -24694,7 +24830,7 @@ Scoped.define("module:Registries", ["base:Classes.ClassRegistry","base:Exception
     };
 });
 
-Scoped.define("module:Exceptions.TagHandlerException", ["base:Exceptions.Exception"], function (Exception, scoped) {
+Scoped.define("module:Exceptions.TagHandlerException", ["base:Exceptions.Exception"], function(Exception, scoped) {
     return Exception.extend({
         scoped: scoped
     }, function(inherited) {
@@ -24708,7 +24844,7 @@ Scoped.define("module:Exceptions.TagHandlerException", ["base:Exceptions.Excepti
     });
 });
 
-Scoped.define("module:Handlers.Attr", ["base:Class","module:Exceptions.TagHandlerException","module:Parser","base:Types","base:Objs","base:Async","base:Strings","module:Registries","browser:Dom","browser:Events"], function (Class, TagHandlerException, Parser, Types, Objs, Async, Strings, Registries, Dom, Events, scoped) {
+Scoped.define("module:Handlers.Attr", ["base:Class","module:Exceptions.TagHandlerException","module:Parser","base:Types","base:Objs","base:Async","base:Strings","module:Registries","browser:Dom","browser:Events"], function(Class, TagHandlerException, Parser, Types, Objs, Async, Strings, Registries, Dom, Events, scoped) {
     var Cls;
     Cls = Class.extend({
         scoped: scoped
@@ -24898,7 +25034,7 @@ Scoped.define("module:Handlers.Attr", ["base:Class","module:Exceptions.TagHandle
     return Cls;
 });
 
-Scoped.define("module:Handlers.Node", ["base:Class","base:Events.EventsMixin","base:Ids","browser:Dom","browser:Info","module:Parser","module:Data.Mesh","base:Objs","base:Types","module:Registries","module:Handlers.Attr"], function (Class, EventsMixin, Ids, Dom, Info, Parser, Mesh, Objs, Types, Registries, Attr, scoped) {
+Scoped.define("module:Handlers.Node", ["base:Class","base:Events.EventsMixin","base:Ids","browser:Dom","browser:Info","module:Parser","module:Data.Mesh","base:Objs","base:Types","module:Registries","module:Handlers.Attr"], function(Class, EventsMixin, Ids, Dom, Info, Parser, Mesh, Objs, Types, Registries, Attr, scoped) {
     var Cls;
     Cls = Class.extend({
         scoped: scoped
@@ -25189,7 +25325,7 @@ Scoped.define("module:Handlers.Node", ["base:Class","base:Events.EventsMixin","b
     return Cls;
 });
 
-Scoped.define("module:Handlers.HandlerNameRegistry", ["base:Class","base:Objs"], function (Class, Objs, scoped) {
+Scoped.define("module:Handlers.HandlerNameRegistry", ["base:Class","base:Objs"], function(Class, Objs, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -25230,7 +25366,7 @@ Scoped.define("module:Handlers.HandlerNameRegistry", ["base:Class","base:Objs"],
     });
 });
 
-Scoped.define("module:Handlers.HandlerMixin", ["base:Objs","base:Strings","base:Functions","base:Types","browser:Loader","module:Handlers.Node","module:Registries","module:Handlers.HandlerNameRegistry","browser:DomMutation.NodeRemoveObserver","browser:Dom"], function (Objs, Strings, Functions, Types, Loader, Node, Registries, HandlerNameRegistry, NodeRemoveObserver, Dom) {
+Scoped.define("module:Handlers.HandlerMixin", ["base:Objs","base:Strings","base:Functions","base:Types","browser:Loader","module:Handlers.Node","module:Registries","module:Handlers.HandlerNameRegistry","browser:DomMutation.NodeRemoveObserver","browser:Dom"], function(Objs, Strings, Functions, Types, Loader, Node, Registries, HandlerNameRegistry, NodeRemoveObserver, Dom) {
     return {
 
         _notifications: {
@@ -25456,7 +25592,7 @@ Scoped.define("module:Handlers.HandlerMixin", ["base:Objs","base:Strings","base:
     };
 });
 
-Scoped.define("module:Exceptions.DynamicsCallException", ["base:Exceptions.Exception"], function (Exception, scoped) {
+Scoped.define("module:Exceptions.DynamicsCallException", ["base:Exceptions.Exception"], function(Exception, scoped) {
     return Exception.extend({
         scoped: scoped
     }, function(inherited) {
@@ -25470,7 +25606,7 @@ Scoped.define("module:Exceptions.DynamicsCallException", ["base:Exceptions.Excep
     });
 });
 
-Scoped.define("module:Dynamic", ["module:Data.Scope","module:Parser","module:Handlers.HandlerMixin","module:Exceptions.DynamicsCallException","base:Objs","base:Strings","base:Types","base:Functions","base:Promise","base:Events.Events","base:Loggers.LoggableMixin","module:Registries","browser:Dom","browser:Events","base:Class"], function (Scope, Parser, HandlerMixin, DynamicsCallException, Objs, Strings, Types, Functions, Promise, Events, LoggableMixin, Registries, Dom, DomEvents, Class, scoped) {
+Scoped.define("module:Dynamic", ["module:Data.Scope","module:Parser","module:Handlers.HandlerMixin","module:Exceptions.DynamicsCallException","base:Objs","base:Strings","base:Types","base:Functions","base:Promise","base:Events.Events","base:Loggers.LoggableMixin","module:Registries","browser:Dom","browser:Events","base:Class"], function(Scope, Parser, HandlerMixin, DynamicsCallException, Objs, Strings, Types, Functions, Promise, Events, LoggableMixin, Registries, Dom, DomEvents, Class, scoped) {
     var Cls;
     Cls = Scope.extend({
         scoped: scoped
@@ -25735,7 +25871,7 @@ Scoped.define("module:Dynamic", ["module:Data.Scope","module:Parser","module:Han
     return Cls;
 });
 
-Scoped.define("module:Handlers.Partial", ["base:Class","base:JavaScript","base:Functions","base:Strings","module:Parser","module:Registries"], function (Class, JavaScript, Functions, Strings, Parser, Registries, scoped) {
+Scoped.define("module:Handlers.Partial", ["base:Class","base:JavaScript","base:Functions","base:Strings","module:Parser","module:Registries"], function(Class, JavaScript, Functions, Strings, Parser, Registries, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -25830,7 +25966,7 @@ Scoped.define("module:Handlers.Partial", ["base:Class","base:JavaScript","base:F
     });
 });
 
-Scoped.define("module:Partials.StylesPartial", ["module:Handlers.Partial"], function (Partial, scoped) {
+Scoped.define("module:Partials.StylesPartial", ["module:Handlers.Partial"], function(Partial, scoped) {
     var Cls = Partial.extend({
         scoped: scoped
     }, {
@@ -25845,7 +25981,7 @@ Scoped.define("module:Partials.StylesPartial", ["module:Handlers.Partial"], func
     return Cls;
 });
 
-Scoped.define("module:Partials.ShowPartial", ["module:Handlers.Partial"], function (Partial, scoped) {
+Scoped.define("module:Partials.ShowPartial", ["module:Handlers.Partial"], function(Partial, scoped) {
     /**
      * @name ba-show
      *
@@ -25908,7 +26044,7 @@ Scoped.define("module:Partials.ShowPartial", ["module:Handlers.Partial"], functi
     return Cls;
 });
 
-Scoped.define("module:Partials.IfPartial", ["module:Partials.ShowPartial"], function (Partial, scoped) {
+Scoped.define("module:Partials.IfPartial", ["module:Partials.ShowPartial"], function(Partial, scoped) {
     /**
      * @name ba-if
      *
@@ -25954,7 +26090,7 @@ Scoped.define("module:Partials.IfPartial", ["module:Partials.ShowPartial"], func
     return Cls;
 });
 
-Scoped.define("module:Partials.ClickPartial", ["module:Handlers.Partial","browser:Events"], function (Partial, Events, scoped) {
+Scoped.define("module:Partials.ClickPartial", ["module:Handlers.Partial","browser:Events"], function(Partial, Events, scoped) {
     /**
      * @name ba-click
      *
@@ -26004,7 +26140,7 @@ Scoped.define("module:Partials.ClickPartial", ["module:Handlers.Partial","browse
     return Cls;
 });
 
-Scoped.define("module:Partials.RepeatPartial", ["module:Handlers.Partial","base:Promise","base:Properties.Properties","base:Collections.Collection","base:Collections.FilteredCollection","base:Objs","module:Parser","module:Registries"], function (Partial, Promise, Properties, Collection, FilteredCollection, Objs, Parser, Registries, scoped) {
+Scoped.define("module:Partials.RepeatPartial", ["module:Handlers.Partial","base:Promise","base:Properties.Properties","base:Collections.Collection","base:Collections.FilteredCollection","base:Objs","module:Parser","module:Registries"], function(Partial, Promise, Properties, Collection, FilteredCollection, Objs, Parser, Registries, scoped) {
     /**
      * @name ba-repeat
      *
@@ -26244,7 +26380,7 @@ Scoped.define("module:Partials.RepeatPartial", ["module:Handlers.Partial","base:
     return Cls;
 });
 
-Scoped.define("module:Partials.RepeatElementPartial", ["module:Partials.RepeatPartial","base:Collections.Collection","base:Collections.FilteredCollection","base:Objs","module:Parser","base:Properties.Properties","browser:Dom"], function (Partial, Collection, FilteredCollection, Objs, Parser, Properties, Dom, scoped) {
+Scoped.define("module:Partials.RepeatElementPartial", ["module:Partials.RepeatPartial","base:Collections.Collection","base:Collections.FilteredCollection","base:Objs","module:Parser","base:Properties.Properties","browser:Dom"], function(Partial, Collection, FilteredCollection, Objs, Parser, Properties, Dom, scoped) {
     /**
      * @name ba-repeat-element
      *
@@ -26306,7 +26442,7 @@ Scoped.define("module:Partials.RepeatElementPartial", ["module:Partials.RepeatPa
     return Cls;
 });
 
-Scoped.define("module:Partials.EventPartial", ["module:Handlers.Partial","base:Functions"], function (Partial, Functions, scoped) {
+Scoped.define("module:Partials.EventPartial", ["module:Handlers.Partial","base:Functions"], function(Partial, Functions, scoped) {
     var Cls = Partial.extend({
         scoped: scoped
     }, {
@@ -26335,7 +26471,7 @@ Scoped.define("module:Partials.EventPartial", ["module:Handlers.Partial","base:F
     return Cls;
 });
 
-Scoped.define("module:Partials.OnPartial", ["module:Handlers.Partial","browser:Events"], function (Partial, Events, scoped) {
+Scoped.define("module:Partials.OnPartial", ["module:Handlers.Partial","browser:Events"], function(Partial, Events, scoped) {
     /**
      * @name ba-on
      *
@@ -26378,7 +26514,7 @@ Scoped.define("module:Partials.OnPartial", ["module:Handlers.Partial","browser:E
     return Cls;
 });
 
-Scoped.define("module:Partials.TogglePartial", ["module:Handlers.Partial"], function (Partial, scoped) {
+Scoped.define("module:Partials.TogglePartial", ["module:Handlers.Partial"], function(Partial, scoped) {
     var mapping = {
         readonly: "readOnly",
         playsinline: "playsInline"
@@ -26404,7 +26540,7 @@ Scoped.define("module:Partials.TogglePartial", ["module:Handlers.Partial"], func
     return Cls;
 });
 
-Scoped.define("module:Partials.TemplatePartial", ["module:Handlers.Partial"], function (Partial, scoped) {
+Scoped.define("module:Partials.TemplatePartial", ["module:Handlers.Partial"], function(Partial, scoped) {
 
     var Cls = Partial.extend({
         scoped: scoped
@@ -26428,7 +26564,7 @@ Scoped.define("module:Partials.TemplatePartial", ["module:Handlers.Partial"], fu
 
 });
 
-Scoped.define("module:Partials.HotkeyPartial", ["module:Handlers.Partial","browser:Events","browser:Hotkeys"], function (Partial, Events, Hotkeys, scoped) {
+Scoped.define("module:Partials.HotkeyPartial", ["module:Handlers.Partial","browser:Events","browser:Hotkeys"], function(Partial, Events, Hotkeys, scoped) {
     var Cls = Partial.extend({
         scoped: scoped
     }, function(inherited) {
@@ -26454,7 +26590,7 @@ Scoped.define("module:Partials.HotkeyPartial", ["module:Handlers.Partial","brows
     return Cls;
 });
 
-Scoped.define("module:Partials.DataPartial", ["module:Handlers.Partial"], function (Partial, scoped) {
+Scoped.define("module:Partials.DataPartial", ["module:Handlers.Partial"], function(Partial, scoped) {
     var Cls = Partial.extend({
         scoped: scoped
     }, {
@@ -26478,7 +26614,7 @@ Scoped.define("module:Partials.DataPartial", ["module:Handlers.Partial"], functi
     return Cls;
 });
 
-Scoped.define("module:Partials.AttrsPartial", ["module:Handlers.Partial","base:Objs","base:Class"], function (Partial, Objs, Class, scoped) {
+Scoped.define("module:Partials.AttrsPartial", ["module:Handlers.Partial","base:Objs","base:Class"], function(Partial, Objs, Class, scoped) {
     /**
      * @name ba-attrs
      *
@@ -26514,7 +26650,7 @@ Scoped.define("module:Partials.AttrsPartial", ["module:Handlers.Partial","base:O
     return Cls;
 });
 
-Scoped.define("module:DomObserver", ["base:Class","base:Objs","browser:DomMutation.NodeInsertObserver","module:Registries","module:Dynamic","browser:Dom"], function (Class, Objs, NodeInsertObserver, Registries, Dynamic, Dom, scoped) {
+Scoped.define("module:DomObserver", ["base:Class","base:Objs","browser:DomMutation.NodeInsertObserver","module:Registries","module:Dynamic","browser:Dom"], function(Class, Objs, NodeInsertObserver, Registries, Dynamic, Dom, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -26642,7 +26778,7 @@ Scoped.define("module:", function () {
 };
 });
 
-Scoped.define("module:Ads.AbstractVideoAdProvider", ["base:Class"], function (
+Scoped.define("module:Ads.AbstractVideoAdProvider", ["base:Class"], function(
     Class, scoped) {
     return Class.extend({
         scoped: scoped
@@ -26676,7 +26812,7 @@ Scoped.define("module:Ads.AbstractVideoAdProvider", ["base:Class"], function (
     });
 });
 
-Scoped.define("module:Ads.AbstractPrerollAd", ["base:Class","base:Events.EventsMixin"], function (Class, EventsMixin, scoped) {
+Scoped.define("module:Ads.AbstractPrerollAd", ["base:Class","base:Events.EventsMixin"], function(Class, EventsMixin, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -26707,7 +26843,7 @@ Scoped.define("module:Ads.AbstractPrerollAd", ["base:Class","base:Events.EventsM
     }]);
 });
 
-Scoped.define("module:Ads.AdSensePrerollAd", ["module:Ads.AbstractPrerollAd"], function (AbstractVideoPrerollAd, scoped) {
+Scoped.define("module:Ads.AdSensePrerollAd", ["module:Ads.AbstractPrerollAd"], function(AbstractVideoPrerollAd, scoped) {
     return AbstractVideoPrerollAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -26787,7 +26923,7 @@ Scoped.define("module:Ads.AdSensePrerollAd", ["module:Ads.AbstractPrerollAd"], f
     });
 });
 
-Scoped.define("module:Ads.AdSenseVideoAdProvider", ["module:Ads.AbstractVideoAdProvider","module:Ads.AdSensePrerollAd"], function (AbstractVideoAdProvider, AdSensePrerollAd, scoped) {
+Scoped.define("module:Ads.AdSenseVideoAdProvider", ["module:Ads.AbstractVideoAdProvider","module:Ads.AdSensePrerollAd"], function(AbstractVideoAdProvider, AdSensePrerollAd, scoped) {
         return AbstractVideoAdProvider.extend({
             scoped: scoped
         }, {
@@ -26799,7 +26935,7 @@ Scoped.define("module:Ads.AdSenseVideoAdProvider", ["module:Ads.AbstractVideoAdP
         });
     });
 
-Scoped.define("module:Ads.VAST.Ad", ["base:Class","base:Objs","base:Events.EventsMixin"], function (Class, Objs, EventsMixin, scoped) {
+Scoped.define("module:Ads.VAST.Ad", ["base:Class","base:Objs","base:Events.EventsMixin"], function(Class, Objs, EventsMixin, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -26954,7 +27090,7 @@ Scoped.define("module:Ads.VAST.Ad", ["base:Class","base:Objs","base:Events.Event
     });
 });
 
-Scoped.define("module:Ads.VAST.Response", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.Response", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -26967,7 +27103,7 @@ Scoped.define("module:Ads.VAST.Response", ["module:Ads.VAST.Ad"], function (VAST
     });
 });
 
-Scoped.define("module:Ads.VAST.CompanionAd", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.CompanionAd", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -26989,7 +27125,7 @@ Scoped.define("module:Ads.VAST.CompanionAd", ["module:Ads.VAST.Ad"], function (V
     });
 });
 
-Scoped.define("module:Ads.VAST.Creative", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.Creative", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27011,7 +27147,7 @@ Scoped.define("module:Ads.VAST.Creative", ["module:Ads.VAST.Ad"], function (VAST
     });
 });
 
-Scoped.define("module:Ads.VAST.CreativeLinear", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.CreativeLinear", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27032,7 +27168,7 @@ Scoped.define("module:Ads.VAST.CreativeLinear", ["module:Ads.VAST.Ad"], function
     });
 });
 
-Scoped.define("module:Ads.VAST.CreativeNonLinear", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.CreativeNonLinear", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27047,7 +27183,7 @@ Scoped.define("module:Ads.VAST.CreativeNonLinear", ["module:Ads.VAST.Ad"], funct
     });
 });
 
-Scoped.define("module:Ads.VAST.AdExtension", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.AdExtension", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27061,7 +27197,7 @@ Scoped.define("module:Ads.VAST.AdExtension", ["module:Ads.VAST.Ad"], function (V
     });
 });
 
-Scoped.define("module:Ads.VAST.AdExtensionChild", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.AdExtensionChild", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27076,7 +27212,7 @@ Scoped.define("module:Ads.VAST.AdExtensionChild", ["module:Ads.VAST.Ad"], functi
     });
 });
 
-Scoped.define("module:Ads.VAST.Icon", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.Icon", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27103,7 +27239,7 @@ Scoped.define("module:Ads.VAST.Icon", ["module:Ads.VAST.Ad"], function (VASTAd, 
     });
 });
 
-Scoped.define("module:Ads.VAST.MediaFile", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.MediaFile", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27127,7 +27263,7 @@ Scoped.define("module:Ads.VAST.MediaFile", ["module:Ads.VAST.Ad"], function (VAS
     });
 });
 
-Scoped.define("module:Ads.VAST.CreativeCompanion", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.CreativeCompanion", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27142,7 +27278,7 @@ Scoped.define("module:Ads.VAST.CreativeCompanion", ["module:Ads.VAST.Ad"], funct
     });
 });
 
-Scoped.define("module:Ads.VAST.NonLinear", ["module:Ads.VAST.Ad"], function (VASTAd, scoped) {
+Scoped.define("module:Ads.VAST.NonLinear", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -27170,7 +27306,7 @@ Scoped.define("module:Ads.VAST.NonLinear", ["module:Ads.VAST.Ad"], function (VAS
     });
 });
 
-Scoped.define("module:Ads.VAST.Parser", ["module:Ads.VAST.Ad","base:Ajax.Support","module:Ads.VAST.Response","module:Ads.VAST.CreativeLinear","module:Ads.VAST.MediaFile","module:Ads.VAST.CreativeCompanion","module:Ads.VAST.CreativeNonLinear","module:Ads.VAST.CompanionAd","module:Ads.VAST.AdExtension","module:Ads.VAST.AdExtensionChild","module:Ads.VAST.NonLinear"], function (VASTAd, AjaxSupport, VASTResponse, VASTCreativeLinear, VASTMediaFile, VASTCreativeCompanion, VASTCreativeNonLinear, VASTCompanionAd, VASTAdExtension, VASTAdExtensionChild, VASTNonLinear, scoped) {
+Scoped.define("module:Ads.VAST.Parser", ["module:Ads.VAST.Ad","base:Ajax.Support","module:Ads.VAST.Response","module:Ads.VAST.CreativeLinear","module:Ads.VAST.MediaFile","module:Ads.VAST.CreativeCompanion","module:Ads.VAST.CreativeNonLinear","module:Ads.VAST.CompanionAd","module:Ads.VAST.AdExtension","module:Ads.VAST.AdExtensionChild","module:Ads.VAST.NonLinear"], function(VASTAd, AjaxSupport, VASTResponse, VASTCreativeLinear, VASTMediaFile, VASTCreativeCompanion, VASTCreativeNonLinear, VASTCompanionAd, VASTAdExtension, VASTAdExtensionChild, VASTNonLinear, scoped) {
         return VASTAd.extend({
             scoped: scoped
         }, function(inherited) {
@@ -28018,7 +28154,7 @@ Scoped.define("module:Ads.VAST.Parser", ["module:Ads.VAST.Ad","base:Ajax.Support
         });
     });
 
-Scoped.define("module:Ads.VAST.Client", ["module:Ads.VAST.Ad","module:Ads.VAST.Parser","base:Objs"], function (VASTAd, VASTParser, Objs, scoped) {
+Scoped.define("module:Ads.VAST.Client", ["module:Ads.VAST.Ad","module:Ads.VAST.Parser","base:Objs"], function(VASTAd, VASTParser, Objs, scoped) {
     return VASTAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -28107,7 +28243,7 @@ Scoped.define("module:Ads.VAST.Client", ["module:Ads.VAST.Ad","module:Ads.VAST.P
     });
 });
 
-Scoped.define("module:Ads.VAST.Tracker", ["module:Ads.VAST.Ad","module:Ads.VAST.CreativeLinear","module:Ads.VAST.NonLinear","module:Ads.VAST.CompanionAd","module:Ads.VAST.Client","base:Events.ListenMixin"], function (VASTAd, VASTCreativeLinear, VASTNonLinear, VASTCompanionAd, VASTClient, ListenMixin, scoped) {
+Scoped.define("module:Ads.VAST.Tracker", ["module:Ads.VAST.Ad","module:Ads.VAST.CreativeLinear","module:Ads.VAST.NonLinear","module:Ads.VAST.CompanionAd","module:Ads.VAST.Client","base:Events.ListenMixin"], function(VASTAd, VASTCreativeLinear, VASTNonLinear, VASTCompanionAd, VASTClient, ListenMixin, scoped) {
         return VASTAd.extend({
             scoped: scoped
         }, [ListenMixin, function(inherited) {
@@ -28361,7 +28497,7 @@ Scoped.define("module:Ads.VAST.Tracker", ["module:Ads.VAST.Ad","module:Ads.VAST.
         }]);
     });
 
-Scoped.define("module:Ads.VAST.VAST", ["base:Class","module:Ads.VAST.Client","module:Ads.VAST.Tracker","module:Ads.VAST.Ad","base:Objs","base:Promise","base:Events.EventsMixin","base:Types"], function (Class, VASTClient, VASTTracker, VASTAd, Objs, Promise, EventsMixin, Types, scoped) {
+Scoped.define("module:Ads.VAST.VAST", ["base:Class","module:Ads.VAST.Client","module:Ads.VAST.Tracker","module:Ads.VAST.Ad","base:Objs","base:Promise","base:Events.EventsMixin","base:Types"], function(Class, VASTClient, VASTTracker, VASTAd, Objs, Promise, EventsMixin, Types, scoped) {
         return Class.extend({
             scoped: scoped
         }, [EventsMixin, function(inherited) {
@@ -28522,7 +28658,7 @@ Scoped.define("module:Ads.VAST.VAST", ["base:Class","module:Ads.VAST.Client","mo
         }]);
     });
 
-Scoped.define("module:Ads.VastPrerollAd", ["module:Ads.AbstractPrerollAd","module:Ads.VAST.VAST"], function (AbstractVideoPrerollAd, VAST, scoped) {
+Scoped.define("module:Ads.VastPrerollAd", ["module:Ads.AbstractPrerollAd","module:Ads.VAST.VAST"], function(AbstractVideoPrerollAd, VAST, scoped) {
     return AbstractVideoPrerollAd.extend({
         scoped: scoped
     }, function(inherited) {
@@ -28562,7 +28698,7 @@ Scoped.define("module:Ads.VastPrerollAd", ["module:Ads.AbstractPrerollAd","modul
     });
 });
 
-Scoped.define("module:Ads.VastVideoAdProvider", ["module:Ads.AbstractVideoAdProvider","module:Ads.VastPrerollAd"], function (AbstractVideoAdProvider, VastPrerollAd, scoped) {
+Scoped.define("module:Ads.VastVideoAdProvider", ["module:Ads.AbstractVideoAdProvider","module:Ads.VastPrerollAd"], function(AbstractVideoAdProvider, VastPrerollAd, scoped) {
         return AbstractVideoAdProvider.extend({
             scoped: scoped
         }, {
@@ -28574,7 +28710,7 @@ Scoped.define("module:Ads.VastVideoAdProvider", ["module:Ads.AbstractVideoAdProv
         });
     });
 
-Scoped.define("module:Assets", ["base:Classes.LocaleTable","browser:Info"], function (LocaleTable, Info) {
+Scoped.define("module:Assets", ["base:Classes.LocaleTable","browser:Info"], function(LocaleTable, Info) {
 
     var strings = new LocaleTable();
     strings.setWeakLocale(Info.language());
@@ -28605,7 +28741,7 @@ Scoped.extend("module:Assets", ["module:Assets"], function (Assets) {
     return {};
 });
 
-Scoped.define("module:AudioVisualisation", ["base:Class","browser:Dom","browser:Info"], function (Class, Dom, Info, scoped) {
+Scoped.define("module:AudioVisualisation", ["base:Class","browser:Dom","browser:Info"], function(Class, Dom, Info, scoped) {
     return Class.extend({
         scoped: scoped
     }, function(inherited) {
@@ -28830,7 +28966,7 @@ Scoped.define("module:AudioVisualisation", ["base:Class","browser:Dom","browser:
     });
 });
 
-Scoped.define("module:Settings", ["base:Class","base:Objs","base:Events.EventsMixin","base:Async","base:Timers.Timer","browser:Dom","browser:Events"], function (Class, Objs, EventsMixin, Async, Timer, Dom, DomEvents, scoped) {
+Scoped.define("module:Settings", ["base:Class","base:Objs","base:Events.EventsMixin","base:Async","base:Timers.Timer","browser:Dom","browser:Events"], function(Class, Objs, EventsMixin, Async, Timer, Dom, DomEvents, scoped) {
 
     return Class.extend({
         scoped: scoped
@@ -29069,7 +29205,7 @@ Scoped.define("module:Settings", ["base:Class","base:Objs","base:Events.EventsMi
     }]);
 });
 
-Scoped.define("module:TrackTags", ["base:Class","base:Objs","base:Events.EventsMixin","base:Async","base:TimeFormat","browser:Dom","browser:Info","browser:Events"], function (Class, Objs, EventsMixin, Async, TimeFormat, Dom, Info, DomEvents, scoped) {
+Scoped.define("module:TrackTags", ["base:Class","base:Objs","base:Events.EventsMixin","base:Async","base:TimeFormat","browser:Dom","browser:Info","browser:Events"], function(Class, Objs, EventsMixin, Async, TimeFormat, Dom, Info, DomEvents, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -29388,7 +29524,7 @@ Scoped.define("module:TrackTags", ["base:Class","base:Objs","base:Events.EventsM
     }]);
 });
 
-Scoped.define("module:PopupHelper", ["base:Class","base:Events.EventsMixin","browser:Dom","browser:Events"], function (Class, EventsMixin, Dom, DomEvents, scoped) {
+Scoped.define("module:PopupHelper", ["base:Class","base:Events.EventsMixin","browser:Dom","browser:Events"], function(Class, EventsMixin, Dom, DomEvents, scoped) {
 
     var PopupHelper = Class.extend({
         scoped: scoped
@@ -29468,7 +29604,7 @@ Scoped.define("module:PopupHelper", ["base:Class","base:Events.EventsMixin","bro
     return PopupHelper;
 });
 
-Scoped.define("module:IframeHelper", ["dynamics:Dynamic","base:Objs","base:Types","base:Net.Uri"], function (Dynamic, Objs, Types, Uri, scoped) {
+Scoped.define("module:IframeHelper", ["dynamics:Dynamic","base:Objs","base:Types","base:Net.Uri"], function(Dynamic, Objs, Types, Uri, scoped) {
     return Dynamic.extend({
         scoped: scoped
     }, function(inherited) {
@@ -29520,7 +29656,7 @@ Scoped.define("module:IframeHelper", ["dynamics:Dynamic","base:Objs","base:Types
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Adplayer", ["dynamics:Dynamic","base:TimeFormat","base:Timers","browser:Dom","media:Player.VideoPlayerWrapper","module:Assets"], function (Class, TimeFormat, Timers, Dom, VideoPlayerWrapper, Assets, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Adplayer", ["dynamics:Dynamic","base:TimeFormat","base:Timers","browser:Dom","media:Player.VideoPlayerWrapper","module:Assets"], function(Class, TimeFormat, Timers, Dom, VideoPlayerWrapper, Assets, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -29766,7 +29902,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Adplayer", ["dynamics:Dynamic","base:
         });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","base:TimeFormat","base:Comparators","base:Objs","browser:Dom","module:Assets","browser:Info","media:Player.Support","base:Async"], ["dynamics:Partials.StylesPartial","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.ClickPartial","dynamics:Partials.RepeatElementPartial"], function (Class, TimeFormat, Comparators, Objs, Dom, Assets, Info, PlayerSupport, Async, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","base:TimeFormat","base:Comparators","base:Objs","browser:Dom","module:Assets","browser:Info","media:Player.Support","base:Async"], ["dynamics:Partials.StylesPartial","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.ClickPartial","dynamics:Partials.RepeatElementPartial"], function(Class, TimeFormat, Comparators, Objs, Dom, Assets, Info, PlayerSupport, Async, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -30086,7 +30222,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
         });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], function (Class, Assets, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], function(Class, Assets, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -30112,7 +30248,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Loader", ["dynamics:Dynamic","module:
         });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function (Class, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -30143,7 +30279,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Message", ["dynamics:Dynamic"], ["dyn
         .register("ba-videoplayer-message");
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Playbutton", ["dynamics:Dynamic","base:TimeFormat","module:Assets"], ["dynamics:Partials.ClickPartial"], function (Class, TimeFormat, Assets, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Playbutton", ["dynamics:Dynamic","base:TimeFormat","module:Assets"], ["dynamics:Partials.ClickPartial"], function(Class, TimeFormat, Assets, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -30204,7 +30340,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Playbutton", ["dynamics:Dynamic","bas
         });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function (State, ListenMixin, Objs, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function(State, ListenMixin, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, [ListenMixin, {
@@ -30252,7 +30388,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.State", ["base:States.St
     }]);
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.TextTrackUploading", ["module:VideoPlayer.Dynamics.PlayerStates.State","browser:Upload.FileUploader","browser:Upload.MultiUploader","browser:Blobs","base:Async","base:Objs"], function (State, FileUploader, MultiUploader, Blobs, Async, Objs, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.TextTrackUploading", ["module:VideoPlayer.Dynamics.PlayerStates.State","browser:Upload.FileUploader","browser:Upload.MultiUploader","browser:Blobs","base:Async","base:Objs"], function(State, FileUploader, MultiUploader, Blobs, Async, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30350,7 +30486,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.TextTrackUploading", ["m
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.FatalError", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.FatalError", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30365,7 +30501,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.FatalError", ["module:Vi
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.Initial", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.Initial", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30386,7 +30522,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.Initial", ["module:Video
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadPlayer", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadPlayer", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30406,7 +30542,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadPlayer", ["module:Vi
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadPlayerDirectly", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadPlayerDirectly", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30430,7 +30566,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadPlayerDirectly", ["m
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadError", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadError", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30447,7 +30583,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadError", ["module:Vid
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterReady", ["module:VideoPlayer.Dynamics.PlayerStates.State","module:PopupHelper","base:Objs"], function (State, PopupHelper, Objs, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterReady", ["module:VideoPlayer.Dynamics.PlayerStates.State","module:PopupHelper","base:Objs"], function(State, PopupHelper, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30489,7 +30625,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterReady", ["module:V
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.Preroll", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.Preroll", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30516,7 +30652,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.Preroll", ["module:Video
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterError", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterError", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30533,7 +30669,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterError", ["module:V
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State","browser:Info","browser:Dom","base:Timers.Timer"], function (State, Info, Dom, Timer, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State","browser:Info","browser:Dom","base:Timers.Timer"], function(State, Info, Dom, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30589,7 +30725,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadVideo", ["module:Vid
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.ErrorVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.ErrorVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30606,7 +30742,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.ErrorVideo", ["module:Vi
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PlayVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PlayVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30644,7 +30780,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PlayVideo", ["module:Vid
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.NextVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.NextVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -30702,7 +30838,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.NextVideo", ["module:Vid
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Share", ["dynamics:Dynamic","module:Assets"], function (Class, Assets, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Share", ["dynamics:Dynamic","module:Assets"], function(Class, Assets, scoped) {
 
     var SHARES = {
         facebook: 'https://facebook.com/sharer/sharer.php?u=',
@@ -30750,7 +30886,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Share", ["dynamics:Dynamic","module:A
         });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Topmessage", ["dynamics:Dynamic"], function (Class, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Topmessage", ["dynamics:Dynamic"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -30773,7 +30909,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Topmessage", ["dynamics:Dynamic"], fu
         .register("ba-videoplayer-topmessage");
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Tracks", ["dynamics:Dynamic","base:Async","module:Assets"], ["dynamics:Partials.ClickPartial","dynamics:Partials.RepeatElementPartial"], function (Class, Async, Assets, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Tracks", ["dynamics:Dynamic","base:Async","module:Assets"], ["dynamics:Partials.ClickPartial","dynamics:Partials.RepeatElementPartial"], function(Class, Async, Assets, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -30869,7 +31005,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Tracks", ["dynamics:Dynamic","base:As
         });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:Assets","module:TrackTags","browser:Info","browser:Dom","media:Player.VideoPlayerWrapper","media:Player.Broadcasting","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Async","module:Settings","module:VideoPlayer.Dynamics.PlayerStates.Initial","module:VideoPlayer.Dynamics.PlayerStates","module:Ads.AbstractVideoAdProvider","browser:Events"], ["module:VideoPlayer.Dynamics.Playbutton","module:VideoPlayer.Dynamics.Message","module:VideoPlayer.Dynamics.Loader","module:VideoPlayer.Dynamics.Share","module:VideoPlayer.Dynamics.Controlbar","module:VideoPlayer.Dynamics.Tracks","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TogglePartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function (Class, Assets, TrackTags, Info, Dom, VideoPlayerWrapper, Broadcasting, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Async, Settings, InitialState, PlayerStates, AdProvider, DomEvents, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:Assets","module:TrackTags","browser:Info","browser:Dom","media:Player.VideoPlayerWrapper","media:Player.Broadcasting","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Async","module:Settings","module:VideoPlayer.Dynamics.PlayerStates.Initial","module:VideoPlayer.Dynamics.PlayerStates","module:Ads.AbstractVideoAdProvider","browser:Events"], ["module:VideoPlayer.Dynamics.Playbutton","module:VideoPlayer.Dynamics.Message","module:VideoPlayer.Dynamics.Loader","module:VideoPlayer.Dynamics.Share","module:VideoPlayer.Dynamics.Controlbar","module:VideoPlayer.Dynamics.Tracks","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TogglePartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, TrackTags, Info, Dom, VideoPlayerWrapper, Broadcasting, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Async, Settings, InitialState, PlayerStates, AdProvider, DomEvents, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -32216,7 +32352,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
         });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Chooser", ["dynamics:Dynamic","module:Assets","browser:Info"], ["dynamics:Partials.ClickPartial","dynamics:Partials.IfPartial"], function (Class, Assets, Info, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Chooser", ["dynamics:Dynamic","module:Assets","browser:Info"], ["dynamics:Partials.ClickPartial","dynamics:Partials.IfPartial"], function(Class, Assets, Info, scoped) {
 
     return Class.extend({
             scoped: scoped
@@ -32390,7 +32526,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Chooser", ["dynamics:Dynamic","modu
         });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","base:Timers.Timer","browser:Info"], ["dynamics:Partials.ShowPartial","dynamics:Partials.RepeatPartial"], function (Class, Assets, Timer, Info, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","base:Timers.Timer","browser:Info"], ["dynamics:Partials.ShowPartial","dynamics:Partials.RepeatPartial"], function(Class, Assets, Timer, Info, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -32498,7 +32634,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","m
         });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Faceoutline", ["dynamics:Dynamic"], function (Class, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Faceoutline", ["dynamics:Dynamic"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -32514,7 +32650,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Faceoutline", ["dynamics:Dynamic"],
         .register("ba-videorecorder-faceoutline");
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Imagegallery", ["dynamics:Dynamic","media:Recorder.Support","base:Collections.Collection","base:Properties.Properties","base:Timers.Timer","browser:Dom","browser:Info"], ["dynamics:Partials.StylesPartial"], function (Class, RecorderSupport, Collection, Properties, Timer, Dom, Info, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Imagegallery", ["dynamics:Dynamic","media:Recorder.Support","base:Collections.Collection","base:Properties.Properties","base:Timers.Timer","browser:Dom","browser:Info"], ["dynamics:Partials.StylesPartial"], function(Class, RecorderSupport, Collection, Properties, Timer, Dom, Info, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -32738,7 +32874,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Imagegallery", ["dynamics:Dynamic",
         .register("ba-videorecorder-imagegallery");
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], ["dynamics:Partials.ShowPartial"], function (Class, Assets, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], ["dynamics:Partials.ShowPartial"], function(Class, Assets, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -32766,7 +32902,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Loader", ["dynamics:Dynamic","modul
         .addStrings({});
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function (Class, Templates, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function(Class, Templates, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -32802,7 +32938,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Message", ["dynamics:Dynamic"], ["d
         .register("ba-videorecorder-message");
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function (State, ListenMixin, Objs, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function(State, ListenMixin, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, [ListenMixin, {
@@ -32858,7 +32994,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.State", ["base:State
     }]);
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.FatalError", ["module:VideoRecorder.Dynamics.RecorderStates.State","browser:Info","base:Timers.Timer"], function (State, Info, Timer, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.FatalError", ["module:VideoRecorder.Dynamics.RecorderStates.State","browser:Info","base:Timers.Timer"], function(State, Info, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -32878,7 +33014,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.FatalError", ["modul
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Initial", ["module:VideoRecorder.Dynamics.RecorderStates.State","browser:Dom"], function (State, Dom, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Initial", ["module:VideoRecorder.Dynamics.RecorderStates.State","browser:Dom"], function(State, Dom, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -32918,7 +33054,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Initial", ["module:V
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Player", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Player", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -32943,7 +33079,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Player", ["module:Vi
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Strings","base:Objs","browser:Info","module:PopupHelper","media:Player.Support"], function (State, Strings, Objs, Info, PopupHelper, PlayerSupport, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Strings","base:Objs","browser:Info","module:PopupHelper","media:Player.Support"], function(State, Strings, Objs, Info, PopupHelper, PlayerSupport, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33127,7 +33263,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:V
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCovershot", ["module:VideoRecorder.Dynamics.RecorderStates.State","media:Recorder.Support","base:Objs","base:Timers.Timer","browser:Dom","browser:Events","browser:Info","base:Async"], function (State, RecorderSupport, Objs, Timer, Dom, DomEvents, Info, Async, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCovershot", ["module:VideoRecorder.Dynamics.RecorderStates.State","media:Recorder.Support","base:Objs","base:Timers.Timer","browser:Dom","browser:Events","browser:Info","base:Async"], function(State, RecorderSupport, Objs, Timer, Dom, DomEvents, Info, Async, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33279,7 +33415,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCoversho
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareCheck", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareCheck", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33320,7 +33456,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareChec
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareWait", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Promise","browser:Dom"], function (State, Promise, Dom, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareWait", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Promise","browser:Dom"], function(State, Promise, Dom, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33353,7 +33489,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareWait
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraAccess", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Objs","base:Types","base:Timers.Timer","base:Collections.Collection"], function (State, Objs, Types, Timer, Collection, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraAccess", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Objs","base:Types","base:Timers.Timer","base:Collections.Collection"], function(State, Objs, Types, Timer, Collection, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33421,7 +33557,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraAccess", ["mod
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraHasAccess", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraHasAccess", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33463,7 +33599,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraHasAccess", ["
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RecordPrepare", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time"], function (State, Timer, Time, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RecordPrepare", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time"], function(State, Timer, Time, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33539,7 +33675,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RecordPrepare", ["mo
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time","base:TimeFormat","base:Async"], function (State, Timer, Time, TimeFormat, Async, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time","base:TimeFormat","base:Async"], function(State, Timer, Time, TimeFormat, Async, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33646,7 +33782,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CovershotSelection", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CovershotSelection", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33699,7 +33835,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CovershotSelection",
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.UploadThumbnails", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Objs","base:Promise","base:Time","base:TimeFormat","media:WebRTC.Support","browser:Events"], function (State, Objs, Promise, Time, TimeFormat, Support, Events, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.UploadThumbnails", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Objs","base:Promise","base:Time","base:TimeFormat","media:WebRTC.Support","browser:Events"], function(State, Objs, Promise, Time, TimeFormat, Support, Events, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33817,7 +33953,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.UploadThumbnails", [
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Uploading", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Time","base:Async","base:Objs"], function (State, Time, Async, Objs, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Uploading", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Time","base:Async","base:Objs"], function(State, Time, Async, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33909,7 +34045,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Uploading", ["module
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Verifying", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Verifying", ["module:VideoRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -33959,7 +34095,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Verifying", ["module
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Topmessage", ["dynamics:Dynamic"], function (Class, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Topmessage", ["dynamics:Dynamic"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -33982,7 +34118,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Topmessage", ["dynamics:Dynamic"], 
         .register("ba-videorecorder-topmessage");
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","module:Assets","browser:Info","browser:Dom","browser:Events","browser:Upload.MultiUploader","browser:Upload.FileUploader","media:Recorder.VideoRecorderWrapper","media:Recorder.Support","media:WebRTC.Support","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Collections.Collection","base:Promise","module:VideoRecorder.Dynamics.RecorderStates.Initial","module:VideoRecorder.Dynamics.RecorderStates"], ["module:VideoRecorder.Dynamics.Imagegallery","module:VideoRecorder.Dynamics.Loader","module:VideoRecorder.Dynamics.Controlbar","module:VideoRecorder.Dynamics.Message","module:VideoRecorder.Dynamics.Topmessage","module:VideoRecorder.Dynamics.Chooser","module:VideoRecorder.Dynamics.Faceoutline","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.DataPartial","dynamics:Partials.AttrsPartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function (Class, Assets, Info, Dom, DomEvents, MultiUploader, FileUploader, VideoRecorderWrapper, RecorderSupport, WebRTCSupport, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Collection, Promise, InitialState, RecorderStates, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","module:Assets","browser:Info","browser:Dom","browser:Events","browser:Upload.MultiUploader","browser:Upload.FileUploader","media:Recorder.VideoRecorderWrapper","media:Recorder.Support","media:WebRTC.Support","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Collections.Collection","base:Promise","module:VideoRecorder.Dynamics.RecorderStates.Initial","module:VideoRecorder.Dynamics.RecorderStates"], ["module:VideoRecorder.Dynamics.Imagegallery","module:VideoRecorder.Dynamics.Loader","module:VideoRecorder.Dynamics.Controlbar","module:VideoRecorder.Dynamics.Message","module:VideoRecorder.Dynamics.Topmessage","module:VideoRecorder.Dynamics.Chooser","module:VideoRecorder.Dynamics.Faceoutline","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.DataPartial","dynamics:Partials.AttrsPartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, Info, Dom, DomEvents, MultiUploader, FileUploader, VideoRecorderWrapper, RecorderSupport, WebRTCSupport, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Collection, Promise, InitialState, RecorderStates, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -35141,7 +35277,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
         });
 });
 
-Scoped.define("module:ImageViewer.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","browser:Info"], ["dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.ClickPartial"], function (Class, Assets, Info, scoped) {
+Scoped.define("module:ImageViewer.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","browser:Info"], ["dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.ClickPartial"], function(Class, Assets, Info, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -35198,7 +35334,7 @@ Scoped.define("module:ImageViewer.Dynamics.Controlbar", ["dynamics:Dynamic","mod
         });
 });
 
-Scoped.define("module:ImageViewer.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function (Class, scoped) {
+Scoped.define("module:ImageViewer.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -35227,7 +35363,7 @@ Scoped.define("module:ImageViewer.Dynamics.Message", ["dynamics:Dynamic"], ["dyn
         .register("ba-imageviewer-message");
 });
 
-Scoped.define("module:ImageViewer.Dynamics.Topmessage", ["dynamics:Dynamic"], function (Class, scoped) {
+Scoped.define("module:ImageViewer.Dynamics.Topmessage", ["dynamics:Dynamic"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -35248,7 +35384,7 @@ Scoped.define("module:ImageViewer.Dynamics.Topmessage", ["dynamics:Dynamic"], fu
         .register("ba-imageviewer-topmessage");
 });
 
-Scoped.define("module:ImageViewer.Dynamics.ImageViewer", ["dynamics:Dynamic","module:Assets","browser:Info","browser:Dom","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:Classes.ClassRegistry","base:Async","browser:Events"], ["module:ImageViewer.Dynamics.Message","module:ImageViewer.Dynamics.Controlbar","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function (Class, Assets, Info, Dom, Types, Objs, Strings, Time, Timers, ClassRegistry, Async, DomEvents, scoped) {
+Scoped.define("module:ImageViewer.Dynamics.ImageViewer", ["dynamics:Dynamic","module:Assets","browser:Info","browser:Dom","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:Classes.ClassRegistry","base:Async","browser:Events"], ["module:ImageViewer.Dynamics.Message","module:ImageViewer.Dynamics.Controlbar","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, Info, Dom, Types, Objs, Strings, Time, Timers, ClassRegistry, Async, DomEvents, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -35766,7 +35902,7 @@ Scoped.define("module:ImageViewer.Dynamics.ImageViewer", ["dynamics:Dynamic","mo
         });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function (State, ListenMixin, Objs, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function(State, ListenMixin, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, [ListenMixin, {
@@ -35805,7 +35941,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.State", ["base:States
     }]);
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.FatalError", ["module:ImageCapture.Dynamics.RecorderStates.State","browser:Info","base:Timers.Timer"], function (State, Info, Timer, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.FatalError", ["module:ImageCapture.Dynamics.RecorderStates.State","browser:Info","base:Timers.Timer"], function(State, Info, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -35825,7 +35961,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.FatalError", ["module
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Initial", ["module:ImageCapture.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Initial", ["module:ImageCapture.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -35858,7 +35994,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Initial", ["module:Im
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Player", ["module:ImageCapture.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Player", ["module:ImageCapture.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -35880,7 +36016,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Player", ["module:Ima
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Chooser", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Strings","browser:Info","media:Player.Support"], function (State, Strings, Info, PlayerSupport, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Chooser", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Strings","browser:Info","media:Player.Support"], function(State, Strings, Info, PlayerSupport, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -35987,7 +36123,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Chooser", ["module:Im
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RequiredSoftwareCheck", ["module:ImageCapture.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RequiredSoftwareCheck", ["module:ImageCapture.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -36027,7 +36163,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RequiredSoftwareCheck
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RequiredSoftwareWait", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Promise","browser:Dom"], function (State, Promise, Dom, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RequiredSoftwareWait", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Promise","browser:Dom"], function(State, Promise, Dom, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -36059,7 +36195,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RequiredSoftwareWait"
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.CameraAccess", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Timers.Timer"], function (State, Timer, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.CameraAccess", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Timers.Timer"], function(State, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -36104,7 +36240,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.CameraAccess", ["modu
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.CameraHasAccess", ["module:ImageCapture.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.CameraHasAccess", ["module:ImageCapture.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -36140,7 +36276,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.CameraHasAccess", ["m
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RecordPrepare", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time"], function (State, Timer, Time, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RecordPrepare", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time"], function(State, Timer, Time, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -36202,7 +36338,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.RecordPrepare", ["mod
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Recording", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time","base:TimeFormat","base:Async"], function (State, Timer, Time, TimeFormat, Async, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Recording", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time","base:TimeFormat","base:Async"], function(State, Timer, Time, TimeFormat, Async, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -36226,7 +36362,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Recording", ["module:
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Uploading", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Time","base:Async","base:Objs"], function (State, Time, Async, Objs, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Uploading", ["module:ImageCapture.Dynamics.RecorderStates.State","base:Time","base:Async","base:Objs"], function(State, Time, Async, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -36312,7 +36448,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Uploading", ["module:
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Verifying", ["module:ImageCapture.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Verifying", ["module:ImageCapture.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -36360,7 +36496,7 @@ Scoped.define("module:ImageCapture.Dynamics.RecorderStates.Verifying", ["module:
     });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.Chooser", ["dynamics:Dynamic","module:Assets","browser:Info"], ["dynamics:Partials.ClickPartial","dynamics:Partials.IfPartial"], function (Class, Assets, Info, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.Chooser", ["dynamics:Dynamic","module:Assets","browser:Info"], ["dynamics:Partials.ClickPartial","dynamics:Partials.IfPartial"], function(Class, Assets, Info, scoped) {
 
     return Class.extend({
             scoped: scoped
@@ -36489,7 +36625,7 @@ Scoped.define("module:ImageCapture.Dynamics.Chooser", ["dynamics:Dynamic","modul
         });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","base:Timers.Timer"], ["dynamics:Partials.ShowPartial","dynamics:Partials.RepeatPartial"], function (Class, Assets, Timer, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","base:Timers.Timer"], ["dynamics:Partials.ShowPartial","dynamics:Partials.RepeatPartial"], function(Class, Assets, Timer, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -36543,7 +36679,7 @@ Scoped.define("module:ImageCapture.Dynamics.Controlbar", ["dynamics:Dynamic","mo
         });
 });
 
-Scoped.define("module:ImageCapture.Dynamics.Faceoutline", ["dynamics:Dynamic"], function (Class, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.Faceoutline", ["dynamics:Dynamic"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -36559,7 +36695,7 @@ Scoped.define("module:ImageCapture.Dynamics.Faceoutline", ["dynamics:Dynamic"], 
         .register("ba-imagecapture-faceoutline");
 });
 
-Scoped.define("module:ImageCapture.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], ["dynamics:Partials.ShowPartial"], function (Class, Assets, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], ["dynamics:Partials.ShowPartial"], function(Class, Assets, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -36585,7 +36721,7 @@ Scoped.define("module:ImageCapture.Dynamics.Loader", ["dynamics:Dynamic","module
         .addStrings({});
 });
 
-Scoped.define("module:ImageCapture.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function (Class, Templates, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function(Class, Templates, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -36619,7 +36755,7 @@ Scoped.define("module:ImageCapture.Dynamics.Message", ["dynamics:Dynamic"], ["dy
         .register("ba-imagecapture-message");
 });
 
-Scoped.define("module:ImageCapture.Dynamics.Topmessage", ["dynamics:Dynamic"], function (Class, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.Topmessage", ["dynamics:Dynamic"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -36640,7 +36776,7 @@ Scoped.define("module:ImageCapture.Dynamics.Topmessage", ["dynamics:Dynamic"], f
         .register("ba-imagecapture-topmessage");
 });
 
-Scoped.define("module:ImageCapture.Dynamics.Recorder", ["dynamics:Dynamic","module:Assets","browser:Info","browser:Dom","browser:Upload.MultiUploader","browser:Upload.FileUploader","media:ImageRecorder.ImageRecorderWrapper","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Collections.Collection","base:Promise","module:ImageCapture.Dynamics.RecorderStates.Initial","module:ImageCapture.Dynamics.RecorderStates"], ["module:ImageCapture.Dynamics.Loader","module:ImageCapture.Dynamics.Controlbar","module:ImageCapture.Dynamics.Message","module:ImageCapture.Dynamics.Topmessage","module:ImageCapture.Dynamics.Chooser","module:ImageCapture.Dynamics.Faceoutline","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.DataPartial","dynamics:Partials.AttrsPartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function (Class, Assets, Info, Dom, MultiUploader, FileUploader, ImageRecorderWrapper, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Collection, Promise, InitialState, RecorderStates, scoped) {
+Scoped.define("module:ImageCapture.Dynamics.Recorder", ["dynamics:Dynamic","module:Assets","browser:Info","browser:Dom","browser:Upload.MultiUploader","browser:Upload.FileUploader","media:ImageRecorder.ImageRecorderWrapper","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Collections.Collection","base:Promise","module:ImageCapture.Dynamics.RecorderStates.Initial","module:ImageCapture.Dynamics.RecorderStates"], ["module:ImageCapture.Dynamics.Loader","module:ImageCapture.Dynamics.Controlbar","module:ImageCapture.Dynamics.Message","module:ImageCapture.Dynamics.Topmessage","module:ImageCapture.Dynamics.Chooser","module:ImageCapture.Dynamics.Faceoutline","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.DataPartial","dynamics:Partials.AttrsPartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, Info, Dom, MultiUploader, FileUploader, ImageRecorderWrapper, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Collection, Promise, InitialState, RecorderStates, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -37214,7 +37350,7 @@ Scoped.define("module:ImageCapture.Dynamics.Recorder", ["dynamics:Dynamic","modu
         });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","base:TimeFormat","browser:Dom","module:Assets","browser:Info"], ["dynamics:Partials.StylesPartial","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.ClickPartial"], function (Class, TimeFormat, Dom, Assets, Info, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","base:TimeFormat","browser:Dom","module:Assets","browser:Info"], ["dynamics:Partials.StylesPartial","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.ClickPartial"], function(Class, TimeFormat, Dom, Assets, Info, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -37387,7 +37523,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
         });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], function (Class, Assets, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], function(Class, Assets, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -37411,7 +37547,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Loader", ["dynamics:Dynamic","module:
         });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function (Class, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function(Class, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -37440,7 +37576,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Message", ["dynamics:Dynamic"], ["dyn
         .register("ba-audioplayer-message");
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function (State, ListenMixin, Objs, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function(State, ListenMixin, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, [ListenMixin, {
@@ -37468,7 +37604,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.State", ["base:States.St
     }]);
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.FatalError", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.FatalError", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -37483,7 +37619,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.FatalError", ["module:Au
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.Initial", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.Initial", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -37502,7 +37638,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.Initial", ["module:Audio
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:Assets","module:AudioVisualisation","browser:Info","browser:Dom","media:AudioPlayer.AudioPlayerWrapper","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Async","module:AudioPlayer.Dynamics.PlayerStates.Initial","module:AudioPlayer.Dynamics.PlayerStates","browser:Events"], ["module:AudioPlayer.Dynamics.Message","module:AudioPlayer.Dynamics.Loader","module:AudioPlayer.Dynamics.Controlbar","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TogglePartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function (Class, Assets, AudioVisualisation, Info, Dom, AudioPlayerWrapper, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Async, InitialState, PlayerStates, DomEvents, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:Assets","module:AudioVisualisation","browser:Info","browser:Dom","media:AudioPlayer.AudioPlayerWrapper","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Async","module:AudioPlayer.Dynamics.PlayerStates.Initial","module:AudioPlayer.Dynamics.PlayerStates","browser:Events"], ["module:AudioPlayer.Dynamics.Message","module:AudioPlayer.Dynamics.Loader","module:AudioPlayer.Dynamics.Controlbar","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TogglePartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, AudioVisualisation, Info, Dom, AudioPlayerWrapper, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Async, InitialState, PlayerStates, DomEvents, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -38129,7 +38265,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
         });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadPlayer", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadPlayer", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -38149,7 +38285,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadPlayer", ["module:Au
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadError", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadError", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -38166,7 +38302,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadError", ["module:Aud
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State","browser:Info","browser:Dom","base:Timers.Timer"], function (State, Info, Dom, Timer, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State","browser:Info","browser:Dom","base:Timers.Timer"], function(State, Info, Dom, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -38210,7 +38346,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadAudio", ["module:Aud
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.ErrorAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.ErrorAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -38227,7 +38363,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.ErrorAudio", ["module:Au
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.PlayAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.PlayAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -38259,7 +38395,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.PlayAudio", ["module:Aud
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.NextAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function (State, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.NextAudio", ["module:AudioPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -38288,7 +38424,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.NextAudio", ["module:Aud
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.Chooser", ["dynamics:Dynamic","module:Assets","browser:Info"], ["dynamics:Partials.ClickPartial","dynamics:Partials.IfPartial"], function (Class, Assets, Info, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.Chooser", ["dynamics:Dynamic","module:Assets","browser:Info"], ["dynamics:Partials.ClickPartial","dynamics:Partials.IfPartial"], function(Class, Assets, Info, scoped) {
 
     return Class.extend({
             scoped: scoped
@@ -38419,7 +38555,7 @@ Scoped.define("module:AudioRecorder.Dynamics.Chooser", ["dynamics:Dynamic","modu
         });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","base:Timers.Timer"], ["dynamics:Partials.ShowPartial","dynamics:Partials.RepeatPartial"], function (Class, Assets, Timer, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","module:Assets","base:Timers.Timer"], ["dynamics:Partials.ShowPartial","dynamics:Partials.RepeatPartial"], function(Class, Assets, Timer, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -38492,7 +38628,7 @@ Scoped.define("module:AudioRecorder.Dynamics.Controlbar", ["dynamics:Dynamic","m
         });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], ["dynamics:Partials.ShowPartial"], function (Class, Assets, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.Loader", ["dynamics:Dynamic","module:Assets"], ["dynamics:Partials.ShowPartial"], function(Class, Assets, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -38518,7 +38654,7 @@ Scoped.define("module:AudioRecorder.Dynamics.Loader", ["dynamics:Dynamic","modul
         .addStrings({});
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function (Class, Templates, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.Message", ["dynamics:Dynamic"], ["dynamics:Partials.ClickPartial"], function(Class, Templates, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -38552,7 +38688,7 @@ Scoped.define("module:AudioRecorder.Dynamics.Message", ["dynamics:Dynamic"], ["d
         .register("ba-audiorecorder-message");
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function (State, ListenMixin, Objs, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.State", ["base:States.State","base:Events.ListenMixin","base:Objs"], function(State, ListenMixin, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, [ListenMixin, {
@@ -38601,7 +38737,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.State", ["base:State
     }]);
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.FatalError", ["module:AudioRecorder.Dynamics.RecorderStates.State","browser:Info","base:Timers.Timer"], function (State, Info, Timer, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.FatalError", ["module:AudioRecorder.Dynamics.RecorderStates.State","browser:Info","base:Timers.Timer"], function(State, Info, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -38621,7 +38757,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.FatalError", ["modul
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Initial", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Initial", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -38654,7 +38790,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Initial", ["module:A
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","module:Assets","module:AudioVisualisation","browser:Info","browser:Dom","browser:Upload.MultiUploader","browser:Upload.FileUploader","media:AudioRecorder.AudioRecorderWrapper","media:WebRTC.Support","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Collections.Collection","base:Promise","module:AudioRecorder.Dynamics.RecorderStates.Initial","module:AudioRecorder.Dynamics.RecorderStates"], ["module:AudioRecorder.Dynamics.Loader","module:AudioRecorder.Dynamics.Controlbar","module:AudioRecorder.Dynamics.Message","module:AudioRecorder.Dynamics.Chooser","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.DataPartial","dynamics:Partials.AttrsPartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function (Class, Assets, AudioVisualisation, Info, Dom, MultiUploader, FileUploader, AudioRecorderWrapper, WebRTCSupport, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Collection, Promise, InitialState, RecorderStates, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","module:Assets","module:AudioVisualisation","browser:Info","browser:Dom","browser:Upload.MultiUploader","browser:Upload.FileUploader","media:AudioRecorder.AudioRecorderWrapper","media:WebRTC.Support","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Collections.Collection","base:Promise","module:AudioRecorder.Dynamics.RecorderStates.Initial","module:AudioRecorder.Dynamics.RecorderStates"], ["module:AudioRecorder.Dynamics.Loader","module:AudioRecorder.Dynamics.Controlbar","module:AudioRecorder.Dynamics.Message","module:AudioRecorder.Dynamics.Chooser","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.DataPartial","dynamics:Partials.AttrsPartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, AudioVisualisation, Info, Dom, MultiUploader, FileUploader, AudioRecorderWrapper, WebRTCSupport, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Collection, Promise, InitialState, RecorderStates, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
@@ -39301,7 +39437,7 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
         });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Player", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Player", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39323,7 +39459,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Player", ["module:Au
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Chooser", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Strings","browser:Info","media:Player.Support"], function (State, Strings, Info, PlayerSupport, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Chooser", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Strings","browser:Info","media:Player.Support"], function(State, Strings, Info, PlayerSupport, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39428,7 +39564,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Chooser", ["module:A
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RequiredSoftwareCheck", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RequiredSoftwareCheck", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39469,7 +39605,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RequiredSoftwareChec
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RequiredSoftwareWait", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Promise","browser:Dom"], function (State, Promise, Dom, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RequiredSoftwareWait", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Promise","browser:Dom"], function(State, Promise, Dom, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39501,7 +39637,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RequiredSoftwareWait
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.MicrophoneAccess", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Timers.Timer"], function (State, Timer, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.MicrophoneAccess", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Timers.Timer"], function(State, Timer, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39537,7 +39673,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.MicrophoneAccess", [
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.MicrophoneHasAccess", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.MicrophoneHasAccess", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39574,7 +39710,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.MicrophoneHasAccess"
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RecordPrepare", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time"], function (State, Timer, Time, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RecordPrepare", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time"], function(State, Timer, Time, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39650,7 +39786,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.RecordPrepare", ["mo
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Recording", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time","base:TimeFormat","base:Async"], function (State, Timer, Time, TimeFormat, Async, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Recording", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time","base:TimeFormat","base:Async"], function(State, Timer, Time, TimeFormat, Async, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39733,7 +39869,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Recording", ["module
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Uploading", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Time","base:Async","base:Objs"], function (State, Time, Async, Objs, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Uploading", ["module:AudioRecorder.Dynamics.RecorderStates.State","base:Time","base:Async","base:Objs"], function(State, Time, Async, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39818,7 +39954,7 @@ Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Uploading", ["module
     });
 });
 
-Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Verifying", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function (State, scoped) {
+Scoped.define("module:AudioRecorder.Dynamics.RecorderStates.Verifying", ["module:AudioRecorder.Dynamics.RecorderStates.State"], function(State, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -39872,7 +40008,7 @@ var Scoped = this.subScope();
 Scoped.binding('browser', 'root:BetaJS.Browser');
 Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('module', 'root:BetaJS.MediaComponents');
-Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
@@ -39894,7 +40030,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
     };
 });
 
-Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "actions.first().get('icon')": function (obj) { with (obj) { return actions.first().get('icon'); } }, "actions": function (obj) { with (obj) { return actions; } }, "click_action(action)": function (obj) { with (obj) { return click_action(action); } }, "action.index": function (obj) { with (obj) { return action.index; } }, "action.select && action.capture": function (obj) { with (obj) { return action.select && action.capture; } }, "select_file_action(action, domEvent)": function (obj) { with (obj) { return select_file_action(action, domEvent); } }, "action.accept": function (obj) { with (obj) { return action.accept; } }, "action.select && !action.capture": function (obj) { with (obj) { return action.select && !action.capture; } }, "action.label": function (obj) { with (obj) { return action.label; } }/**/
     });
@@ -39909,7 +40045,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
     };
 });
 
-Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-image')": function (obj) { with (obj) { return string('submit-image'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-image')": function (obj) { with (obj) { return string('rerecord-image'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }/**/
@@ -39925,7 +40061,7 @@ Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-audio')": function (obj) { with (obj) { return string('submit-audio'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-audio')": function (obj) { with (obj) { return string('rerecord-audio'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-audio')": function (obj) { with (obj) { return string('play-audio'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-audio-disabled') : string('pause-audio')": function (obj) { with (obj) { return disablepause ? string('pause-audio-disabled') : string('pause-audio'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('audio-progress')": function (obj) { with (obj) { return string('audio-progress'); } }/**/
@@ -39942,7 +40078,7 @@ Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "actions.first().get('icon')": function (obj) { with (obj) { return actions.first().get('icon'); } }, "actions": function (obj) { with (obj) { return actions; } }, "click_action(action)": function (obj) { with (obj) { return click_action(action); } }, "action.index": function (obj) { with (obj) { return action.index; } }, "action.select && action.capture": function (obj) { with (obj) { return action.select && action.capture; } }, "select_file_action(action, domEvent)": function (obj) { with (obj) { return select_file_action(action, domEvent); } }, "action.accept": function (obj) { with (obj) { return action.accept; } }, "action.select && !action.capture": function (obj) { with (obj) { return action.select && !action.capture; } }, "action.label": function (obj) { with (obj) { return action.label; } }/**/
     });
@@ -39965,7 +40101,7 @@ var Scoped = this.subScope();
 Scoped.binding('browser', 'root:BetaJS.Browser');
 Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('module', 'root:BetaJS.MediaComponents');
-Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
@@ -39987,7 +40123,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
     };
 });
 
-Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "showaddstreambutton && firefox && allowscreen": function (obj) { with (obj) { return showaddstreambutton && firefox && allowscreen; } }, "addNewStream()": function (obj) { with (obj) { return addNewStream(); } }, "hover(string('add-stream'))": function (obj) { with (obj) { return hover(string('add-stream')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "string('add-stream')": function (obj) { with (obj) { return string('add-stream'); } }, "showaddstreambutton && !firefox": function (obj) { with (obj) { return showaddstreambutton && !firefox; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "(camera.id !== selectedcamera) || allowscreen": function (obj) { with (obj) { return (camera.id !== selectedcamera) || allowscreen; } }, "addNewStream(camera.id)": function (obj) { with (obj) { return addNewStream(camera.id); } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(showaddstreambutton && !firefox) || (firefox && allowscreen)": function (obj) { with (obj) { return (showaddstreambutton && !firefox) || (firefox && allowscreen); } }, "!novideo && !allowscreen && !ismobile": function (obj) { with (obj) { return !novideo && !allowscreen && !ismobile; } }, "hover(string('select-camera'))": function (obj) { with (obj) { return hover(string('select-camera')); } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "hover(string('select-audio-input'))": function (obj) { with (obj) { return hover(string('select-audio-input')); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "ismobile": function (obj) { with (obj) { return ismobile; } }, "toggleFaceMode()": function (obj) { with (obj) { return toggleFaceMode(); } }, "hover(string('switch-camera'))": function (obj) { with (obj) { return hover(string('switch-camera')); } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "pausable && !resumevisible": function (obj) { with (obj) { return pausable && !resumevisible; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "string('pause-recorder')": function (obj) { with (obj) { return string('pause-recorder'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "hover(string('pause-recorder'))": function (obj) { with (obj) { return hover(string('pause-recorder')); } }, "pausable && resumevisible": function (obj) { with (obj) { return pausable && resumevisible; } }, "resume()": function (obj) { with (obj) { return resume(); } }, "string('resume-recorder')": function (obj) { with (obj) { return string('resume-recorder'); } }, "hover(string('resume-recorder'))": function (obj) { with (obj) { return hover(string('resume-recorder')); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
@@ -40015,7 +40151,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
     };
 });
 
-Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-image')": function (obj) { with (obj) { return string('submit-image'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-image')": function (obj) { with (obj) { return string('rerecord-image'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }/**/
@@ -40031,7 +40167,7 @@ Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-audio')": function (obj) { with (obj) { return string('submit-audio'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-audio')": function (obj) { with (obj) { return string('rerecord-audio'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "play()": function (obj) { with (obj) { return play(); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-audio')": function (obj) { with (obj) { return string('play-audio'); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-audio-disabled') : string('pause-audio')": function (obj) { with (obj) { return disablepause ? string('pause-audio-disabled') : string('pause-audio'); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('audio-progress')": function (obj) { with (obj) { return string('audio-progress'); } }/**/
@@ -40048,7 +40184,7 @@ Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "audio": function (obj) { with (obj) { return audio; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
@@ -40078,7 +40214,7 @@ var Scoped = this.subScope();
 Scoped.binding('browser', 'root:BetaJS.Browser');
 Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('module', 'root:BetaJS.MediaComponents');
-Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 3": function (obj) { with (obj) { return skipinitial ? 0 : 3; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'resize-minimize' : 'resize-full'": function (obj) { with (obj) { return fullscreened ? 'resize-minimize' : 'resize-full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
@@ -40104,7 +40240,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
     };
 });
 
-Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
@@ -40136,7 +40272,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
     };
 });
 
-Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-image')": function (obj) { with (obj) { return string('submit-image'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-image')": function (obj) { with (obj) { return string('rerecord-image'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image'); } }, "fullscreened ? 'resize-minimize' : 'resize-full'": function (obj) { with (obj) { return fullscreened ? 'resize-minimize' : 'resize-full'; } }/**/
@@ -40156,7 +40292,7 @@ Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "title": function (obj) { with (obj) { return title; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-audio')": function (obj) { with (obj) { return string('submit-audio'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-audio')": function (obj) { with (obj) { return string('rerecord-audio'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-audio')": function (obj) { with (obj) { return string('play-audio'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-audio-disabled') : string('pause-audio')": function (obj) { with (obj) { return disablepause ? string('pause-audio-disabled') : string('pause-audio'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('audio-progress')": function (obj) { with (obj) { return string('audio-progress'); } }/**/
@@ -40176,7 +40312,7 @@ Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
@@ -40211,7 +40347,7 @@ var Scoped = this.subScope();
 Scoped.binding('browser', 'root:BetaJS.Browser');
 Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('module', 'root:BetaJS.MediaComponents');
-Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "skipinitial ? 0 : -1": function (obj) { with (obj) { return skipinitial ? 0 : -1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }/**/
@@ -40233,7 +40369,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
     };
 });
 
-Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
@@ -40265,7 +40401,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
     };
 });
 
-Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-image')": function (obj) { with (obj) { return string('submit-image'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-image')": function (obj) { with (obj) { return string('rerecord-image'); } }/**/
@@ -40281,7 +40417,7 @@ Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-audio')": function (obj) { with (obj) { return string('submit-audio'); } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-audio')": function (obj) { with (obj) { return string('play-audio'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-audio-disabled') : string('pause-audio')": function (obj) { with (obj) { return disablepause ? string('pause-audio-disabled') : string('pause-audio'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('audio-progress')": function (obj) { with (obj) { return string('audio-progress'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-audio')": function (obj) { with (obj) { return string('rerecord-audio'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }/**/
@@ -40298,7 +40434,7 @@ Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
@@ -40333,7 +40469,7 @@ var Scoped = this.subScope();
 Scoped.binding('browser', 'root:BetaJS.Browser');
 Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('module', 'root:BetaJS.MediaComponents');
-Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return startVerticallyUpdateVolume(domEvent); } }, "progressVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return progressVerticallyUpdateVolume(domEvent); } }, "stopVerticallyUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopVerticallyUpdateVolume(domEvent); this.blur(); } }, "stopVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return stopVerticallyUpdateVolume(domEvent); } }, "{height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
@@ -40356,7 +40492,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
     };
 });
 
-Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "showaddstreambutton && firefox && allowscreen": function (obj) { with (obj) { return showaddstreambutton && firefox && allowscreen; } }, "addNewStream()": function (obj) { with (obj) { return addNewStream(); } }, "hover(string('add-stream'))": function (obj) { with (obj) { return hover(string('add-stream')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "string('add-stream')": function (obj) { with (obj) { return string('add-stream'); } }, "showaddstreambutton && !firefox": function (obj) { with (obj) { return showaddstreambutton && !firefox; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "(camera.id !== selectedcamera) || allowscreen": function (obj) { with (obj) { return (camera.id !== selectedcamera) || allowscreen; } }, "addNewStream(camera.id)": function (obj) { with (obj) { return addNewStream(camera.id); } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "(showaddstreambutton && !firefox) || (firefox && allowscreen)": function (obj) { with (obj) { return (showaddstreambutton && !firefox) || (firefox && allowscreen); } }, "!novideo && !allowscreen && !ismobile": function (obj) { with (obj) { return !novideo && !allowscreen && !ismobile; } }, "hover(string('select-camera'))": function (obj) { with (obj) { return hover(string('select-camera')); } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "(!noaudio && !novideo) || !allowscreen": function (obj) { with (obj) { return (!noaudio && !novideo) || !allowscreen; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "hover(string('select-audio-input'))": function (obj) { with (obj) { return hover(string('select-audio-input')); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "stopvisible && recordingindication": function (obj) { with (obj) { return stopvisible && recordingindication; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "ismobile": function (obj) { with (obj) { return ismobile; } }, "toggleFaceMode()": function (obj) { with (obj) { return toggleFaceMode(); } }, "hover(string('switch-camera'))": function (obj) { with (obj) { return hover(string('switch-camera')); } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "!novideo && !allowscreen": function (obj) { with (obj) { return !novideo && !allowscreen; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "pausable && !resumevisible": function (obj) { with (obj) { return pausable && !resumevisible; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "string('pause-recorder')": function (obj) { with (obj) { return string('pause-recorder'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "hover(string('pause-recorder'))": function (obj) { with (obj) { return hover(string('pause-recorder')); } }, "pausable && resumevisible": function (obj) { with (obj) { return pausable && resumevisible; } }, "resume()": function (obj) { with (obj) { return resume(); } }, "string('resume-recorder')": function (obj) { with (obj) { return string('resume-recorder'); } }, "hover(string('resume-recorder'))": function (obj) { with (obj) { return hover(string('resume-recorder')); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
@@ -40384,7 +40520,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
     };
 });
 
-Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-image')": function (obj) { with (obj) { return string('submit-image'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-image')": function (obj) { with (obj) { return string('rerecord-image'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }/**/
@@ -40400,7 +40536,7 @@ Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-audio')": function (obj) { with (obj) { return string('submit-audio'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-audio')": function (obj) { with (obj) { return string('rerecord-audio'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-audio')": function (obj) { with (obj) { return string('play-audio'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-audio-disabled') : string('pause-audio')": function (obj) { with (obj) { return disablepause ? string('pause-audio-disabled') : string('pause-audio'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return startVerticallyUpdateVolume(domEvent); } }, "stopVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return stopVerticallyUpdateVolume(domEvent); } }, "progressVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return progressVerticallyUpdateVolume(domEvent); } }, "{height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('audio-progress')": function (obj) { with (obj) { return string('audio-progress'); } }/**/
@@ -40417,7 +40553,7 @@ Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "css": function (obj) { with (obj) { return css; } }, "settingsvisible && settingsopen": function (obj) { with (obj) { return settingsvisible && settingsopen; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "selectCamera(camera.id)": function (obj) { with (obj) { return selectCamera(camera.id); } }, "selectedcamera == camera.id": function (obj) { with (obj) { return selectedcamera == camera.id; } }, "camera.label": function (obj) { with (obj) { return camera.label; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "audio": function (obj) { with (obj) { return audio; } }, "selectMicrophone(microphone.id)": function (obj) { with (obj) { return selectMicrophone(microphone.id); } }, "selectedmicrophone == microphone.id": function (obj) { with (obj) { return selectedmicrophone == microphone.id; } }, "microphone.label": function (obj) { with (obj) { return microphone.label; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "hover(string('rerecord-tooltip'))": function (obj) { with (obj) { return hover(string('rerecord-tooltip')); } }, "unhover()": function (obj) { with (obj) { return unhover(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }, "cancelvisible": function (obj) { with (obj) { return cancelvisible; } }, "cancel()": function (obj) { with (obj) { return cancel(); } }, "hover(string('cancel-tooltip'))": function (obj) { with (obj) { return hover(string('cancel-tooltip')); } }, "string('cancel')": function (obj) { with (obj) { return string('cancel'); } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "settingsopen=!settingsopen": function (obj) { with (obj) { return settingsopen=!settingsopen; } }, "settingsopen ? 'selected' : 'unselected'": function (obj) { with (obj) { return settingsopen ? 'selected' : 'unselected'; } }, "hover(string('settings'))": function (obj) { with (obj) { return hover(string('settings')); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "!noaudio && !allowscreen": function (obj) { with (obj) { return !noaudio && !allowscreen; } }, "hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy'))": function (obj) { with (obj) { return hover(string(microphonehealthy ? 'microphonehealthy' : 'microphoneunhealthy')); } }, "microphonehealthy ? 'good' : 'bad'": function (obj) { with (obj) { return microphonehealthy ? 'good' : 'bad'; } }, "hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy'))": function (obj) { with (obj) { return hover(string(camerahealthy ? 'camerahealthy' : 'cameraunhealthy')); } }, "camerahealthy ? 'good' : 'bad'": function (obj) { with (obj) { return camerahealthy ? 'good' : 'bad'; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "record()": function (obj) { with (obj) { return record(); } }, "hover(string('record-tooltip'))": function (obj) { with (obj) { return hover(string('record-tooltip')); } }, "string('record')": function (obj) { with (obj) { return string('record'); } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "controlbarlabel && !rerecordvisible": function (obj) { with (obj) { return controlbarlabel && !rerecordvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "stop()": function (obj) { with (obj) { return stop(); } }, "mintimeindicator ? css + '-disabled': ''": function (obj) { with (obj) { return mintimeindicator ? css + '-disabled': ''; } }, "mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')": function (obj) { with (obj) { return mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'); } }, "hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip'))": function (obj) { with (obj) { return hover(mintimeindicator ? string('stop-available-after').replace('%d', timeminlimit) : string('stop-tooltip')); } }, "string('stop')": function (obj) { with (obj) { return string('stop'); } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "skip()": function (obj) { with (obj) { return skip(); } }, "hover(string('skip-tooltip'))": function (obj) { with (obj) { return hover(string('skip-tooltip')); } }, "string('skip')": function (obj) { with (obj) { return string('skip'); } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "hover(string('upload-covershot-tooltip'))": function (obj) { with (obj) { return hover(string('upload-covershot-tooltip')); } }, "uploadCovershot(domEvent)": function (obj) { with (obj) { return uploadCovershot(domEvent); } }, "covershot_accept_string": function (obj) { with (obj) { return covershot_accept_string; } }, "string('upload-covershot')": function (obj) { with (obj) { return string('upload-covershot'); } }/**/
     });
@@ -40448,7 +40584,7 @@ var Scoped = this.subScope();
 Scoped.binding('browser', 'root:BetaJS.Browser');
 Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('module', 'root:BetaJS.MediaComponents');
-Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "skipinitial ? 2 : 1": function (obj) { with (obj) { return skipinitial ? 2 : 1; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 2": function (obj) { with (obj) { return skipinitial ? 0 : 2; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "title": function (obj) { with (obj) { return title; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }/**/
@@ -40470,7 +40606,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
     };
 });
 
-Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
@@ -40502,7 +40638,7 @@ Scoped.extend("module:Assets.recorderthemes", ["dynamics:Parser"], function (Par
     };
 });
 
-Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > 5000 && hideoninactivity ? (css + '-dashboard-hidden') : ''; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-image')": function (obj) { with (obj) { return string('submit-image'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-image')": function (obj) { with (obj) { return string('rerecord-image'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "title": function (obj) { with (obj) { return title; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-image') : string('fullscreen-image'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }/**/
@@ -40518,7 +40654,7 @@ Scoped.extend("module:Assets.imageviewerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function (Info, Parser) {
+Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('audio-progress')": function (obj) { with (obj) { return string('audio-progress'); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-audio')": function (obj) { with (obj) { return string('submit-audio'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-audio')": function (obj) { with (obj) { return string('rerecord-audio'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-audio')": function (obj) { with (obj) { return string('play-audio'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-audio-disabled') : string('pause-audio')": function (obj) { with (obj) { return disablepause ? string('pause-audio-disabled') : string('pause-audio'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "title": function (obj) { with (obj) { return title; } }/**/
@@ -40535,7 +40671,7 @@ Scoped.extend("module:Assets.audioplayerthemes", ["browser:Info","dynamics:Parse
     };
 });
 
-Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function (Parser) {
+Scoped.extend("module:Assets.audiorecorderthemes", ["dynamics:Parser"], function(Parser) {
     Parser.registerFunctions({
         /**/"css": function (obj) { with (obj) { return css; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }/**/
     });
@@ -40575,121 +40711,121 @@ Scoped.binding('media', 'root:BetaJS.Media');
 Scoped.binding('mediacomponents', 'root:BetaJS.MediaComponents');
 Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('flash', 'root:BetaJS.Flash');
-Scoped.define("module:", function (){return{guid:"6c65838a-53fd-4fd1-8d48-e571a0500135"}});
+Scoped.define("module:", function(){return{guid:"6c65838a-53fd-4fd1-8d48-e571a0500135"}});
 
-Scoped.define("private:Core", function (){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:93","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. / International",regions:{"eu-west-1":{prefix:"r1",location:"Ireland / EU","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:34,latest:!0,prerelease:!1},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
+Scoped.define("private:Core", function(){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:93","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. / International",regions:{"eu-west-1":{prefix:"r1",location:"Ireland / EU","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:34,latest:!0,prerelease:!1},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
 
-Scoped.define("private:Application.Connect", ["base:Class","base:Objs","base:Ajax.AjaxWrapper"], ["browser:Ajax.IframePostmessageAjax","browser:Ajax.JsonpScriptAjax","browser:Ajax.XDomainRequestAjax","browser:Ajax.XmlHttpRequestAjax"], function (e,i,a,t){return e.extend({scoped:t},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.ajax=new a({sendContentType:!1,contentType:"urlencoded",wrapStatus:!0,wrapStatusParam:"_wrapstatus",noCache:!0,noCacheParam:"_nocache"})},destroy:function(){this.ajax.destroy(),t.destroy.call(this)},rawRequest:function(e,t){return this.ajax.execute({method:t.method,data:t.data,uri:e,resilience:t.resilience,sendContentType:t.sendContentType})},request:function(e,t){return this.rawRequest(this.application.urls.httpApiResourceUrl(e,t),t)},apiRequest:function(e,t){return this.rawRequest(this.application.urls.apiResourceUrl(e,t),i.extend({sendContentType:!0},t))}}})});
+Scoped.define("private:Application.Connect", ["base:Class","base:Objs","base:Ajax.AjaxWrapper"], ["browser:Ajax.IframePostmessageAjax","browser:Ajax.JsonpScriptAjax","browser:Ajax.XDomainRequestAjax","browser:Ajax.XmlHttpRequestAjax"], function(e,i,a,t){return e.extend({scoped:t},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.ajax=new a({sendContentType:!1,contentType:"urlencoded",wrapStatus:!0,wrapStatusParam:"_wrapstatus",noCache:!0,noCacheParam:"_nocache"})},destroy:function(){this.ajax.destroy(),t.destroy.call(this)},rawRequest:function(e,t){return this.ajax.execute({method:t.method,data:t.data,uri:e,resilience:t.resilience,sendContentType:t.sendContentType})},request:function(e,t){return this.rawRequest(this.application.urls.httpApiResourceUrl(e,t),t)},apiRequest:function(e,t){return this.rawRequest(this.application.urls.apiResourceUrl(e,t),i.extend({sendContentType:!0},t))}}})});
 
-Scoped.define("private:Application.Data", ["base:Properties.Properties","base:Objs","browser:Cookies","private:Core","browser:Upload.FileUploader","dynamics:Parser"], ["browser:Upload.ChunkedFileUploader"], function (e,s,a,r,n,o,t){return e.extend({scoped:t},function(i){return{constructor:function(e,t){if(i.constructor.call(this),t=t||{},this.set("token",t.token),!this.get("token"))throw"You need to specify an application token when creating an application";this.set("webrtc_streaming","boolean"==typeof t.webrtc_streaming&&t.webrtc_streaming),this.set("webrtc_streaming_if_necessary","boolean"==typeof t.webrtc_streaming_if_necessary&&t.webrtc_streaming_if_necessary),this.set("webrtc_on_mobile","boolean"==typeof t.webrtc_on_mobile&&t.webrtc_on_mobile),this.set("cdn","boolean"!=typeof t.cdn||t.cdn),this.set("resumable",!1),this.set("auth","boolean"==typeof t.auth&&t.auth),this.set("analytics","boolean"!=typeof t.analytics||t.analytics),this.set("google_analytics","boolean"==typeof t.google_analytics&&t.google_analytics),this.set("google_analytics_track","undefined"!=typeof t.google_analytics_track?t.google_analytics_track:["init_application","embedding_loaded","record_start","record_end","rerecord_confirm","upload_start"]),this.compute("cookie_key",function(){return r.models.session_cookie_prefix+this.get("token")},["token"]),this.set("cookie_value",this.get("auth")?a.get(this.get("cookie_key")):""),this.on("change:cookie_value",function(e){this.get("auth")&&a.set(this.get("cookie_key"),e)},this),this.set("testing_application",!1),this.set("debug","debug"in t&&t.debug!==undefined?t.debug:r.revision.prerelease),this.set("chrome_extension_id",t.chrome_extension_id),this.set("opera_extension_id",t.opera_extension_id),this.set("chrome_extension_install_link",t.chrome_extension_install_link),this.set("opera_extension_install_link",t.opera_extension_install_link),t.disable_secure_templates&&(o.secureMode=!1)},getUploaderConfig:function(e,t,i){var a={url:e,serverSupportPostMessage:!0,resilience:5,serverSupportsChunked:this.get("resumable"),identifierParameter:"resumableIdentifier",chunks:{chunkNumberParameter:"resumableChunkNumber"},assembly:{fileNameParameter:"resumableFilename",totalSizeParameter:"resumableTotalSize",chunkNumberParameter:"resumableChunkNumber",fileTypeParameter:"resumableType"}};return t&&(a.source=t),s.extend(a,i)},getUploader:function(e,t,i){return n.create(this.getUploaderConfig(e,t,i))},getSignedUrlUploader:function(e){return e.signedUploadUrl}}})});
+Scoped.define("private:Application.Data", ["base:Properties.Properties","base:Objs","browser:Cookies","private:Core","browser:Upload.FileUploader","dynamics:Parser"], ["browser:Upload.ChunkedFileUploader"], function(e,s,a,r,n,o,t){return e.extend({scoped:t},function(i){return{constructor:function(e,t){if(i.constructor.call(this),t=t||{},this.set("token",t.token),!this.get("token"))throw"You need to specify an application token when creating an application";this.set("webrtc_streaming","boolean"==typeof t.webrtc_streaming&&t.webrtc_streaming),this.set("webrtc_streaming_if_necessary","boolean"==typeof t.webrtc_streaming_if_necessary&&t.webrtc_streaming_if_necessary),this.set("webrtc_on_mobile","boolean"==typeof t.webrtc_on_mobile&&t.webrtc_on_mobile),this.set("cdn","boolean"!=typeof t.cdn||t.cdn),this.set("resumable",!1),this.set("auth","boolean"==typeof t.auth&&t.auth),this.set("analytics","boolean"!=typeof t.analytics||t.analytics),this.set("google_analytics","boolean"==typeof t.google_analytics&&t.google_analytics),this.set("google_analytics_track","undefined"!=typeof t.google_analytics_track?t.google_analytics_track:["init_application","embedding_loaded","record_start","record_end","rerecord_confirm","upload_start"]),this.compute("cookie_key",function(){return r.models.session_cookie_prefix+this.get("token")},["token"]),this.set("cookie_value",this.get("auth")?a.get(this.get("cookie_key")):""),this.on("change:cookie_value",function(e){this.get("auth")&&a.set(this.get("cookie_key"),e)},this),this.set("testing_application",!1),this.set("debug","debug"in t&&t.debug!==undefined?t.debug:r.revision.prerelease),this.set("chrome_extension_id",t.chrome_extension_id),this.set("opera_extension_id",t.opera_extension_id),this.set("chrome_extension_install_link",t.chrome_extension_install_link),this.set("opera_extension_install_link",t.opera_extension_install_link),t.disable_secure_templates&&(o.secureMode=!1)},getUploaderConfig:function(e,t,i){var a={url:e,serverSupportPostMessage:!0,resilience:5,serverSupportsChunked:this.get("resumable"),identifierParameter:"resumableIdentifier",chunks:{chunkNumberParameter:"resumableChunkNumber"},assembly:{fileNameParameter:"resumableFilename",totalSizeParameter:"resumableTotalSize",chunkNumberParameter:"resumableChunkNumber",fileTypeParameter:"resumableType"}};return t&&(a.source=t),s.extend(a,i)},getUploader:function(e,t,i){return n.create(this.getUploaderConfig(e,t,i))},getSignedUrlUploader:function(e){return e.signedUploadUrl}}})});
 
-Scoped.define("private:Application.Debugger", ["base:Class","base:Timers.Timer","browser:Events"], function (e,i,a,t){return e.extend({scoped:t},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__events=this.auto_destroy(new a),this.__events.on(window,"error",function(e){this.__logError({message:e.message,source:e.filename,lineno:e.lineno,colno:e.colno,time:e.timeStamp})},this),this.__queue=[],this.__quota=25,this.__timer=this.auto_destroy(new i({context:this,fire:this.__pushErrors,delay:5e3}))},__logError:function(e){this.__queue.length>=this.__quota||this.__queue.push(e)},__pushErrors:function(){if(0!==this.__queue.length){var e=this.__queue;this.__queue=[],this.__quota-=e.length,this.application.connect.request("/debugger",{data:{events:JSON.stringify(e)},method:"POST"})}}}})});
+Scoped.define("private:Application.Debugger", ["base:Class","base:Timers.Timer","browser:Events"], function(e,i,a,t){return e.extend({scoped:t},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__events=this.auto_destroy(new a),this.__events.on(window,"error",function(e){this.__logError({message:e.message,source:e.filename,lineno:e.lineno,colno:e.colno,time:e.timeStamp})},this),this.__queue=[],this.__quota=25,this.__timer=this.auto_destroy(new i({context:this,fire:this.__pushErrors,delay:5e3}))},__logError:function(e){this.__queue.length>=this.__quota||this.__queue.push(e)},__pushErrors:function(){if(0!==this.__queue.length){var e=this.__queue;this.__queue=[],this.__quota-=e.length,this.application.connect.request("/debugger",{data:{events:JSON.stringify(e)},method:"POST"})}}}})});
 
-Scoped.define("module:Device", ["base:Events.Events","base:Functions","base:Async","base:Promise","media:Recorder.WebRTCVideoRecorderWrapper","media:Recorder.FlashVideoRecorderWrapper","media:WebRTC.Support","media:Flash.Support","browser:Info","private:Core"], function (e,t,i,a,s,r,n,o,c,d){var l=function(e,t){try{return e()}catch(i){return t||!1}},u=new e,p={info:l(function(){return{location:document.location.href,userAgent:navigator.userAgent,flash:c.formatFlash(),device:c.formatDevice(),os:c.formatOS(),browser:c.formatBrowser(),version:c.formatBrowserVersion(),revision:d.revision}},{}),on:t.as_method(u.on,u),webrtc:l(function(){return s.supported({})}),flash:l(function(){return r.supported({})}),cameras:null,microphones:null,camera_count:null,microphone_count:null},h=function(e){p.devices=e,p.cameras=e.video,p.microphones=e.audio,p.camera_count=e.videoCount,p.microphone_count=e.audioCount,u.persistentTrigger("device_info",p.cameras,p.microphones,p.camera_count,p.microphone_count),u.persistentTrigger(0<p.camera_count?"has_camera":"no_camera"),u.persistentTrigger(0<p.microphone_count?"has_microphone":"no_microphone")},m=function(){p.devices=null,u.persistentTrigger("device_error")};return p.media=function(){if("devices"in p)return p.devices?a.value(p.devices):a.error("failed");var t=a.create();try{n.enumerateMediaSources().success(function(e){t.asyncSuccess(e),h(e)}).error(function(){try{o.enumerateMediaSources().success(function(e){t.asyncSuccess(e),h(e)}).error(function(){t.asyncError("failed"),m()})}catch(e){t.asyncError("failed"),m()}})}catch(e){try{o.enumerateMediaSources().success(function(e){t.asyncSuccess(e),h(e)}).error(function(){t.asyncError("failed"),m()})}catch(e){t.asyncError("failed"),m()}}return t},p});
+Scoped.define("module:Device", ["base:Events.Events","base:Functions","base:Async","base:Promise","media:Recorder.WebRTCVideoRecorderWrapper","media:Recorder.FlashVideoRecorderWrapper","media:WebRTC.Support","media:Flash.Support","browser:Info","private:Core"], function(e,t,i,a,s,r,n,o,c,d){var l=function(e,t){try{return e()}catch(i){return t||!1}},u=new e,p={info:l(function(){return{location:document.location.href,userAgent:navigator.userAgent,flash:c.formatFlash(),device:c.formatDevice(),os:c.formatOS(),browser:c.formatBrowser(),version:c.formatBrowserVersion(),revision:d.revision}},{}),on:t.as_method(u.on,u),webrtc:l(function(){return s.supported({})}),flash:l(function(){return r.supported({})}),cameras:null,microphones:null,camera_count:null,microphone_count:null},h=function(e){p.devices=e,p.cameras=e.video,p.microphones=e.audio,p.camera_count=e.videoCount,p.microphone_count=e.audioCount,u.persistentTrigger("device_info",p.cameras,p.microphones,p.camera_count,p.microphone_count),u.persistentTrigger(0<p.camera_count?"has_camera":"no_camera"),u.persistentTrigger(0<p.microphone_count?"has_microphone":"no_microphone")},m=function(){p.devices=null,u.persistentTrigger("device_error")};return p.media=function(){if("devices"in p)return p.devices?a.value(p.devices):a.error("failed");var t=a.create();try{n.enumerateMediaSources().success(function(e){t.asyncSuccess(e),h(e)}).error(function(){try{o.enumerateMediaSources().success(function(e){t.asyncSuccess(e),h(e)}).error(function(){t.asyncError("failed"),m()})}catch(e){t.asyncError("failed"),m()}})}catch(e){try{o.enumerateMediaSources().success(function(e){t.asyncSuccess(e),h(e)}).error(function(){t.asyncError("failed"),m()})}catch(e){t.asyncError("failed"),m()}}return t},p});
 
-Scoped.define("module:Locale", ["base:Classes.LocaleAggregator","base:Classes.LocaleTable","browser:Info","mediacomponents:Assets"], function (e,t,i,a){var s=new e,r=new t;return s.register(r),s.register(a.strings),s.setWeakLocale(i.language()),{setLocale:function(e){s.setLocale(e)},mainLocale:r,mediaLocale:a.strings}});
+Scoped.define("module:Locale", ["base:Classes.LocaleAggregator","base:Classes.LocaleTable","browser:Info","mediacomponents:Assets"], function(e,t,i,a){var s=new e,r=new t;return s.register(r),s.register(a.strings),s.setWeakLocale(i.language()),{setLocale:function(e){s.setLocale(e)},mainLocale:r,mediaLocale:a.strings}});
 
-Scoped.define("private:Logger", [], function (){return{__console:function(e,t){try{console&&console[e]&&console[e].apply(console,t)}catch(i){}return this},warn:function(){return this.__console("warn",arguments)},log:function(){return this.__console("log",arguments)}}});
+Scoped.define("private:Logger", [], function(){return{__console:function(e,t){try{console&&console[e]&&console[e].apply(console,t)}catch(i){}return this},warn:function(){return this.__console("warn",arguments)},log:function(){return this.__console("log",arguments)}}});
 
-Scoped.define("private:Environment", ["private:Logger","private:Core","browser:Info","browser:Loader","base:Objs","base:Types","base:Net.Uri"], function (e,t,i,a,s,r,n){t.revision.prerelease&&e.warn("You are currently using a prerelease version of the Ziggeo JS SDK. We suggest using the stable revision for production use, and prereleases for staging environments and tests only.");var o=!!Scoped.getGlobal("ZiggeoLocal")||!!Scoped.getGlobal("ZiggeoWeb")&&-1===location.hostname.indexOf("ziggeo.com"),c=!1;o||(c=!0);try{0!==location.protocol.indexOf("file")||i.isCordova()||e.warn("In order to use Ziggeo's recording technology, this page needs to be served via https (for WebRTC) and at least via http (for Flash). The file:// protocol is not supported. For more details contact us at support@ziggeo.com")}catch(S){}try{0===location.protocol.indexOf("https")?window.location!==window.parent.location&&0===document.referrer.indexOf("https")&&e.warn("Accessing the camera and the microphone on insecure origins (HTTP) is deprecated, and future browser versions will stop to support insecure origins. We highly recommend upgrading to SSL (HTTPS). For more details contact us at support@ziggeo.com"):0===location.protocol.indexOf("http")&&e.warn("Accessing the camera and the microphone on insecure origins (HTTP) is deprecated, and future browser versions will stop to support insecure origins. We highly recommend upgrading to SSL (HTTPS). For more details contact us at support@ziggeo.com")}catch(S){}var d=!o,l=o||!!Scoped.getGlobal("ZiggeoDev")||!!Scoped.getGlobal("ZiggeoWeb")&&d&&-1!==location.hostname.indexOf("dev"),u=!l,p=o?"local":u?"production":"development",h=s.clone(t.servers[p],1),m={};if(u&&(m.cdn=h["assets.api.server.public.domain"].replace("assets.","assets-cdn.")),m.normal=h["assets.api.server.public.domain"],o)try{window.location.hostname&&/^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)&&(h=s.map(h,function(e){return r.is_string(e)?e.replace("localhost",window.location.hostname):e}),m.local=h["assets.api.server.public.domain"])}catch(S){}var g=h["assets.api.server.public.domain"],_="/v"+t.revision.version+"-r"+t.revision.revision+"/",f=c?"https":"http",v=null;for(var y in m)try{var b=m[y],w=a.findScript(b);if(w&&-1!==w.src.indexOf("ziggeo.js")){var k=n.parse(w.src);f=c?"https":k.protocol,g=k.host,k.port&&(g+=":"+k.port),_=k.directory;break}}catch(S){}return v||(v=f+"://"+g+_),{isLocal:o,isServer:d,isDevelopment:l,isProduction:u,environment:p,serverEnvironments:t.servers,servers:h,serversByToken:function(t){var i=s.clone(h,-1);return s.iter(h.regions,function(e){0===t.indexOf(e.prefix)&&(i=s.extend(i,e))}),i},assetsDomain:g,assetsPath:_,assetsBase:v,sslRequired:c}});
+Scoped.define("private:Environment", ["private:Logger","private:Core","browser:Info","browser:Loader","base:Objs","base:Types","base:Net.Uri"], function(e,t,i,a,s,r,n){t.revision.prerelease&&e.warn("You are currently using a prerelease version of the Ziggeo JS SDK. We suggest using the stable revision for production use, and prereleases for staging environments and tests only.");var o=!!Scoped.getGlobal("ZiggeoLocal")||!!Scoped.getGlobal("ZiggeoWeb")&&-1===location.hostname.indexOf("ziggeo.com"),c=!1;o||(c=!0);try{0!==location.protocol.indexOf("file")||i.isCordova()||e.warn("In order to use Ziggeo's recording technology, this page needs to be served via https (for WebRTC) and at least via http (for Flash). The file:// protocol is not supported. For more details contact us at support@ziggeo.com")}catch(S){}try{0===location.protocol.indexOf("https")?window.location!==window.parent.location&&0===document.referrer.indexOf("https")&&e.warn("Accessing the camera and the microphone on insecure origins (HTTP) is deprecated, and future browser versions will stop to support insecure origins. We highly recommend upgrading to SSL (HTTPS). For more details contact us at support@ziggeo.com"):0===location.protocol.indexOf("http")&&e.warn("Accessing the camera and the microphone on insecure origins (HTTP) is deprecated, and future browser versions will stop to support insecure origins. We highly recommend upgrading to SSL (HTTPS). For more details contact us at support@ziggeo.com")}catch(S){}var d=!o,l=o||!!Scoped.getGlobal("ZiggeoDev")||!!Scoped.getGlobal("ZiggeoWeb")&&d&&-1!==location.hostname.indexOf("dev"),u=!l,p=o?"local":u?"production":"development",h=s.clone(t.servers[p],1),m={};if(u&&(m.cdn=h["assets.api.server.public.domain"].replace("assets.","assets-cdn.")),m.normal=h["assets.api.server.public.domain"],o)try{window.location.hostname&&/^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)&&(h=s.map(h,function(e){return r.is_string(e)?e.replace("localhost",window.location.hostname):e}),m.local=h["assets.api.server.public.domain"])}catch(S){}var g=h["assets.api.server.public.domain"],_="/v"+t.revision.version+"-r"+t.revision.revision+"/",f=c?"https":"http",v=null;for(var y in m)try{var b=m[y],w=a.findScript(b);if(w&&-1!==w.src.indexOf("ziggeo.js")){var k=n.parse(w.src);f=c?"https":k.protocol,g=k.host,k.port&&(g+=":"+k.port),_=k.directory;break}}catch(S){}return v||(v=f+"://"+g+_),{isLocal:o,isServer:d,isDevelopment:l,isProduction:u,environment:p,serverEnvironments:t.servers,servers:h,serversByToken:function(t){var i=s.clone(h,-1);return s.iter(h.regions,function(e){0===t.indexOf(e.prefix)&&(i=s.extend(i,e))}),i},assetsDomain:g,assetsPath:_,assetsBase:v,sslRequired:c}});
 
-Scoped.define("private:Application.Analytics", ["base:Class","base:Events.EventsMixin","base:Objs","base:Time","base:Timers.Timer","browser:Info","private:Core","private:Environment","private:Logger"], function (e,t,n,o,i,c,d,a,s,r){var l=o.now();return e.extend({scoped:r},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__google_analytics_events={},e.data.get("google_analytics")&&(this.__google_analytics_events=n.objectify(e.data.get("google_analytics_track"))),this.__queue=[],this.__trackFailed=0,this.__trackSuccess=0,this.application.data.get("analytics")&&(this.__timer=this.auto_destroy(new i({context:this,fire:this.__pushEvents,delay:5e3})))},_generateEvent:function(e,t,i,a,s,r){return r=r||o.now(),i=i||{},a=a||{},s=s||{},{tokens:n.extend({application_token:this.application.data.get("token")},i),client:{type:"web",version:"v"+d.revision.version+"-"+d.revision.revision,revision:d.revision.revision,sdk_version:e},environment:{location:document.location.href,time:r-l},device:{navigator_appname:navigator.appName,navigator_appcodename:navigator.appCodeName,navigator_appversion:navigator.appVersion,navigator_cookieenabled:navigator.cookieEnabled,navigator_language:navigator.language||navigator.userLanguage||"",navigator_platform:navigator.platform,navigator_useragent:navigator.userAgent,navigator_window_chrome:"chrome"in window,navigator_window_opera:"opera"in window,flash_installed:c.flash().installed(),flash_version_major:c.flash().installed()?c.flash().version().major:0,flash_version_minor:c.flash().installed()?c.flash().version().minor:0},event:{time:r,type:t,media_time:a.media_time||null,embed_type:a.embed_type||null,data_size:a.data_size||null,bandwidth:a.bandwidth||null},media:{duration:s.duration||null,width:s.width||null,height:s.height||null,tags:s.tags?s.tags.join(","):null,creation_type:s.creation_type||null,hd:s.width&&s.height&&921600<=s.width*s.height}}},track:function(e,t,i,a,s,r){try{var n=this._generateEvent(e,t,i,a,s,r);this.application.data.get("analytics")&&this.__queue.push(n),this.__google_analytics_events[t]&&ga("send","event","Ziggeo",t,"Ziggeo Campaign",a.media_time||s.duration||a.data_size||undefined),this.trigger("track",n)}catch(o){}},userTrack:function(e){this.track("2",e)},__pushEvents:function(){if(this.application.data.get("analytics")&&0!==this.__queue.length&&!(10<this.__trackFailed&&this.__trackSuccess/this.__trackFailed<.5)){var e=this.__queue;this.__queue=[],this.application.connect.apiRequest("/scitylana/kcart",{data:{events:JSON.stringify(e)},method:"POST"}).error(function(){this.__trackFailed++,this.__queue=e.concat(this.__queue)},this).success(function(){this.__trackSuccess++},this)}}}}])});
+Scoped.define("private:Application.Analytics", ["base:Class","base:Events.EventsMixin","base:Objs","base:Time","base:Timers.Timer","browser:Info","private:Core","private:Environment","private:Logger"], function(e,t,n,o,i,c,d,a,s,r){var l=o.now();return e.extend({scoped:r},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__google_analytics_events={},e.data.get("google_analytics")&&(this.__google_analytics_events=n.objectify(e.data.get("google_analytics_track"))),this.__queue=[],this.__trackFailed=0,this.__trackSuccess=0,this.application.data.get("analytics")&&(this.__timer=this.auto_destroy(new i({context:this,fire:this.__pushEvents,delay:5e3})))},_generateEvent:function(e,t,i,a,s,r){return r=r||o.now(),i=i||{},a=a||{},s=s||{},{tokens:n.extend({application_token:this.application.data.get("token")},i),client:{type:"web",version:"v"+d.revision.version+"-"+d.revision.revision,revision:d.revision.revision,sdk_version:e},environment:{location:document.location.href,time:r-l},device:{navigator_appname:navigator.appName,navigator_appcodename:navigator.appCodeName,navigator_appversion:navigator.appVersion,navigator_cookieenabled:navigator.cookieEnabled,navigator_language:navigator.language||navigator.userLanguage||"",navigator_platform:navigator.platform,navigator_useragent:navigator.userAgent,navigator_window_chrome:"chrome"in window,navigator_window_opera:"opera"in window,flash_installed:c.flash().installed(),flash_version_major:c.flash().installed()?c.flash().version().major:0,flash_version_minor:c.flash().installed()?c.flash().version().minor:0},event:{time:r,type:t,media_time:a.media_time||null,embed_type:a.embed_type||null,data_size:a.data_size||null,bandwidth:a.bandwidth||null},media:{duration:s.duration||null,width:s.width||null,height:s.height||null,tags:s.tags?s.tags.join(","):null,creation_type:s.creation_type||null,hd:s.width&&s.height&&921600<=s.width*s.height}}},track:function(e,t,i,a,s,r){try{var n=this._generateEvent(e,t,i,a,s,r);this.application.data.get("analytics")&&this.__queue.push(n),this.__google_analytics_events[t]&&ga("send","event","Ziggeo",t,"Ziggeo Campaign",a.media_time||s.duration||a.data_size||undefined),this.trigger("track",n)}catch(o){}},userTrack:function(e){this.track("2",e)},__pushEvents:function(){if(this.application.data.get("analytics")&&0!==this.__queue.length&&!(10<this.__trackFailed&&this.__trackSuccess/this.__trackFailed<.5)){var e=this.__queue;this.__queue=[],this.application.connect.apiRequest("/scitylana/kcart",{data:{events:JSON.stringify(e)},method:"POST"}).error(function(){this.__trackFailed++,this.__queue=e.concat(this.__queue)},this).success(function(){this.__trackSuccess++},this)}}}}])});
 
-Scoped.define("private:Application.Urls", ["base:Class","base:Objs","base:Sort","base:Types","base:Comparators","base:Net.Uri","base:Async","browser:Info","media:Flash.Support","media:WebRTC.RecorderWrapper","private:Environment"], function (e,i,a,t,s,r,n,o,c,d,l,u){return e.extend({scoped:u},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__servers=l.serversByToken(this.application.data.get("token")),this.__rtmpConnectivityResults={},this.__rtmpAudioConnectivityResults={}},httpApiBaseUrl:function(){return(l.sslRequired?"https":"http")+"://"+this.__servers["embed.api.server.public.domain"]},httpStreamingBaseUrl:function(){return(l.sslRequired?"https":"http")+"://"+this.__servers[this.application.data.get("cdn")?"embed-cdn.api.server.public.domain":"embed.api.server.public.domain"]},apiStreamingBaseUrl:function(){return(l.sslRequired?"https":"http")+"://"+this.__servers["streaming-cdn.api.server.public.domain"]},rtmpRecordingUrls:function(){var e=[];return e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.path"]),l.isLocal?(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.path"])):(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmps://"+this.__servers["wowza.api.record.rtmp.domain"]+":443/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.path"])),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.path"]),e.filter(function(e){return 0<this.__rtmpConnectivityResults[e]},this).concat(e.filter(function(e){return!this.__rtmpConnectivityResults[e]},this)).concat(e.filter(function(e){return this.__rtmpConnectivityResults[e]<0},this))},registerRtmpConnectivityResult:function(e,t){this.__rtmpConnectivityResults[e]=t},rtmpRecordingUrl:function(){return this.rtmpRecordingUrls()[0]},webrtcStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.app"]+(e||"")},wssUrl:function(){return this.__servers["wowza.api.record.webrtc.wssurl"]},rtmpAudioRecordingUrls:function(){var e=[];return e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.audiopath"]),l.isLocal?(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.audiopath"])):(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmps://"+this.__servers["wowza.api.record.rtmp.domain"]+":443/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.audiopath"])),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.filter(function(e){return 0<this.__rtmpAudioConnectivityResults[e]},this).concat(e.filter(function(e){return!this.__rtmpAudioConnectivityResults[e]},this)).concat(e.filter(function(e){return this.__rtmpAudioConnectivityResults[e]<0},this))},registerRtmpAudioConnectivityResult:function(e,t){this.__rtmpAudioConnectivityResults[e]=t},rtmpAudioRecordingUrl:function(){return this.rtmpAudioRecordingUrls()[0]},webrtcAudioStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.audioapp"]+(e||"")},httpApiAppUrl:function(){return this.httpApiBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiBaseUrl:function(){return(l.isLocal?"http":"https")+"://"+this.__servers["analytics.api.server.public.domain"]},apiAppUrl:function(){return this.apiBaseUrl()+"/embed/v1/applications/"+this.application.data.get("token")},apiResourceUrl:function(e,t){return this.resourceUrl(this.apiAppUrl(),e,i.extend({auth:!0},t))},httpApiResourceUrl:function(e,t){return this.resourceUrl(this.httpApiAppUrl(),e,i.extend({auth:!0},t))},httpStreamingAppUrl:function(){return this.httpStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},httpStreamingResourceUrl:function(e,t){return this.resourceUrl(this.httpStreamingAppUrl(),e,t)},apiStreamingAppUrl:function(){return this.apiStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiStreamingResourceUrl:function(e,t){return this.resourceUrl(this.apiStreamingAppUrl(),e,t)},urlParams:function(e){e=e||{};var t=i.extend({},i.filter(e.params,function(e,t){return null!==e&&""!==e}));return e.auth&&this.application.data.get("auth")&&((t=i.extend(t,i.filter(e.auth,function(e,t){return null!==e&&""!==e})))[this.application.data.get("cookie_key")]=this.application.data.get("cookie_value")),a.sort_object(t,s.byValue)},hostedBaseUrl:function(){return(l.sslRequired?"https":"http")+"://"+this.__servers["hosted.pages.server.public.domain"]},hostedUrl:function(e){return this.hostedBaseUrl()+e},resourceUrl:function(e,t,i){return r.appendUriParams(e+(t&&0!==t.indexOf("/")?"/":"")+t,this.urlParams(i))}}})});
+Scoped.define("private:Application.Urls", ["base:Class","base:Objs","base:Sort","base:Types","base:Comparators","base:Net.Uri","base:Async","browser:Info","media:Flash.Support","media:WebRTC.RecorderWrapper","private:Environment"], function(e,i,a,t,s,r,n,o,c,d,l,u){return e.extend({scoped:u},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__servers=l.serversByToken(this.application.data.get("token")),this.__rtmpConnectivityResults={},this.__rtmpAudioConnectivityResults={}},httpApiBaseUrl:function(){return(l.sslRequired?"https":"http")+"://"+this.__servers["embed.api.server.public.domain"]},httpStreamingBaseUrl:function(){return(l.sslRequired?"https":"http")+"://"+this.__servers[this.application.data.get("cdn")?"embed-cdn.api.server.public.domain":"embed.api.server.public.domain"]},apiStreamingBaseUrl:function(){return(l.sslRequired?"https":"http")+"://"+this.__servers["streaming-cdn.api.server.public.domain"]},rtmpRecordingUrls:function(){var e=[];return e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.path"]),l.isLocal?(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.path"])):(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmps://"+this.__servers["wowza.api.record.rtmp.domain"]+":443/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.path"])),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.path"]),e.filter(function(e){return 0<this.__rtmpConnectivityResults[e]},this).concat(e.filter(function(e){return!this.__rtmpConnectivityResults[e]},this)).concat(e.filter(function(e){return this.__rtmpConnectivityResults[e]<0},this))},registerRtmpConnectivityResult:function(e,t){this.__rtmpConnectivityResults[e]=t},rtmpRecordingUrl:function(){return this.rtmpRecordingUrls()[0]},webrtcStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.app"]+(e||"")},wssUrl:function(){return this.__servers["wowza.api.record.webrtc.wssurl"]},rtmpAudioRecordingUrls:function(){var e=[];return e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.audiopath"]),l.isLocal?(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.audiopath"])):(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmps://"+this.__servers["wowza.api.record.rtmp.domain"]+":443/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.audiopath"])),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.filter(function(e){return 0<this.__rtmpAudioConnectivityResults[e]},this).concat(e.filter(function(e){return!this.__rtmpAudioConnectivityResults[e]},this)).concat(e.filter(function(e){return this.__rtmpAudioConnectivityResults[e]<0},this))},registerRtmpAudioConnectivityResult:function(e,t){this.__rtmpAudioConnectivityResults[e]=t},rtmpAudioRecordingUrl:function(){return this.rtmpAudioRecordingUrls()[0]},webrtcAudioStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.audioapp"]+(e||"")},httpApiAppUrl:function(){return this.httpApiBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiBaseUrl:function(){return(l.isLocal?"http":"https")+"://"+this.__servers["analytics.api.server.public.domain"]},apiAppUrl:function(){return this.apiBaseUrl()+"/embed/v1/applications/"+this.application.data.get("token")},apiResourceUrl:function(e,t){return this.resourceUrl(this.apiAppUrl(),e,i.extend({auth:!0},t))},httpApiResourceUrl:function(e,t){return this.resourceUrl(this.httpApiAppUrl(),e,i.extend({auth:!0},t))},httpStreamingAppUrl:function(){return this.httpStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},httpStreamingResourceUrl:function(e,t){return this.resourceUrl(this.httpStreamingAppUrl(),e,t)},apiStreamingAppUrl:function(){return this.apiStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiStreamingResourceUrl:function(e,t){return this.resourceUrl(this.apiStreamingAppUrl(),e,t)},urlParams:function(e){e=e||{};var t=i.extend({},i.filter(e.params,function(e,t){return null!==e&&""!==e}));return e.auth&&this.application.data.get("auth")&&((t=i.extend(t,i.filter(e.auth,function(e,t){return null!==e&&""!==e})))[this.application.data.get("cookie_key")]=this.application.data.get("cookie_value")),a.sort_object(t,s.byValue)},hostedBaseUrl:function(){return(l.sslRequired?"https":"http")+"://"+this.__servers["hosted.pages.server.public.domain"]},hostedUrl:function(e){return this.hostedBaseUrl()+e},resourceUrl:function(e,t,i){return r.appendUriParams(e+(t&&0!==t.indexOf("/")?"/":"")+t,this.urlParams(i))}}})});
 
-Scoped.define("module:Config", ["private:Environment","base:Properties.Properties","base:Functions","flash:"], function (e,t,i,a){var s,r,n,o=new t;return s="flash",r=e.assetsBase+"ziggeo.swf",(n=function(e){a.options=a.options||{},a.options.flashFile=e})(r),o.set(s,r),o.on("change:"+s,function(e){n(e)}),{set:i.as_method(o.set,o),get:i.as_method(o.get,o)}});
+Scoped.define("module:Config", ["private:Environment","base:Properties.Properties","base:Functions","flash:"], function(e,t,i,a){var s,r,n,o=new t;return s="flash",r=e.assetsBase+"ziggeo.swf",(n=function(e){a.options=a.options||{},a.options.flashFile=e})(r),o.set(s,r),o.on("change:"+s,function(e){n(e)}),{set:i.as_method(o.set,o),get:i.as_method(o.get,o)}});
 
-Scoped.define("module:Ads", ["mediacomponents:Ads.AdSenseVideoAdProvider","mediacomponents:Ads.VastVideoAdProvider"], function (e,t){return{AdSenseVideoAdProvider:e,VastVideoAdProvider:t}});
+Scoped.define("module:Ads", ["mediacomponents:Ads.AdSenseVideoAdProvider","mediacomponents:Ads.VastVideoAdProvider"], function(e,t){return{AdSenseVideoAdProvider:e,VastVideoAdProvider:t}});
 
-Scoped.define("module:Supplementary", ["base:Async"], function (s){return{eventInvokeCallback:function(e,t,i){try{e.apply(t,i)}catch(a){s.eventually(function(){throw a})}}}});
+Scoped.define("module:Supplementary", ["base:Async"], function(s){return{eventInvokeCallback:function(e,t,i){try{e.apply(t,i)}catch(a){s.eventually(function(){throw a})}}}});
 
-Scoped.define("module:AudioPlayerStates.AudioProcessing", ["mediacomponents:AudioPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function (e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("audio-processing")),this.__audio=this.dyn.get("audio"),this.dyn.application.audios.watch(this.__audio,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__audioUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("audio_processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}}))},_end:function(){this.dyn.application.audios.unwatch(this.__audio,this),this.dyn.set("end-processing-time",a.now()),this.dyn._track("audio_processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
+Scoped.define("module:AudioPlayerStates.AudioProcessing", ["mediacomponents:AudioPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function(e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("audio-processing")),this.__audio=this.dyn.get("audio"),this.dyn.application.audios.watch(this.__audio,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__audioUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("audio_processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}}))},_end:function(){this.dyn.application.audios.unwatch(this.__audio,this),this.dyn.set("end-processing-time",a.now()),this.dyn._track("audio_processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
 
-Scoped.define("module:AudioPlayerStates.PlayAudio", ["mediacomponents:AudioPlayer.Dynamics.PlayerStates.PlayAudio"], function (e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("audio_play_start")}}})});
+Scoped.define("module:AudioPlayerStates.PlayAudio", ["mediacomponents:AudioPlayer.Dynamics.PlayerStates.PlayAudio"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("audio_play_start")}}})});
 
-Scoped.define("module:AudioRecorderStates.Recording", ["mediacomponents:AudioRecorder.Dynamics.RecorderStates.Recording"], function (e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("audio_record_start")},_hasStopped:function(){e._hasStopped.call(this),this.dyn._track("audio_record_end",{media_time:this.dyn.get("duration")})}}})});
+Scoped.define("module:AudioRecorderStates.Recording", ["mediacomponents:AudioRecorder.Dynamics.RecorderStates.Recording"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("audio_record_start")},_hasStopped:function(){e._hasStopped.call(this),this.dyn._track("audio_record_end",{media_time:this.dyn.get("duration")})}}})});
 
-Scoped.define("module:AudioRecorderStates.Chooser", ["mediacomponents:AudioRecorder.Dynamics.RecorderStates.Chooser"], function (e,t){return e.extend({scoped:t},function(t){return{_uploadFile:function(e){t._uploadFile.call(this,e),this.dyn._track("audio_upload_start",{data_size:e.size})}}})});
+Scoped.define("module:AudioRecorderStates.Chooser", ["mediacomponents:AudioRecorder.Dynamics.RecorderStates.Chooser"], function(e,t){return e.extend({scoped:t},function(t){return{_uploadFile:function(e){t._uploadFile.call(this,e),this.dyn._track("audio_upload_start",{data_size:e.size})}}})});
 
-Scoped.define("module:AudioRecorderStates.Uploading", ["mediacomponents:AudioRecorder.Dynamics.RecorderStates.Uploading","base:Time"], function (e,t,i){return e.extend({scoped:i},function(e){return{_started:function(){e._started.call(this),this.dyn.__had_processed=!1,this.dyn._track("audio_uploading_start",{data_size:this.dyn._dataUploader.totalBytes()})},_finished:function(){e._finished.call(this),this.dyn._track("audio_uploading_end",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn._track("upstream_bandwidth",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn.setProp("playerattrs.forcerefresh",t.now())}}})});
+Scoped.define("module:AudioRecorderStates.Uploading", ["mediacomponents:AudioRecorder.Dynamics.RecorderStates.Uploading","base:Time"], function(e,t,i){return e.extend({scoped:i},function(e){return{_started:function(){e._started.call(this),this.dyn.__had_processed=!1,this.dyn._track("audio_uploading_start",{data_size:this.dyn._dataUploader.totalBytes()})},_finished:function(){e._finished.call(this),this.dyn._track("audio_uploading_end",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn._track("upstream_bandwidth",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn.setProp("playerattrs.forcerefresh",t.now())}}})});
 
-Scoped.define("module:ImageRecorderStates.Recording", ["mediacomponents:ImageCapture.Dynamics.RecorderStates.Recording"], function (e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("image_record_start")},_hasStopped:function(){e._hasStopped.call(this),this.dyn._track("image_record_end",{media_time:this.dyn.get("duration")})}}})});
+Scoped.define("module:ImageRecorderStates.Recording", ["mediacomponents:ImageCapture.Dynamics.RecorderStates.Recording"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("image_record_start")},_hasStopped:function(){e._hasStopped.call(this),this.dyn._track("image_record_end",{media_time:this.dyn.get("duration")})}}})});
 
-Scoped.define("module:ImageRecorderStates.Chooser", ["mediacomponents:ImageCapture.Dynamics.RecorderStates.Chooser"], function (e,t){return e.extend({scoped:t},function(t){return{_uploadFile:function(e){t._uploadFile.call(this,e),this.dyn._track("image_upload_start",{data_size:e.size})}}})});
+Scoped.define("module:ImageRecorderStates.Chooser", ["mediacomponents:ImageCapture.Dynamics.RecorderStates.Chooser"], function(e,t){return e.extend({scoped:t},function(t){return{_uploadFile:function(e){t._uploadFile.call(this,e),this.dyn._track("image_upload_start",{data_size:e.size})}}})});
 
-Scoped.define("module:ImageRecorderStates.Uploading", ["mediacomponents:ImageCapture.Dynamics.RecorderStates.Uploading","base:Time"], function (e,t,i){return e.extend({scoped:i},function(e){return{_started:function(){e._started.call(this),this.dyn.__had_processed=!1,this.dyn._track("image_uploading_start",{data_size:this.dyn._dataUploader.totalBytes()})},_finished:function(){e._finished.call(this),this.dyn._track("image_uploading_end",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn._track("upstream_bandwidth",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn.setProp("playerattrs.forcerefresh",t.now())}}})});
+Scoped.define("module:ImageRecorderStates.Uploading", ["mediacomponents:ImageCapture.Dynamics.RecorderStates.Uploading","base:Time"], function(e,t,i){return e.extend({scoped:i},function(e){return{_started:function(){e._started.call(this),this.dyn.__had_processed=!1,this.dyn._track("image_uploading_start",{data_size:this.dyn._dataUploader.totalBytes()})},_finished:function(){e._finished.call(this),this.dyn._track("image_uploading_end",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn._track("upstream_bandwidth",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn.setProp("playerattrs.forcerefresh",t.now())}}})});
 
-Scoped.define("module:PlayerStates.PosterError", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.State"], function (e,t){return e.extend({scoped:t},{dynamics:["loader"],_fail:function(){4!==this.dyn.get("video_data").state?(this.dyn.set("loader_active",!1),this.dyn.set("message_active",!0),this.dyn.set("message",this.dyn.string("video-access-error")),this.listenOn(this.dyn,"message:click",function(){this.next("LoadPlayer")},this)):this.next("VideoProcessing")},_started:function(){!0===this.dyn.get("video_status")&&this._fail(),this.listenOn(this.dyn,"change:video_status",function(){!0===this.dyn.get("video_status")&&this._fail()})}})});
+Scoped.define("module:PlayerStates.PosterError", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.State"], function(e,t){return e.extend({scoped:t},{dynamics:["loader"],_fail:function(){4!==this.dyn.get("video_data").state?(this.dyn.set("loader_active",!1),this.dyn.set("message_active",!0),this.dyn.set("message",this.dyn.string("video-access-error")),this.listenOn(this.dyn,"message:click",function(){this.next("LoadPlayer")},this)):this.next("VideoProcessing")},_started:function(){!0===this.dyn.get("video_status")&&this._fail(),this.listenOn(this.dyn,"change:video_status",function(){!0===this.dyn.get("video_status")&&this._fail()})}})});
 
-Scoped.define("module:PlayerStates.VideoProcessing", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function (e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("video-processing")),this.__video=this.dyn.get("video"),this.dyn.application.videos.watch(this.__video,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__videoUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}})),this.dyn.reattachImage()},_end:function(){this.dyn.application.videos.unwatch(this.__video,this.dyn),this.dyn.set("end-processing-time",a.now()),this.dyn._track("processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
+Scoped.define("module:PlayerStates.VideoProcessing", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function(e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("video-processing")),this.__video=this.dyn.get("video"),this.dyn.application.videos.watch(this.__video,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__videoUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}})),this.dyn.reattachImage()},_end:function(){this.dyn.application.videos.unwatch(this.__video,this.dyn),this.dyn.set("end-processing-time",a.now()),this.dyn._track("processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
 
-Scoped.define("module:PlayerStates.PlayVideo", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.PlayVideo"], function (e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn.application&&this.dyn.application.videos._playback(this.dyn.get("video"),null,this.dyn.get("auth")),this.dyn._track("play_start")}}})});
+Scoped.define("module:PlayerStates.PlayVideo", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.PlayVideo"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn.application&&this.dyn.application.videos._playback(this.dyn.get("video"),null,this.dyn.get("auth")),this.dyn._track("play_start")}}})});
 
-Scoped.define("module:RecorderStates.Recording", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.Recording"], function (e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("record_start")},_hasStopped:function(){e._hasStopped.call(this),this.dyn._track("record_end",{media_time:this.dyn.get("duration")})}}})});
+Scoped.define("module:RecorderStates.Recording", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.Recording"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("record_start")},_hasStopped:function(){e._hasStopped.call(this),this.dyn._track("record_end",{media_time:this.dyn.get("duration")})}}})});
 
-Scoped.define("module:RecorderStates.Chooser", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.Chooser"], function (e,t){return e.extend({scoped:t},function(t){return{_uploadFile:function(e){t._uploadFile.call(this,e),this.dyn._track("upload_start",{data_size:e.size})}}})});
+Scoped.define("module:RecorderStates.Chooser", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.Chooser"], function(e,t){return e.extend({scoped:t},function(t){return{_uploadFile:function(e){t._uploadFile.call(this,e),this.dyn._track("upload_start",{data_size:e.size})}}})});
 
-Scoped.define("module:RecorderStates.CovershotSelection", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.CovershotSelection"], function (e,t){return e.extend({scoped:t},function(t){return{_nextUploading:function(e){this.dyn._track(e?"cover_skip":"cover_select"),t._nextUploading.call(this,e)}}})});
+Scoped.define("module:RecorderStates.CovershotSelection", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.CovershotSelection"], function(e,t){return e.extend({scoped:t},function(t){return{_nextUploading:function(e){this.dyn._track(e?"cover_skip":"cover_select"),t._nextUploading.call(this,e)}}})});
 
-Scoped.define("module:RecorderStates.Uploading", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.Uploading","base:Time"], function (e,t,i){return e.extend({scoped:i},function(e){return{_started:function(){e._started.call(this),this.dyn.__had_processed=!1,this.dyn._track("uploading_start",{data_size:this.dyn._dataUploader.totalBytes()})},_finished:function(){e._finished.call(this),this.dyn._track("uploading_end",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn._track("upstream_bandwidth",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn.setProp("playerattrs.forcerefresh",t.now())}}})});
+Scoped.define("module:RecorderStates.Uploading", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.Uploading","base:Time"], function(e,t,i){return e.extend({scoped:i},function(e){return{_started:function(){e._started.call(this),this.dyn.__had_processed=!1,this.dyn._track("uploading_start",{data_size:this.dyn._dataUploader.totalBytes()})},_finished:function(){e._finished.call(this),this.dyn._track("uploading_end",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn._track("upstream_bandwidth",{media_time:this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"),data_size:this.dyn._dataUploader.totalBytes(),bandwidth:this.dyn._dataUploader.totalBytes()/(this.dyn.get("end-upload-time")-this.dyn.get("start-upload-time"))}),this.dyn.setProp("playerattrs.forcerefresh",t.now())}}})});
 
-Scoped.define("private:Application.VideosApiMixin", function (){return{index:function(e,t,i){return this.application.connect.request("/videos/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.request("/videos/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.request("/videos",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.request("/videos/"+e,{method:"POST",auth:i,resilience:a,data:t})},_playback:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/playback",{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.request("/videos/"+e,{method:"GET",auth:t,resilience:i})}}});
+Scoped.define("private:Application.VideosApiMixin", function(){return{index:function(e,t,i){return this.application.connect.request("/videos/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.request("/videos/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.request("/videos",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.request("/videos/"+e,{method:"POST",auth:i,resilience:a,data:t})},_playback:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/playback",{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.request("/videos/"+e,{method:"GET",auth:t,resilience:i})}}});
 
-Scoped.define("private:Application.Videos", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Types","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.VideosApiMixin"], function (e,s,c,d,l,u,t,r,p,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},imageUrl:function(e,t){t=t||{};var i="videos/"+e+"/image";return this.application.urls.httpStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},publicVideoUrl:function(e){return this.application.urls.hostedUrl("/v/"+e)},iframeVideoUrl:function(e){return this.application.urls.hostedUrl("/p/"+e)},iframeRecorderUrl:function(){return this.application.urls.hostedUrl("/r/"+this.application.data.get("token"))},videoUrl:function(e,t){var i="videos/"+e+"/"+((t=t||{}).download?"download_video.mp4":"video.mp4");return this.application.urls.httpStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(l.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=l.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,l.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),o.promises=[],u.is_empty(o.watchers)||((t&&!t.equals(r)||!p.deepEqual(i,s,10))&&c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a)))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.streams.dataUploader(e.video.token,e.stream.token,{auth:a.auth,video_data:a.video_data,audio_data:a.audio_data,image_data:a.image_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.streams._recorder_submit(e.video.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
+Scoped.define("private:Application.Videos", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Types","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.VideosApiMixin"], function(e,s,c,d,l,u,t,r,p,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},imageUrl:function(e,t){t=t||{};var i="videos/"+e+"/image";return this.application.urls.httpStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},publicVideoUrl:function(e){return this.application.urls.hostedUrl("/v/"+e)},iframeVideoUrl:function(e){return this.application.urls.hostedUrl("/p/"+e)},iframeRecorderUrl:function(){return this.application.urls.hostedUrl("/r/"+this.application.data.get("token"))},videoUrl:function(e,t){var i="videos/"+e+"/"+((t=t||{}).download?"download_video.mp4":"video.mp4");return this.application.urls.httpStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(l.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=l.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,l.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),o.promises=[],u.is_empty(o.watchers)||((t&&!t.equals(r)||!p.deepEqual(i,s,10))&&c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a)))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.streams.dataUploader(e.video.token,e.stream.token,{auth:a.auth,video_data:a.video_data,audio_data:a.audio_data,image_data:a.image_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.streams._recorder_submit(e.video.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
 
-Scoped.define("private:Application.StreamsApiMixin", function (){return{index:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},accept:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/accept",{method:"POST",auth:i,resilience:a})},_image_attach:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/imageattach",{method:"POST",auth:a,resilience:s,data:i})},_audio_attach:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/audioattach",{method:"POST",auth:a,resilience:s,data:i})},_recorder_submit:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/recordersubmit",{method:"POST",auth:a,resilience:s,data:i})},_uploader_state:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/uploaderstate",{method:"GET",auth:i,resilience:a})},_subtitle_attach:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/subtitleattach",{method:"POST",auth:i,resilience:a})}}});
+Scoped.define("private:Application.StreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},accept:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/accept",{method:"POST",auth:i,resilience:a})},_image_attach:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/imageattach",{method:"POST",auth:a,resilience:s,data:i})},_audio_attach:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/audioattach",{method:"POST",auth:a,resilience:s,data:i})},_recorder_submit:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/recordersubmit",{method:"POST",auth:a,resilience:s,data:i})},_uploader_state:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/uploaderstate",{method:"GET",auth:i,resilience:a})},_subtitle_attach:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/subtitleattach",{method:"POST",auth:i,resilience:a})}}});
 
-Scoped.define("private:Application.Streams", ["base:Class","base:Objs","private:Application.StreamsApiMixin","browser:Upload.MultiUploader"], function (e,t,i,s,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},imageUrl:function(e,t,i){i=i||{};var a="videos/"+e+"/streams/"+t+"/image";return this.application.urls.httpStreamingResourceUrl(a,{auth:i.auth,params:i.params})},videoUrl:function(e,t,i){var a="videos/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_video.mp4":"video.mp4");return this.application.urls.httpStreamingResourceUrl(a,{auth:i.auth,params:i.params})},videoAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/videoattach",{auth:i})},videoAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.videoAttachUrl(e,t,i),a)},videoAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.videoAttachUrl(e,t,i),a)},imageAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/imageattach",{auth:i})},imageAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.imageAttachUrl(e,t,i),a,{nonessential:!1})},imageAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.imageAttachUrl(e,t,i),a,{essential:!1})},audioAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/audioattach",{auth:i})},subtitleAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/subtitleattach",{auth:i})},audioAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.audioAttachUrl(e,t,i),a)},subtitleAttachUploaderUrl:function(e,t,i){return this.subtitleAttachUrl(e,t,i)},audioAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.audioAttachUrl(e,t,i),a)},rtmpStreamName:function(e,t,i){return this.application.urls.resourceUrl("applications/"+this.application.data.get("token"),"/videos/"+e+"/streams/"+t+"/video.mp4",{auth:i})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___videos___"+e+"___streams___"+t+"___video"},dataUploader:function(e,t,i){var a=new s;return i.video_data&&a.addUploader(this.videoAttachUploader(e,t,i.auth,i.video_data)),i.audio_data&&a.addUploader(this.audioAttachUploader(e,t,i.auth,i.audio_data)),i.image_data&&a.addUploader(this.imageAttachUploader(e,t,i.auth,i.image_data)),a}}}])});
+Scoped.define("private:Application.Streams", ["base:Class","base:Objs","private:Application.StreamsApiMixin","browser:Upload.MultiUploader"], function(e,t,i,s,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},imageUrl:function(e,t,i){i=i||{};var a="videos/"+e+"/streams/"+t+"/image";return this.application.urls.httpStreamingResourceUrl(a,{auth:i.auth,params:i.params})},videoUrl:function(e,t,i){var a="videos/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_video.mp4":"video.mp4");return this.application.urls.httpStreamingResourceUrl(a,{auth:i.auth,params:i.params})},videoAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/videoattach",{auth:i})},videoAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.videoAttachUrl(e,t,i),a)},videoAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.videoAttachUrl(e,t,i),a)},imageAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/imageattach",{auth:i})},imageAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.imageAttachUrl(e,t,i),a,{nonessential:!1})},imageAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.imageAttachUrl(e,t,i),a,{essential:!1})},audioAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/audioattach",{auth:i})},subtitleAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/subtitleattach",{auth:i})},audioAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.audioAttachUrl(e,t,i),a)},subtitleAttachUploaderUrl:function(e,t,i){return this.subtitleAttachUrl(e,t,i)},audioAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.audioAttachUrl(e,t,i),a)},rtmpStreamName:function(e,t,i){return this.application.urls.resourceUrl("applications/"+this.application.data.get("token"),"/videos/"+e+"/streams/"+t+"/video.mp4",{auth:i})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___videos___"+e+"___streams___"+t+"___video"},dataUploader:function(e,t,i){var a=new s;return i.video_data&&a.addUploader(this.videoAttachUploader(e,t,i.auth,i.video_data)),i.audio_data&&a.addUploader(this.audioAttachUploader(e,t,i.auth,i.audio_data)),i.image_data&&a.addUploader(this.imageAttachUploader(e,t,i.auth,i.image_data)),a}}}])});
 
-Scoped.define("private:Application.AudiosApiMixin", function (){return{index:function(e,t,i){return this.application.connect.request("/audios/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.request("/audios/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.request("/audios",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.request("/audios/"+e,{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.request("/audios/"+e,{method:"GET",auth:t,resilience:i})}}});
+Scoped.define("private:Application.AudiosApiMixin", function(){return{index:function(e,t,i){return this.application.connect.request("/audios/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.request("/audios/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.request("/audios",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.request("/audios/"+e,{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.request("/audios/"+e,{method:"GET",auth:t,resilience:i})}}});
 
-Scoped.define("private:Application.Audios", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.AudiosApiMixin"], function (e,s,c,d,l,t,r,u,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},audioUrl:function(e,t){var i="audios/"+e+"/"+((t=t||{}).download?"download_audio.mp4":"audio.mp4");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(l.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=l.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,l.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),(t&&!t.equals(r)||!u.deepEqual(i,s,10))&&c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.audio_streams.dataUploader(e.audio.token,e.stream.token,{auth:a.auth,audio_data:a.audio_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.audio_streams.submit(e.audio.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
+Scoped.define("private:Application.Audios", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.AudiosApiMixin"], function(e,s,c,d,l,t,r,u,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},audioUrl:function(e,t){var i="audios/"+e+"/"+((t=t||{}).download?"download_audio.mp4":"audio.mp4");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(l.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=l.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,l.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),(t&&!t.equals(r)||!u.deepEqual(i,s,10))&&c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.audio_streams.dataUploader(e.audio.token,e.stream.token,{auth:a.auth,audio_data:a.audio_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.audio_streams.submit(e.audio.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
 
-Scoped.define("private:Application.AudioStreamsApiMixin", function (){return{index:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},submit:function(e,t,i,a,s){return this.application.connect.request("/audios/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
+Scoped.define("private:Application.AudioStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},submit:function(e,t,i,a,s){return this.application.connect.request("/audios/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
 
-Scoped.define("private:Application.AudioStreams", ["base:Class","base:Objs","private:Application.AudioStreamsApiMixin"], function (e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},audioUrl:function(e,t,i){var a="audios/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_audio.mp4":"audio.mp4");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},rtmpStreamName:function(e,t,i){return this.application.urls.resourceUrl("applications/"+this.application.data.get("token"),"/audios/"+e+"/streams/"+t+"/audio.mp4",{auth:i})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___audios___"+e+"___streams___"+t+"___audio"},dataUploader:function(e,t,i){return this.audioAttachUploader(e,t,i.auth,i.audio_data)}}}])});
+Scoped.define("private:Application.AudioStreams", ["base:Class","base:Objs","private:Application.AudioStreamsApiMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},audioUrl:function(e,t,i){var a="audios/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_audio.mp4":"audio.mp4");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},rtmpStreamName:function(e,t,i){return this.application.urls.resourceUrl("applications/"+this.application.data.get("token"),"/audios/"+e+"/streams/"+t+"/audio.mp4",{auth:i})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___audios___"+e+"___streams___"+t+"___audio"},dataUploader:function(e,t,i){return this.audioAttachUploader(e,t,i.auth,i.audio_data)}}}])});
 
-Scoped.define("private:Application.ImagesApiMixin", function (){return{index:function(e,t,i){return this.application.connect.request("/images/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.request("/images/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.request("/images",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.request("/images/"+e,{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.request("/images/"+e,{method:"GET",auth:t,resilience:i})}}});
+Scoped.define("private:Application.ImagesApiMixin", function(){return{index:function(e,t,i){return this.application.connect.request("/images/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.request("/images/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.request("/images",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.request("/images/"+e,{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.request("/images/"+e,{method:"GET",auth:t,resilience:i})}}});
 
-Scoped.define("private:Application.Images", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.ImagesApiMixin"], function (e,s,c,d,l,t,r,u,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},imageUrl:function(e,t){var i="images/"+e+"/"+((t=t||{}).download?"download_image.mp4":"image.mp4");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(l.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=l.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,l.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),(t&&!t.equals(r)||!u.deepEqual(i,s,10))&&c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.image_streams.dataUploader(e.image.token,e.stream.token,{auth:a.auth,image_data:a.image_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.image_streams.submit(e.image.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
+Scoped.define("private:Application.Images", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.ImagesApiMixin"], function(e,s,c,d,l,t,r,u,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},imageUrl:function(e,t){var i="images/"+e+"/"+((t=t||{}).download?"download_image.mp4":"image.mp4");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(l.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=l.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,l.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),(t&&!t.equals(r)||!u.deepEqual(i,s,10))&&c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.image_streams.dataUploader(e.image.token,e.stream.token,{auth:a.auth,image_data:a.image_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.image_streams.submit(e.image.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
 
-Scoped.define("private:Application.ImageStreamsApiMixin", function (){return{index:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},submit:function(e,t,i,a,s){return this.application.connect.request("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
+Scoped.define("private:Application.ImageStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},submit:function(e,t,i,a,s){return this.application.connect.request("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
 
-Scoped.define("private:Application.ImageStreams", ["base:Class","base:Objs","private:Application.ImageStreamsApiMixin"], function (e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},imageUrl:function(e,t,i){var a="images/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_image.mp4":"image.mp4");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},rtmpStreamName:function(e,t,i){return this.application.urls.resourceUrl("applications/"+this.application.data.get("token"),"/images/"+e+"/streams/"+t+"/image.mp4",{auth:i})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___images___"+e+"___streams___"+t+"___image"},dataUploader:function(e,t,i){return this.imageAttachUploader(e,t,i.auth,i.image_data)}}}])});
+Scoped.define("private:Application.ImageStreams", ["base:Class","base:Objs","private:Application.ImageStreamsApiMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},imageUrl:function(e,t,i){var a="images/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_image.mp4":"image.mp4");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},rtmpStreamName:function(e,t,i){return this.application.urls.resourceUrl("applications/"+this.application.data.get("token"),"/images/"+e+"/streams/"+t+"/image.mp4",{auth:i})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___images___"+e+"___streams___"+t+"___image"},dataUploader:function(e,t,i){return this.imageAttachUploader(e,t,i.auth,i.image_data)}}}])});
 
-Scoped.define("module:Application", ["base:Class","base:Objs","base:Events.EventsMixin","base:Events.Events","base:Async","browser:Dom","module:Locale","private:Application.Data","private:Application.Urls","private:Application.Connect","private:Application.Videos","private:Application.Streams","private:Application.Audios","private:Application.AudioStreams","private:Application.Images","private:Application.ImageStreams","private:Application.Analytics","private:Application.Debugger","module:Supplementary"], function (e,i,t,a,s,r,n,o,c,d,l,u,p,h,m,g,_,f,v,y){return n.mainLocale.register({error_503:"We are maintaining our service. We will be back shortly.",error_404:"We cannot recognize your api key. Please make sure to specify it in your website's header.",error_401:"You are not allowed to access the application from this site.",error_412:"You need to confirm / upgrade your account.",error_unknown:"An unknown error occurred. Our team has been notified and will resolve the issue."},"application"),e.extend({scoped:y},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.data=this.auto_destroy(new o(this,e)),this.data.get("debug")&&(this.debug=this.auto_destroy(new f(this))),this.urls=this.auto_destroy(new c(this)),this.connect=this.auto_destroy(new d(this)),this.videos=this.auto_destroy(new l(this)),this.streams=this.auto_destroy(new u(this)),this.audios=this.auto_destroy(new p(this)),this.audio_streams=this.auto_destroy(new h(this)),this.images=this.auto_destroy(new m(this)),this.image_streams=this.auto_destroy(new g(this)),this.analytics=this.auto_destroy(new _(this)),this.embed_events=this.auto_destroy(new a),this.embed_events._invokeCallback=v.eventInvokeCallback,this._invokeCallback=v.eventInvokeCallback,this.cls.register(this),this.__init()},destroy:function(){this.cls.unregister(this),t.destroy.call(this)},__init:function(){this.connect.request("session",{method:"POST",params:{noauth:!this.data.get("auth")}}).success(function(e){this.data.set("cookie_changed",e.token!==this.data.get("cookie_value")),this.data.set("cookie_value",e.token),this.data.set("testing_application",e.testing_application),this.data.set("ready",!0),this.analytics.track("2","init_application",{}),r.ready(function(){s.eventually(function(){this.persistentTrigger("ready")},this)},this)},this).error(function(e){this.data.set("error",e.status_code());var t=n.mainLocale.get("error_"+e.status_code(),"application");this.data.set("error_message",t||n.mainLocale.get("error_unknown","application")),this.persistentTrigger("error",e.status_code(),this.data.get("error_message"))},this)}}}],{__default:null,__instances:{},__deferred:0,events:new a,setDefault:function(e){this.__default=e,this.events.trigger("set-default",e)},getDefault:function(){return this.__default},getByToken:function(e){return this.__instances[e]},instanceByToken:function(e,t){return this.getByToken(e)||new this(i.extend({token:e},t))},register:function(e){var t=e.data.get("token");if(t in this.__instances)throw"Application Instance already existing for this application token.";this.__instances[t]=e,this.__default||this.setDefault(e)},unregister:function(e){var t=e.data.get("token");this.__instances[t]===e&&delete this.__instances[t],this.getDefault()===e&&this.setDefault(null)},isDeferred:function(){return 0<this.__deferred},defer:function(){this.__deferred++},undefer:function(){this.__deferred--,0===this.__deferred&&this.events.trigger("undefer")},onUndefer:function(e,t){this.isDeferred()?this.events.once("undefer",e,t):e.call(t||this)}})});
+Scoped.define("module:Application", ["base:Class","base:Objs","base:Events.EventsMixin","base:Events.Events","base:Async","browser:Dom","module:Locale","private:Application.Data","private:Application.Urls","private:Application.Connect","private:Application.Videos","private:Application.Streams","private:Application.Audios","private:Application.AudioStreams","private:Application.Images","private:Application.ImageStreams","private:Application.Analytics","private:Application.Debugger","module:Supplementary"], function(e,i,t,a,s,r,n,o,c,d,l,u,p,h,m,g,_,f,v,y){return n.mainLocale.register({error_503:"We are maintaining our service. We will be back shortly.",error_404:"We cannot recognize your api key. Please make sure to specify it in your website's header.",error_401:"You are not allowed to access the application from this site.",error_412:"You need to confirm / upgrade your account.",error_unknown:"An unknown error occurred. Our team has been notified and will resolve the issue."},"application"),e.extend({scoped:y},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.data=this.auto_destroy(new o(this,e)),this.data.get("debug")&&(this.debug=this.auto_destroy(new f(this))),this.urls=this.auto_destroy(new c(this)),this.connect=this.auto_destroy(new d(this)),this.videos=this.auto_destroy(new l(this)),this.streams=this.auto_destroy(new u(this)),this.audios=this.auto_destroy(new p(this)),this.audio_streams=this.auto_destroy(new h(this)),this.images=this.auto_destroy(new m(this)),this.image_streams=this.auto_destroy(new g(this)),this.analytics=this.auto_destroy(new _(this)),this.embed_events=this.auto_destroy(new a),this.embed_events._invokeCallback=v.eventInvokeCallback,this._invokeCallback=v.eventInvokeCallback,this.cls.register(this),this.__init()},destroy:function(){this.cls.unregister(this),t.destroy.call(this)},__init:function(){this.connect.request("session",{method:"POST",params:{noauth:!this.data.get("auth")}}).success(function(e){this.data.set("cookie_changed",e.token!==this.data.get("cookie_value")),this.data.set("cookie_value",e.token),this.data.set("testing_application",e.testing_application),this.data.set("ready",!0),this.analytics.track("2","init_application",{}),r.ready(function(){s.eventually(function(){this.persistentTrigger("ready")},this)},this)},this).error(function(e){this.data.set("error",e.status_code());var t=n.mainLocale.get("error_"+e.status_code(),"application");this.data.set("error_message",t||n.mainLocale.get("error_unknown","application")),this.persistentTrigger("error",e.status_code(),this.data.get("error_message"))},this)}}}],{__default:null,__instances:{},__deferred:0,events:new a,setDefault:function(e){this.__default=e,this.events.trigger("set-default",e)},getDefault:function(){return this.__default},getByToken:function(e){return this.__instances[e]},instanceByToken:function(e,t){return this.getByToken(e)||new this(i.extend({token:e},t))},register:function(e){var t=e.data.get("token");if(t in this.__instances)throw"Application Instance already existing for this application token.";this.__instances[t]=e,this.__default||this.setDefault(e)},unregister:function(e){var t=e.data.get("token");this.__instances[t]===e&&delete this.__instances[t],this.getDefault()===e&&this.setDefault(null)},isDeferred:function(){return 0<this.__deferred},defer:function(){this.__deferred++},undefer:function(){this.__deferred--,0===this.__deferred&&this.events.trigger("undefer")},onUndefer:function(e,t){this.isDeferred()?this.events.once("undefer",e,t):e.call(t||this)}})});
 
-Scoped.define("private:Dynamics", ["dynamics:DomObserver","dynamics:Parser","dynamics:Registries","base:Async","browser:Dom","module:Application"], function (e,t,i,a,s,r){t.secureMode=!0;var n=new e({allowed_dynamics:["ziggeoplayer","ziggeorecorder","ziggeoaudioplayer","ziggeoaudiorecorder","ziggeoimageviewer","ziggeoimagecapture","ziggeoiframeplayer","ziggeoiframerecorder"],enabled:!(i.prefixes.ziggeo=!0)});return s.ready(function(){a.eventually(function(){r.onUndefer(function(){n.enable()})})}),{domObserver:n}});
+Scoped.define("private:Dynamics", ["dynamics:DomObserver","dynamics:Parser","dynamics:Registries","base:Async","browser:Dom","module:Application"], function(e,t,i,a,s,r){t.secureMode=!0;var n=new e({allowed_dynamics:["ziggeoplayer","ziggeorecorder","ziggeoaudioplayer","ziggeoaudiorecorder","ziggeoimageviewer","ziggeoimagecapture","ziggeoiframeplayer","ziggeoiframerecorder"],enabled:!(i.prefixes.ziggeo=!0)});return s.ready(function(){a.eventually(function(){r.onUndefer(function(){n.enable()})})}),{domObserver:n}});
 
-Scoped.define("private:ZiggeoDynamicMixin", ["module:Application","base:Types"], function (e,t){return{_obtainApplication:function(){this.get("application")&&(this.application=t.is_string(this.get("application"))?e.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||e.getDefault()},_deferActivate:function(){return this._obtainApplication(),!(this.application||!this.get("lazy-application"))&&(e.events.once("set-default",function(e){this.application=e,this.activate()},this),!0)}}});
+Scoped.define("private:ZiggeoDynamicMixin", ["module:Application","base:Types"], function(e,t){return{_obtainApplication:function(){this.get("application")&&(this.application=t.is_string(this.get("application"))?e.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||e.getDefault()},_deferActivate:function(){return this._obtainApplication(),!(this.application||!this.get("lazy-application"))&&(e.events.once("set-default",function(e){this.application=e,this.activate()},this),!0)}}});
 
-Scoped.define("module:AudioPlayer", ["mediacomponents:AudioPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function (e,t,i,a,s,r,n,o,l,c,d,u,p,h){return e.extend({scoped:h},[p,function(e){return{types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool"},_notifications:{_activate:"_createWithApplication"},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},attrs:{"client-auth":null,"server-auth":null,"intermediate-token":null,audio:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1},create:function(){if(this._invokeCallback=o.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("audio_status",null)},_obtainApplication:function(){this.get("application")&&(this.application=a.is_string(this.get("application"))?i.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||i.getDefault()},_createWithApplication:function(){if(this._obtainApplication(),this.application)if(this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")){if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(e){return this.__sourceByAudio(e)},this));var e=this.get("playlist")[0];this.set("source",e.source),this.set("audio",e.token),this.on("playlist-next",function(e){this.set("audio",e.token)},this)}this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setAudioSources(),this.set("ready",!0),this._track("embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this)}else t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");else t.warn("No application (token) defined. We need an application (token) to include an embedding.")},events:{"change:audio":function(){this.set("stream",null),this.__setAudioSources()},paused:function(){this._track("audio_play_pause",{media_time:this.get("position")})},playing:function(){this._track("audio_play_playing",{media_time:this.get("position")})},ended:function(){this._track("audio_play_end",{media_time:this.get("duration")})},seek:function(e){this._track("audio_play_seek",{media_time:e})}},__setAudioSources:function(){this.get("audio")&&this.get("application_status")&&(this.set("shareaudiourl",this.application.audios.publicAudioUrl(this.get("audio")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),this.application.audios.cache(this.get("audio"),{auth:this.get("auth")}).callback(this.__audioUpdate,this),this.get("ready")&&this.reattachAudio())},__setSources:function(){this.setAll(this.__sourceByAudio(this.get("audio"),this.get("stream")))},__sourceByAudio:function(t,e){var i=this.get("audio_data"),a=l.filter(i&&i.streams?i.streams:[],function(e){return(e.token===i.original_stream.token||e.parent_stream===i.original_stream.token)&&5===e.state&&3===e.streamable},this);if(this.get("playlist")&&(a=[],e=null),e||a.length<2){var s=e?this.application.audio_streams:this.application.audios,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{source:s.audioUrl.apply(s,r),token:t}}var n=[],o=[],c={force_refresh:this.get("forcerefresh"),auth:this.get("auth")};l.iter(a,function(e){n.push({src:this.application.audio_streams.audioUrl(t,e.token,c),token:e.token}),o.push({filter:{token:e.token}})},this);var d=o[0];return{source:null,sources:n,streams:o,currentstream:d,token:t}},__audioUpdate:function(e,t){if(!this.destroyed())if(e)this.set("audio_status",!1),e.status_code()===r.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("audio-not-found")}):e.status_code()===r.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("audio-access-forbidden")}):this.state().next("FatalError",{message:this.string("audio-unknown-error")});else{if(this.set("audio_data",t),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("audio-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("audio-unknown-error")});if(this.set("audio_status",!0),4===t.state)return void("AudioProcessing"!==this.state().state_name()&&this.state().next("AudioProcessing"));if("AudioProcessing"===this.state().state_name())return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.audios.refreshToken(this.get("audio")))return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=c.now(),s=d.create();s.success(function(){this.application.analytics.track("2",e,{audio_token:this.get("audio_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},l.extend({embed_type:"player"},t),l.extend({duration:this.get("audio_data").duration||this.get("duration"),tags:this.get("audio_data").tags},i),a)},this),this.get("audio_data")?s.asyncSuccess():this.once("change:audio_data",function(){s.asyncSuccess()},this)}}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoaudioplayer").register("ziggeoaudioplayer").attachStringTable(n.mainLocale).addStrings({"audio-not-found":"We could not find the specified audio file.","audio-access-forbidden":"You are not permitted to access this audio file.","audio-unknown-error":"We cannot access this audio at the moment. Please try again later.","audio-rejected":"The audio has been rejected.","audio-processing":"The audio is processing - stay tuned.","audio-access-error":"The audio is currently under moderation. You may click to retry."})});
+Scoped.define("module:AudioPlayer", ["mediacomponents:AudioPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function(e,t,i,a,s,r,n,o,l,c,d,u,p,h){return e.extend({scoped:h},[p,function(e){return{types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool"},_notifications:{_activate:"_createWithApplication"},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},attrs:{"client-auth":null,"server-auth":null,"intermediate-token":null,audio:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1},create:function(){if(this._invokeCallback=o.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("audio_status",null)},_obtainApplication:function(){this.get("application")&&(this.application=a.is_string(this.get("application"))?i.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||i.getDefault()},_createWithApplication:function(){if(this._obtainApplication(),this.application)if(this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")){if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(e){return this.__sourceByAudio(e)},this));var e=this.get("playlist")[0];this.set("source",e.source),this.set("audio",e.token),this.on("playlist-next",function(e){this.set("audio",e.token)},this)}this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setAudioSources(),this.set("ready",!0),this._track("embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this)}else t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");else t.warn("No application (token) defined. We need an application (token) to include an embedding.")},events:{"change:audio":function(){this.set("stream",null),this.__setAudioSources()},paused:function(){this._track("audio_play_pause",{media_time:this.get("position")})},playing:function(){this._track("audio_play_playing",{media_time:this.get("position")})},ended:function(){this._track("audio_play_end",{media_time:this.get("duration")})},seek:function(e){this._track("audio_play_seek",{media_time:e})}},__setAudioSources:function(){this.get("audio")&&this.get("application_status")&&(this.set("shareaudiourl",this.application.audios.publicAudioUrl(this.get("audio")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),this.application.audios.cache(this.get("audio"),{auth:this.get("auth")}).callback(this.__audioUpdate,this),this.get("ready")&&this.reattachAudio())},__setSources:function(){this.setAll(this.__sourceByAudio(this.get("audio"),this.get("stream")))},__sourceByAudio:function(t,e){var i=this.get("audio_data"),a=l.filter(i&&i.streams?i.streams:[],function(e){return(e.token===i.original_stream.token||e.parent_stream===i.original_stream.token)&&5===e.state&&3===e.streamable},this);if(this.get("playlist")&&(a=[],e=null),e||a.length<2){var s=e?this.application.audio_streams:this.application.audios,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{source:s.audioUrl.apply(s,r),token:t}}var n=[],o=[],c={force_refresh:this.get("forcerefresh"),auth:this.get("auth")};l.iter(a,function(e){n.push({src:this.application.audio_streams.audioUrl(t,e.token,c),token:e.token}),o.push({filter:{token:e.token}})},this);var d=o[0];return{source:null,sources:n,streams:o,currentstream:d,token:t}},__audioUpdate:function(e,t){if(!this.destroyed())if(e)this.set("audio_status",!1),e.status_code()===r.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("audio-not-found")}):e.status_code()===r.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("audio-access-forbidden")}):this.state().next("FatalError",{message:this.string("audio-unknown-error")});else{if(this.set("audio_data",t),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("audio-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("audio-unknown-error")});if(this.set("audio_status",!0),4===t.state)return void("AudioProcessing"!==this.state().state_name()&&this.state().next("AudioProcessing"));if("AudioProcessing"===this.state().state_name())return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.audios.refreshToken(this.get("audio")))return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=c.now(),s=d.create();s.success(function(){this.application.analytics.track("2",e,{audio_token:this.get("audio_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},l.extend({embed_type:"player"},t),l.extend({duration:this.get("audio_data").duration||this.get("duration"),tags:this.get("audio_data").tags},i),a)},this),this.get("audio_data")?s.asyncSuccess():this.once("change:audio_data",function(){s.asyncSuccess()},this)}}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoaudioplayer").register("ziggeoaudioplayer").attachStringTable(n.mainLocale).addStrings({"audio-not-found":"We could not find the specified audio file.","audio-access-forbidden":"You are not permitted to access this audio file.","audio-unknown-error":"We cannot access this audio at the moment. Please try again later.","audio-rejected":"The audio has been rejected.","audio-processing":"The audio is processing - stay tuned.","audio-access-error":"The audio is currently under moderation. You may click to retry."})});
 
-Scoped.define("module:PopupAudioPlayer", ["module:AudioPlayer","mediacomponents:PopupHelper"], function (e,t,i){return e.extend({scoped:i},t.mixin)});
+Scoped.define("module:PopupAudioPlayer", ["module:AudioPlayer","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:AudioRecorder", ["mediacomponents:AudioRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:AudioRecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function (AudioRecorder,Application,Device,Logger,Environment,AudioRecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return AudioRecorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynaudioplayer:"ziggeoaudioplayer","audio-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,audio:null,description:null,title:null,tags:null,"custom-data":null,key:null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1},types:{tags:"array","custom-data":"object","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"aac"),t.create.call(this),this.get("audio")&&!this.get("key")&&Strings.starts_with(this.get("audio"),"_")&&this.set("key",Strings.strip_start(this.get("audio"),"_")),this.get("simulate")&&this.set("localplayback",!0),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialaudio=!!this.get("audio"),this.get("audio")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(){return this.application.audios.get(this.get("audio"),{auth:this.get("auth")}).success(function(e){e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),audio:this.get("audio"),"force-refresh":Time.now()}),this._track("audio_embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(e,t){this.application.urls.registerRtmpConnectivityResult(e.serverUrl,t)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{audio_token:this.get("audio"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialaudio?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("audio")&&!this.__hadInitialaudio&&this.set("audio",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.audio",this.get("audio"));var t=this.application.audio_streams.rtmpStreamName(this.get("audio"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpAudioRecordingUrls().map(function(e){return{serverUrl:e,streamName:t}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():undefined,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("audio"),this.get("stream"),this.get("auth"))}:undefined,delay:4750,stopDelay:2750},audio:Objs.extend({resilienceCheck:function(e){return!e||!e.duration}},this.application.audio_streams.attachUploaderConfig(this.get("audio"),this.get("stream"),this.get("auth")))})},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),force_overwrite:this.get("force-overwrite"),audio_profile:this.get("audio-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,audio_file_name:this._audioFileName,device_info:Objs.extend({api_version:2,embed_code:e},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},_prepareRecording:function(){return this.get("audio")?this.application.audio_streams.create(this.get("audio"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.audios.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(e){this.set("audio",e.audio.token),this.set("audio_data",e.audio),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("audio")&&(this.get("simulate")?Promise.value(!0):this.application.audio_streams.submit(this.get("audio"),this.get("stream"),{},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("audio")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.audios.cacheInvalidate(this.get("audio"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("audio")&&(this.__inputBindElement.value=this.get("audio")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([AudioRecorderStates])}}}).register("ba-ziggeoaudiorecorder").register("ziggeoaudiorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
+Scoped.define("module:AudioRecorder", ["mediacomponents:AudioRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:AudioRecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function(AudioRecorder,Application,Device,Logger,Environment,AudioRecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return AudioRecorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynaudioplayer:"ziggeoaudioplayer","audio-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,audio:null,description:null,title:null,tags:null,"custom-data":null,key:null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1},types:{tags:"array","custom-data":"object","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"aac"),t.create.call(this),this.get("audio")&&!this.get("key")&&Strings.starts_with(this.get("audio"),"_")&&this.set("key",Strings.strip_start(this.get("audio"),"_")),this.get("simulate")&&this.set("localplayback",!0),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialaudio=!!this.get("audio"),this.get("audio")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(){return this.application.audios.get(this.get("audio"),{auth:this.get("auth")}).success(function(e){e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),audio:this.get("audio"),"force-refresh":Time.now()}),this._track("audio_embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(e,t){this.application.urls.registerRtmpConnectivityResult(e.serverUrl,t)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{audio_token:this.get("audio"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialaudio?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("audio")&&!this.__hadInitialaudio&&this.set("audio",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.audio",this.get("audio"));var t=this.application.audio_streams.rtmpStreamName(this.get("audio"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpAudioRecordingUrls().map(function(e){return{serverUrl:e,streamName:t}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():undefined,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("audio"),this.get("stream"),this.get("auth"))}:undefined,delay:4750,stopDelay:2750},audio:Objs.extend({resilienceCheck:function(e){return!e||!e.duration}},this.application.audio_streams.attachUploaderConfig(this.get("audio"),this.get("stream"),this.get("auth")))})},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),force_overwrite:this.get("force-overwrite"),audio_profile:this.get("audio-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,audio_file_name:this._audioFileName,device_info:Objs.extend({api_version:2,embed_code:e},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},_prepareRecording:function(){return this.get("audio")?this.application.audio_streams.create(this.get("audio"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.audios.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(e){this.set("audio",e.audio.token),this.set("audio_data",e.audio),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("audio")&&(this.get("simulate")?Promise.value(!0):this.application.audio_streams.submit(this.get("audio"),this.get("stream"),{},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("audio")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.audios.cacheInvalidate(this.get("audio"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("audio")&&(this.__inputBindElement.value=this.get("audio")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([AudioRecorderStates])}}}).register("ba-ziggeoaudiorecorder").register("ziggeoaudiorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
 
-Scoped.define("module:PopupAudioRecorder", ["module:AudioRecorder","mediacomponents:PopupHelper"], function (e,t,i){return e.extend({scoped:i},t.mixin)});
+Scoped.define("module:PopupAudioRecorder", ["module:AudioRecorder","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:IframePlayer", ["mediacomponents:IframeHelper","private:Core","private:ZiggeoDynamicMixin"], function (e,t,i,a){return e.extend({scoped:a},[i,{getAllowModifiers:function(){return t.video.iframe["allow-player-mods"]},getSrc:function(){return this.application.videos.iframeVideoUrl(this.get("video"))}}]).register("ba-ziggeoiframeplayer").register("ziggeoiframeplayer")});
+Scoped.define("module:IframePlayer", ["mediacomponents:IframeHelper","private:Core","private:ZiggeoDynamicMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,{getAllowModifiers:function(){return t.video.iframe["allow-player-mods"]},getSrc:function(){return this.application.videos.iframeVideoUrl(this.get("video"))}}]).register("ba-ziggeoiframeplayer").register("ziggeoiframeplayer")});
 
-Scoped.define("module:IframeRecorder", ["mediacomponents:IframeHelper","private:Core","private:ZiggeoDynamicMixin"], function (e,t,i,a){return e.extend({scoped:a},[i,{getAllowModifiers:function(){return t.video.iframe["allow-recorder-mods"]},getSrc:function(){return this.application.videos.iframeRecorderUrl()}}]).register("ba-ziggeoiframerecorder").register("ziggeoiframerecorder")});
+Scoped.define("module:IframeRecorder", ["mediacomponents:IframeHelper","private:Core","private:ZiggeoDynamicMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,{getAllowModifiers:function(){return t.video.iframe["allow-recorder-mods"]},getSrc:function(){return this.application.videos.iframeRecorderUrl()}}]).register("ba-ziggeoiframerecorder").register("ziggeoiframerecorder")});
 
-Scoped.define("module:ImageCapture", ["mediacomponents:ImageCapture.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:ImageRecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function (ImageCapture,Application,Device,Logger,Environment,ImageRecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return ImageCapture.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynimageviewer:"ziggeoimageviewer","effect-profile":null,"preview-effect-profile":null,"image-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,image:null,description:null,title:null,tags:null,"custom-data":null,key:null,"auto-crop":null,"auto-pad":null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1},types:{tags:"array","custom-data":"object","auto-crop":"bool","auto-pad":"bool","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","effect-profile":"array","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),t.create.call(this),this.get("image")&&!this.get("key")&&Strings.starts_with(this.get("image"),"_")&&this.set("key",Strings.strip_start(this.get("image"),"_")),this.get("simulate")&&this.set("localplayback",!0),Types.is_string(this.get("effect-profile"))&&this.set("effect-profile",Types.parseArray(this.get("effect-profile"))),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialimage=!!this.get("image"),this.get("image")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(){return this.application.images.get(this.get("image"),{auth:this.get("auth")}).success(function(e){e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"effect-profile":this.get("preview-effect-profile"),"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),image:this.get("image"),"force-refresh":Time.now()}),this._track("image_embedding_loaded"),this._updateUrls()):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{image_token:this.get("image"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialimage?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),width:this.get("recordingwidth"),height:this.get("recordingheight"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("image")&&!this.__hadInitialimage&&this.set("image",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.image",this.get("image")),this.set("uploadoptions",{image:this.application.image_streams.attachUploaderConfig(this.get("image"),this.get("stream"),this.get("auth"))})},_readDeviceOrientation:function(){return window.orientation+90||undefined},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),auto_crop:this.get("auto-crop"),auto_pad:this.get("auto-pad"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),effect_profile:this.get("effect-profile")?this.get("effect-profile").join(","):undefined,force_overwrite:this.get("force-overwrite"),image_profile:this.get("image-profile"),meta_profile:this.get("meta-profile"),recover_streams:this.get("recover-streams"),user_language:navigator.language||navigator.userLanguage,image_file_name:this._imageFileName,device_info:Objs.extend({api_version:2,embed_code:e},Device.info)}},_prepareRecording:function(){return this._requiresDeviceOrientation=Info.isMobile()&&Info.isiOS()&&window.orientation!==undefined&&this.recorder,this.get("image")?this.application.image_streams.create(this.get("image"),{},this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.images.create(Objs.extend(this.__createParams(),{}),this.get("auth")).mapSuccess(function(e){this.set("image",e.image.token),this.set("image_data",e.image),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("image")&&(this.get("simulate")?Promise.value(!0):this.application.streams._recorder_submit(this.get("image"),this.get("stream"),{rotation:this._requiresDeviceOrientation?this._readDeviceOrientation():undefined},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("image")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.images.cacheInvalidate(this.get("image"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("image")&&(this.__inputBindElement.value=this.get("image")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([ImageRecorderStates])}}}).register("ba-ziggeoimagecapture").register("ziggeoimagecapture").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
+Scoped.define("module:ImageCapture", ["mediacomponents:ImageCapture.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:ImageRecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function(ImageCapture,Application,Device,Logger,Environment,ImageRecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return ImageCapture.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynimageviewer:"ziggeoimageviewer","effect-profile":null,"preview-effect-profile":null,"image-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,image:null,description:null,title:null,tags:null,"custom-data":null,key:null,"auto-crop":null,"auto-pad":null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1},types:{tags:"array","custom-data":"object","auto-crop":"bool","auto-pad":"bool","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","effect-profile":"array","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),t.create.call(this),this.get("image")&&!this.get("key")&&Strings.starts_with(this.get("image"),"_")&&this.set("key",Strings.strip_start(this.get("image"),"_")),this.get("simulate")&&this.set("localplayback",!0),Types.is_string(this.get("effect-profile"))&&this.set("effect-profile",Types.parseArray(this.get("effect-profile"))),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialimage=!!this.get("image"),this.get("image")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(){return this.application.images.get(this.get("image"),{auth:this.get("auth")}).success(function(e){e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"effect-profile":this.get("preview-effect-profile"),"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),image:this.get("image"),"force-refresh":Time.now()}),this._track("image_embedding_loaded"),this._updateUrls()):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{image_token:this.get("image"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialimage?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),width:this.get("recordingwidth"),height:this.get("recordingheight"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("image")&&!this.__hadInitialimage&&this.set("image",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.image",this.get("image")),this.set("uploadoptions",{image:this.application.image_streams.attachUploaderConfig(this.get("image"),this.get("stream"),this.get("auth"))})},_readDeviceOrientation:function(){return window.orientation+90||undefined},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),auto_crop:this.get("auto-crop"),auto_pad:this.get("auto-pad"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),effect_profile:this.get("effect-profile")?this.get("effect-profile").join(","):undefined,force_overwrite:this.get("force-overwrite"),image_profile:this.get("image-profile"),meta_profile:this.get("meta-profile"),recover_streams:this.get("recover-streams"),user_language:navigator.language||navigator.userLanguage,image_file_name:this._imageFileName,device_info:Objs.extend({api_version:2,embed_code:e},Device.info)}},_prepareRecording:function(){return this._requiresDeviceOrientation=Info.isMobile()&&Info.isiOS()&&window.orientation!==undefined&&this.recorder,this.get("image")?this.application.image_streams.create(this.get("image"),{},this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.images.create(Objs.extend(this.__createParams(),{}),this.get("auth")).mapSuccess(function(e){this.set("image",e.image.token),this.set("image_data",e.image),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("image")&&(this.get("simulate")?Promise.value(!0):this.application.streams._recorder_submit(this.get("image"),this.get("stream"),{rotation:this._requiresDeviceOrientation?this._readDeviceOrientation():undefined},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("image")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.images.cacheInvalidate(this.get("image"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("image")&&(this.__inputBindElement.value=this.get("image")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([ImageRecorderStates])}}}).register("ba-ziggeoimagecapture").register("ziggeoimagecapture").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
 
-Scoped.define("module:PopupImageCapture", ["module:ImageCapture","mediacomponents:PopupHelper"], function (e,t,i){return e.extend({scoped:i},t.mixin)});
+Scoped.define("module:PopupImageCapture", ["module:ImageCapture","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:ImageViewer", ["mediacomponents:ImageViewer.Dynamics.ImageViewer","private:Logger","module:Application","base:Types","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function (e,t,i,a,s,r,n,l,o,c,d,u,p){return e.extend({scoped:p},[u,function(e){return{attrs:{"stream-width":null,"stream-height":null,"effect-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,image:null,stream:null,application:null,forcerefresh:!1},types:{"lazy-application":"bool"},create:function(){if(this._invokeCallback=n.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.get("effect-profile")&&a.is_array(this.get("effect-profile"))&&this.set("effect-profile",this.get("effect-profile")[0]),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("image_status",null)},_notifications:{_activate:"_createWithApplication"},_obtainApplication:function(){this.get("application")&&(this.application=a.is_string(this.get("application"))?i.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||i.getDefault()},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.get("source")||this.__setImageSources(),this.set("ready",!0),this._track("image_embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this)):t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:image":function(){this.set("stream",null),this.__setImageSources()}},__setImageSources:function(){this.get("image")&&this.get("application_status")&&(this.set("shareimageurl",this.application.images.publicImageUrl(this.get("image")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.images.refreshToken(this.get("image"))),this.__setSources(),this.application.images.cache(this.get("image"),{auth:this.get("auth")}).callback(this.__imageUpdate,this),this.get("ready")&&this.reattachImage())},__sourceByImage:function(t,e){var i=this.get("image_data"),a=l.filter(i&&i.streams?i.streams:[],function(e){return!(e.token!==i.original_stream.token&&e.parent_stream!==i.original_stream.token||5!==e.state||3!==e.streamable||this.get("effect-profile")&&e.effect_profile!==this.get("effect-profile"))},this);if(e||this.get("stream-width")||this.get("stream-height")||a.length<2){var s=e?this.application.image_streams:this.application.images,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{stream_width:this.get("stream-width"),stream_height:this.get("stream-height"),effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{source:s.imageUrl.apply(s,r),token:t}}var n=[],o=[],c={effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh"),auth:this.get("auth")};l.iter(a,function(e){n.push({src:this.application.image_streams.imageUrl(t,e.token,c),token:e.token}),o.push({width:e.image_width,height:e.image_height,filter:{token:e.token}})},this);var d=o[0];return{source:null,sources:n,streams:o,currentstream:d,token:t}},__setSources:function(){this.setAll(this.__sourceByImage(this.get("image"),this.get("stream")))},__imageUpdate:function(e,t){if(!this.destroyed())if(e)this.set("image_status",!1),e.status_code()===s.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("image-not-found")}):e.status_code()===s.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("image-access-forbidden")}):this.state().next("FatalError",{message:this.string("image-unknown-error")});else{if(this.set("image_data",t),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("image-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("image-unknown-error")});if(this.set("image_status",!0),4===t.state)return void("ImageProcessing"!==this.state().state_name()&&this.state().next("ImageProcessing"));if(this.get("effect-profile")){var i=!1;if(l.iter(t.streams,function(e){e.effect_profile===this.get("effect-profile")&&4<e.state&&(i=!0)},this),!i)return void("ImageProcessing"!==this.state().state_name()&&this.state().next("ImageProcessing"));if("ImageProcessing"===this.state().state_name())return this.set("forcerefresh",o.now()),this.__setSources(),void this.state().next("LoadPlayer")}if("ImageProcessing"===this.state().state_name())return this.set("refresh_token",this.application.images.refreshToken(this.get("image"))),this.set("forcerefresh",o.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.images.refreshToken(this.get("image")))return this.set("refresh_token",this.application.images.refreshToken(this.get("image"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=o.now(),s=c.create();s.success(function(){this.application.analytics.track("2",e,{image_token:this.get("image_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},l.extend({embed_type:"player"},t),l.extend({width:this.get("stream")?this.get("stream").width:this.imageWidth(),height:this.get("stream")?this.get("stream").height:this.imageHeight(),tags:this.get("image_data").tags},i),a)},this),this.get("image_data")?s.asyncSuccess():this.once("change:image_data",function(){s.asyncSuccess()},this)}}}}]).register("ba-ziggeoimageviewer").register("ziggeoimageviewer").attachStringTable(r.mainLocale).addStrings({"image-not-found":"We could not find the specified image file.","image-access-forbidden":"You are not permitted to access this image file.","image-unknown-error":"We cannot access this image at the moment. Please try again later.","image-rejected":"The image has been rejected.","image-processing":"The image is processing - stay tuned.","image-access-error":"The image is currently under moderation. You may click to retry."})});
+Scoped.define("module:ImageViewer", ["mediacomponents:ImageViewer.Dynamics.ImageViewer","private:Logger","module:Application","base:Types","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function(e,t,i,a,s,r,n,l,o,c,d,u,p){return e.extend({scoped:p},[u,function(e){return{attrs:{"stream-width":null,"stream-height":null,"effect-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,image:null,stream:null,application:null,forcerefresh:!1},types:{"lazy-application":"bool"},create:function(){if(this._invokeCallback=n.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.get("effect-profile")&&a.is_array(this.get("effect-profile"))&&this.set("effect-profile",this.get("effect-profile")[0]),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("image_status",null)},_notifications:{_activate:"_createWithApplication"},_obtainApplication:function(){this.get("application")&&(this.application=a.is_string(this.get("application"))?i.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||i.getDefault()},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.get("source")||this.__setImageSources(),this.set("ready",!0),this._track("image_embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this)):t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:image":function(){this.set("stream",null),this.__setImageSources()}},__setImageSources:function(){this.get("image")&&this.get("application_status")&&(this.set("shareimageurl",this.application.images.publicImageUrl(this.get("image")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.images.refreshToken(this.get("image"))),this.__setSources(),this.application.images.cache(this.get("image"),{auth:this.get("auth")}).callback(this.__imageUpdate,this),this.get("ready")&&this.reattachImage())},__sourceByImage:function(t,e){var i=this.get("image_data"),a=l.filter(i&&i.streams?i.streams:[],function(e){return!(e.token!==i.original_stream.token&&e.parent_stream!==i.original_stream.token||5!==e.state||3!==e.streamable||this.get("effect-profile")&&e.effect_profile!==this.get("effect-profile"))},this);if(e||this.get("stream-width")||this.get("stream-height")||a.length<2){var s=e?this.application.image_streams:this.application.images,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{stream_width:this.get("stream-width"),stream_height:this.get("stream-height"),effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{source:s.imageUrl.apply(s,r),token:t}}var n=[],o=[],c={effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh"),auth:this.get("auth")};l.iter(a,function(e){n.push({src:this.application.image_streams.imageUrl(t,e.token,c),token:e.token}),o.push({width:e.image_width,height:e.image_height,filter:{token:e.token}})},this);var d=o[0];return{source:null,sources:n,streams:o,currentstream:d,token:t}},__setSources:function(){this.setAll(this.__sourceByImage(this.get("image"),this.get("stream")))},__imageUpdate:function(e,t){if(!this.destroyed())if(e)this.set("image_status",!1),e.status_code()===s.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("image-not-found")}):e.status_code()===s.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("image-access-forbidden")}):this.state().next("FatalError",{message:this.string("image-unknown-error")});else{if(this.set("image_data",t),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("image-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("image-unknown-error")});if(this.set("image_status",!0),4===t.state)return void("ImageProcessing"!==this.state().state_name()&&this.state().next("ImageProcessing"));if(this.get("effect-profile")){var i=!1;if(l.iter(t.streams,function(e){e.effect_profile===this.get("effect-profile")&&4<e.state&&(i=!0)},this),!i)return void("ImageProcessing"!==this.state().state_name()&&this.state().next("ImageProcessing"));if("ImageProcessing"===this.state().state_name())return this.set("forcerefresh",o.now()),this.__setSources(),void this.state().next("LoadPlayer")}if("ImageProcessing"===this.state().state_name())return this.set("refresh_token",this.application.images.refreshToken(this.get("image"))),this.set("forcerefresh",o.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.images.refreshToken(this.get("image")))return this.set("refresh_token",this.application.images.refreshToken(this.get("image"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=o.now(),s=c.create();s.success(function(){this.application.analytics.track("2",e,{image_token:this.get("image_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},l.extend({embed_type:"player"},t),l.extend({width:this.get("stream")?this.get("stream").width:this.imageWidth(),height:this.get("stream")?this.get("stream").height:this.imageHeight(),tags:this.get("image_data").tags},i),a)},this),this.get("image_data")?s.asyncSuccess():this.once("change:image_data",function(){s.asyncSuccess()},this)}}}}]).register("ba-ziggeoimageviewer").register("ziggeoimageviewer").attachStringTable(r.mainLocale).addStrings({"image-not-found":"We could not find the specified image file.","image-access-forbidden":"You are not permitted to access this image file.","image-unknown-error":"We cannot access this image at the moment. Please try again later.","image-rejected":"The image has been rejected.","image-processing":"The image is processing - stay tuned.","image-access-error":"The image is currently under moderation. You may click to retry."})});
 
-Scoped.define("module:PopupImageViewer", ["module:ImageViewer","mediacomponents:PopupHelper"], function (e,t,i){return e.extend({scoped:i},t.mixin)});
+Scoped.define("module:PopupImageViewer", ["module:ImageViewer","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:Player", ["mediacomponents:VideoPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function (e,t,i,a,s,o,r,n,l,c,d,u,p,h){return e.extend({scoped:h},[p,function(e){return{attrs:{"stream-width":null,"stream-height":null,"effect-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,video:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1,"audio-transcription-as-subtitles":!1},types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool","audio-transcription-as-subtitles":"bool"},create:function(){if(this._invokeCallback=n.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),this.get("effect-profile")&&a.is_array(this.get("effect-profile"))&&this.set("effect-profile",this.get("effect-profile")[0]),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("video_status",null)},_notifications:{_activate:"_createWithApplication"},_createWithApplication:function(){if(this._obtainApplication(),this.application)if(this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")){if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(e){return this.__sourceByVideo(e)},this));var e=this.get("playlist")[0];this.set("poster",e.poster),this.set("source",e.source),this.set("video",e.token),this.on("playlist-next",function(e){this.set("video",e.token)},this)}this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setVideoSources(),this.set("ready",!0),this._track("embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this)}else t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");else t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:video":function(){this.set("stream",null),this.__setVideoSources()},paused:function(){this._track("play_pause",{media_time:this.get("position")})},playing:function(){this._track("play_playing",{media_time:this.get("position")})},ended:function(){this._track("play_end",{media_time:this.get("duration")})},seek:function(e){this._track("play_seek",{media_time:e})}},__setVideoSources:function(){this.get("video")&&this.get("application_status")&&(this.set("sharevideourl",this.application.videos.publicVideoUrl(this.get("video")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),this.application.videos.cache(this.get("video"),{auth:this.get("auth")}).callback(this.__videoUpdate,this),this.get("ready")&&this.reattachVideo())},__sourceByVideo:function(t,e){var i=this.get("video_data");i&&null!==i.title&&this.set("posteralt",i.title),i&&i.duration&&i.duration&&this.set("duration",i.duration);var a=l.filter(i&&i.streams?i.streams:[],function(e){return!(e.token!==i.original_stream.token&&e.parent_stream!==i.original_stream.token||5!==e.state||3!==e.streamable||(this.get("effect-profile")||e.effect_profile)&&e.effect_profile!==this.get("effect-profile"))},this);if(this.get("playlist")&&(a=[],e=null),e||this.get("stream-width")||this.get("stream-height")||a.length<2){var s=e?this.application.streams:this.application.videos,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{stream_width:this.get("stream-width"),stream_height:this.get("stream-height"),effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{poster:s.imageUrl.apply(s,r),source:s.videoUrl.apply(s,r),token:t}}var n=[],o=[],c={effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh"),auth:this.get("auth")};l.iter(a,function(e){n.push({src:this.application.streams.videoUrl(t,e.token,c),poster:this.application.streams.imageUrl(t,e.token,c),token:e.token}),o.push({width:e.video_width,height:e.video_height,filter:{token:e.token}})},this);var d=o[0];return{poster:null,source:null,sources:n,streams:o,currentstream:d,token:t}},__setSources:function(){this.set("uploadoptions",{textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream")||this.properties().getProp("video_data.original_stream.token"),this.get("auth"))}),this.setAll(this.__sourceByVideo(this.get("video"),this.get("stream")))},__audioTranscriptionToVTT:function(e,t,i){i=i||5;for(var a=e.length,s=0,r=["WEBVTT"];s<a;){var n=t[s].start,o=t[s].end,c=[e[s]];for(s++,j=i-1;0<j&&s<a;)o=t[s].end,c.push(e[s]),s++,j--;r.push(""),r.push(u.format("HH:MM:ss.l",n)+" --\x3e "+u.format("HH:MM:ss.l",o)),r.push(c.join(" "))}return r.join("\n")},__videoUpdate:function(e,t){if(!this.destroyed())if(e)this.set("video_status",!1),e.status_code()===o.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("video-not-found")}):e.status_code()===o.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("video-access-forbidden")}):this.state().next("FatalError",{message:this.string("video-unknown-error")});else{this.set("video_data",t);var i=[];try{var a=t.default_stream.audio_transcription||t.original_stream.audio_transcription;a&&this.get("audio-transcription-as-subtitles")&&i.push({lang:"en",kind:"subtitles",label:"Transcription",content:this.__audioTranscriptionToVTT(a.words,a.times)});var s=t.default_stream.subtitles||t.original_stream.subtitles;s&&l.iter(s,function(e,t){i.push({lang:t,kind:"subtitles",label:e.label,content:e.data})})}catch(n){}if(this.set("tracktags",i),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("video-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("video-unknown-error")});if(this.set("video_status",!0),4===t.state)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if(this.get("effect-profile")){var r=!1;if(l.iter(t.streams,function(e){e.effect_profile===this.get("effect-profile")&&4<e.state&&(r=!0)},this),!r)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if("VideoProcessing"===this.state().state_name())return this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer")}if("VideoProcessing"===this.state().state_name())return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.videos.refreshToken(this.get("video")))return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=c.now(),s=d.create();s.success(function(){this.application.analytics.track("2",e,{video_token:this.get("video_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},l.extend({embed_type:"player"},t),l.extend({duration:this.get("video_data").duration||this.get("duration"),width:this.get("stream")?this.get("stream").width:this.videoWidth(),height:this.get("stream")?this.get("stream").height:this.videoHeight(),tags:this.get("video_data").tags},i),a)},this),this.get("video_data")?s.asyncSuccess():this.once("change:video_data",function(){s.asyncSuccess()},this)}}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoplayer").register("ziggeoplayer").attachStringTable(r.mainLocale).addStrings({"video-not-found":"We could not find the specified video file.","video-access-forbidden":"You are not permitted to access this video file.","video-unknown-error":"We cannot access this video at the moment. Please try again later.","video-rejected":"The video has been rejected.","video-processing":"The video is processing - stay tuned.","video-access-error":"The video is currently under moderation. You may click to retry."})});
+Scoped.define("module:Player", ["mediacomponents:VideoPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function(e,t,i,a,s,o,r,n,l,c,d,u,p,h){return e.extend({scoped:h},[p,function(e){return{attrs:{"stream-width":null,"stream-height":null,"effect-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,video:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1,"audio-transcription-as-subtitles":!1},types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool","audio-transcription-as-subtitles":"bool"},create:function(){if(this._invokeCallback=n.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),this.get("effect-profile")&&a.is_array(this.get("effect-profile"))&&this.set("effect-profile",this.get("effect-profile")[0]),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("video_status",null)},_notifications:{_activate:"_createWithApplication"},_createWithApplication:function(){if(this._obtainApplication(),this.application)if(this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")){if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(e){return this.__sourceByVideo(e)},this));var e=this.get("playlist")[0];this.set("poster",e.poster),this.set("source",e.source),this.set("video",e.token),this.on("playlist-next",function(e){this.set("video",e.token)},this)}this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setVideoSources(),this.set("ready",!0),this._track("embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this)}else t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");else t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:video":function(){this.set("stream",null),this.__setVideoSources()},paused:function(){this._track("play_pause",{media_time:this.get("position")})},playing:function(){this._track("play_playing",{media_time:this.get("position")})},ended:function(){this._track("play_end",{media_time:this.get("duration")})},seek:function(e){this._track("play_seek",{media_time:e})}},__setVideoSources:function(){this.get("video")&&this.get("application_status")&&(this.set("sharevideourl",this.application.videos.publicVideoUrl(this.get("video")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),this.application.videos.cache(this.get("video"),{auth:this.get("auth")}).callback(this.__videoUpdate,this),this.get("ready")&&this.reattachVideo())},__sourceByVideo:function(t,e){var i=this.get("video_data");i&&null!==i.title&&this.set("posteralt",i.title),i&&i.duration&&i.duration&&this.set("duration",i.duration);var a=l.filter(i&&i.streams?i.streams:[],function(e){return!(e.token!==i.original_stream.token&&e.parent_stream!==i.original_stream.token||5!==e.state||3!==e.streamable||(this.get("effect-profile")||e.effect_profile)&&e.effect_profile!==this.get("effect-profile"))},this);if(this.get("playlist")&&(a=[],e=null),e||this.get("stream-width")||this.get("stream-height")||a.length<2){var s=e?this.application.streams:this.application.videos,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{stream_width:this.get("stream-width"),stream_height:this.get("stream-height"),effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{poster:s.imageUrl.apply(s,r),source:s.videoUrl.apply(s,r),token:t}}var n=[],o=[],c={effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh"),auth:this.get("auth")};l.iter(a,function(e){n.push({src:this.application.streams.videoUrl(t,e.token,c),poster:this.application.streams.imageUrl(t,e.token,c),token:e.token}),o.push({width:e.video_width,height:e.video_height,filter:{token:e.token}})},this);var d=o[0];return{poster:null,source:null,sources:n,streams:o,currentstream:d,token:t}},__setSources:function(){this.set("uploadoptions",{textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream")||this.properties().getProp("video_data.original_stream.token"),this.get("auth"))}),this.setAll(this.__sourceByVideo(this.get("video"),this.get("stream")))},__audioTranscriptionToVTT:function(e,t,i){i=i||5;for(var a=e.length,s=0,r=["WEBVTT"];s<a;){var n=t[s].start,o=t[s].end,c=[e[s]];for(s++,j=i-1;0<j&&s<a;)o=t[s].end,c.push(e[s]),s++,j--;r.push(""),r.push(u.format("HH:MM:ss.l",n)+" --\x3e "+u.format("HH:MM:ss.l",o)),r.push(c.join(" "))}return r.join("\n")},__videoUpdate:function(e,t){if(!this.destroyed())if(e)this.set("video_status",!1),e.status_code()===o.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("video-not-found")}):e.status_code()===o.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("video-access-forbidden")}):this.state().next("FatalError",{message:this.string("video-unknown-error")});else{this.set("video_data",t);var i=[];try{var a=t.default_stream.audio_transcription||t.original_stream.audio_transcription;a&&this.get("audio-transcription-as-subtitles")&&i.push({lang:"en",kind:"subtitles",label:"Transcription",content:this.__audioTranscriptionToVTT(a.words,a.times)});var s=t.default_stream.subtitles||t.original_stream.subtitles;s&&l.iter(s,function(e,t){i.push({lang:t,kind:"subtitles",label:e.label,content:e.data})})}catch(n){}if(this.set("tracktags",i),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("video-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("video-unknown-error")});if(this.set("video_status",!0),4===t.state)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if(this.get("effect-profile")){var r=!1;if(l.iter(t.streams,function(e){e.effect_profile===this.get("effect-profile")&&4<e.state&&(r=!0)},this),!r)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if("VideoProcessing"===this.state().state_name())return this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer")}if("VideoProcessing"===this.state().state_name())return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.videos.refreshToken(this.get("video")))return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=c.now(),s=d.create();s.success(function(){this.application.analytics.track("2",e,{video_token:this.get("video_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},l.extend({embed_type:"player"},t),l.extend({duration:this.get("video_data").duration||this.get("duration"),width:this.get("stream")?this.get("stream").width:this.videoWidth(),height:this.get("stream")?this.get("stream").height:this.videoHeight(),tags:this.get("video_data").tags},i),a)},this),this.get("video_data")?s.asyncSuccess():this.once("change:video_data",function(){s.asyncSuccess()},this)}}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoplayer").register("ziggeoplayer").attachStringTable(r.mainLocale).addStrings({"video-not-found":"We could not find the specified video file.","video-access-forbidden":"You are not permitted to access this video file.","video-unknown-error":"We cannot access this video at the moment. Please try again later.","video-rejected":"The video has been rejected.","video-processing":"The video is processing - stay tuned.","video-access-error":"The video is currently under moderation. You may click to retry."})});
 
-Scoped.define("module:PopupPlayer", ["module:Player","mediacomponents:PopupHelper"], function (e,t,i){return e.extend({scoped:i},t.mixin)});
+Scoped.define("module:PopupPlayer", ["module:Player","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:Recorder", ["mediacomponents:VideoRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:RecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function (Recorder,Application,Device,Logger,Environment,RecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return Recorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynvideoplayer:"ziggeoplayer","effect-profile":null,"preview-effect-profile":null,"video-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,video:null,description:null,title:null,tags:null,"custom-data":null,key:null,"auto-crop":null,"auto-pad":null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"transcript-language":"en-US","input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1,chrome_extension_id:null,opera_extension_id:null,chrome_extension_install_link:null,opera_extension_install_link:null},types:{tags:"array","custom-data":"object","auto-crop":"bool","auto-pad":"bool","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","effect-profile":"array","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"mp4"),t.create.call(this),this.get("video")&&!this.get("key")&&Strings.starts_with(this.get("video"),"_")&&this.set("key",Strings.strip_start(this.get("video"),"_")),this.get("simulate")&&this.set("localplayback",!0),Types.is_string(this.get("effect-profile"))&&this.set("effect-profile",Types.parseArray(this.get("effect-profile"))),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialVideo=!!this.get("video"),this.get("video")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(t){return this.application.videos.get(this.get("video"),{auth:this.get("auth")}).mapSuccess(function(e){return e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1)),this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),t},this)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.get("chrome_extension_id")&&!this.get("chrome_extension_install_link")&&this.set("chrome_extension_install_link","https://chrome.google.com/webstore/detail/"+this.get("chrome_extension_id")),this.set("screen",{chromeExtensionId:this.get("chrome_extension_id")||this.application.data.get("chrome_extension_id"),operaExtensionId:this.get("opera_extension_id")||this.application.data.get("opera_extension_id"),chromeExtensionInstallLink:this.get("chrome_extension_install_link")||this.application.data.get("chrome_extension_install_link"),operaExtensionInstallLink:this.get("opera_extension_install_link")||this.application.data.get("opera_extension_install_link")}),this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"effect-profile":this.get("preview-effect-profile"),"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),video:this.get("video"),"force-refresh":Time.now()}),this._track("embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(e,t){this.application.urls.registerRtmpConnectivityResult(e.serverUrl,t)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{video_token:this.get("video"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialVideo?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),width:this.get("recordingwidth"),height:this.get("recordingheight"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("video")&&!this.__hadInitialVideo&&this.set("video",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.video",this.get("video"));var t=this.application.streams.rtmpStreamName(this.get("video"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpRecordingUrls().map(function(e){return{serverUrl:e,streamName:t}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():undefined,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("video"),this.get("stream"),this.get("auth"))}:undefined,delay:4750,stopDelay:2750},image:this.application.streams.imageAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),video:Objs.extend({resilienceCheck:function(e){return!e||!e.duration}},this.application.streams.videoAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth"))),audio:this.application.streams.audioAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream"),this.get("auth"))})},_readDeviceOrientation:function(){return window.orientation+90||undefined},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),auto_crop:this.get("auto-crop"),auto_pad:this.get("auto-pad"),only_audio:this.get("onlyaudio"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),effect_profile:this.get("effect-profile")?this.get("effect-profile").join(","):undefined,force_overwrite:this.get("force-overwrite"),video_profile:this.get("video-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,video_file_name:this._videoFileName,transcript_language:"auto"==this.get("transcript-language").toLowerCase()?navigator.language||navigator.userLanguage:this.get("transcript-language"),device_info:Objs.extend({api_version:2,embed_code:e,media_source:this.__getMediaSource(),capture_type:this.__getCaptureType()},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},__getMediaSource:function(){var e=this.__recordingTypeParams();return"screen"==this.get("record_media")?"screen":!0===e.flash_recording||!0===e.webrtc_recording?"record":"upload"},__getCaptureType:function(){var e=this.__recordingTypeParams();return!0===e.flash_recording?"flash":!0===e.webrtc_streaming?"webrtc_streaming":!0===e.webrtc_recording?"webrtc":"file_capture"},_prepareRecording:function(){return this._requiresDeviceOrientation=Info.isMobile()&&Info.isiOS()&&window.orientation!==undefined&&this.recorder,this.get("video")?this.application.streams.create(this.get("video"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.videos.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(e){this.set("video",e.video.token),this.set("video_data",e.video),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("video")&&(this.get("simulate")?Promise.value(!0):this.application.streams._recorder_submit(this.get("video"),this.get("stream"),{rotation:this._requiresDeviceOrientation?this._readDeviceOrientation():undefined},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("video")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.videos.cacheInvalidate(this.get("video"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("video")&&(this.__inputBindElement.value=this.get("video")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([RecorderStates])}}}).register("ba-ziggeorecorder").register("ziggeorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
+Scoped.define("module:Recorder", ["mediacomponents:VideoRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:RecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function(Recorder,Application,Device,Logger,Environment,RecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return Recorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynvideoplayer:"ziggeoplayer","effect-profile":null,"preview-effect-profile":null,"video-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,video:null,description:null,title:null,tags:null,"custom-data":null,key:null,"auto-crop":null,"auto-pad":null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"transcript-language":"en-US","input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1,chrome_extension_id:null,opera_extension_id:null,chrome_extension_install_link:null,opera_extension_install_link:null},types:{tags:"array","custom-data":"object","auto-crop":"bool","auto-pad":"bool","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","effect-profile":"array","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"mp4"),t.create.call(this),this.get("video")&&!this.get("key")&&Strings.starts_with(this.get("video"),"_")&&this.set("key",Strings.strip_start(this.get("video"),"_")),this.get("simulate")&&this.set("localplayback",!0),Types.is_string(this.get("effect-profile"))&&this.set("effect-profile",Types.parseArray(this.get("effect-profile"))),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialVideo=!!this.get("video"),this.get("video")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(t){return this.application.videos.get(this.get("video"),{auth:this.get("auth")}).mapSuccess(function(e){return e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1)),this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),t},this)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.get("chrome_extension_id")&&!this.get("chrome_extension_install_link")&&this.set("chrome_extension_install_link","https://chrome.google.com/webstore/detail/"+this.get("chrome_extension_id")),this.set("screen",{chromeExtensionId:this.get("chrome_extension_id")||this.application.data.get("chrome_extension_id"),operaExtensionId:this.get("opera_extension_id")||this.application.data.get("opera_extension_id"),chromeExtensionInstallLink:this.get("chrome_extension_install_link")||this.application.data.get("chrome_extension_install_link"),operaExtensionInstallLink:this.get("opera_extension_install_link")||this.application.data.get("opera_extension_install_link")}),this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"effect-profile":this.get("preview-effect-profile"),"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),video:this.get("video"),"force-refresh":Time.now()}),this._track("embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(e,t){this.application.urls.registerRtmpConnectivityResult(e.serverUrl,t)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{video_token:this.get("video"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialVideo?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),width:this.get("recordingwidth"),height:this.get("recordingheight"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("video")&&!this.__hadInitialVideo&&this.set("video",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.video",this.get("video"));var t=this.application.streams.rtmpStreamName(this.get("video"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpRecordingUrls().map(function(e){return{serverUrl:e,streamName:t}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():undefined,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("video"),this.get("stream"),this.get("auth"))}:undefined,delay:4750,stopDelay:2750},image:this.application.streams.imageAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),video:Objs.extend({resilienceCheck:function(e){return!e||!e.duration}},this.application.streams.videoAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth"))),audio:this.application.streams.audioAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream"),this.get("auth"))})},_readDeviceOrientation:function(){return window.orientation+90||undefined},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),auto_crop:this.get("auto-crop"),auto_pad:this.get("auto-pad"),only_audio:this.get("onlyaudio"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),effect_profile:this.get("effect-profile")?this.get("effect-profile").join(","):undefined,force_overwrite:this.get("force-overwrite"),video_profile:this.get("video-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,video_file_name:this._videoFileName,transcript_language:"auto"==this.get("transcript-language").toLowerCase()?navigator.language||navigator.userLanguage:this.get("transcript-language"),device_info:Objs.extend({api_version:2,embed_code:e,media_source:this.__getMediaSource(),capture_type:this.__getCaptureType()},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},__getMediaSource:function(){var e=this.__recordingTypeParams();return"screen"==this.get("record_media")?"screen":!0===e.flash_recording||!0===e.webrtc_recording?"record":"upload"},__getCaptureType:function(){var e=this.__recordingTypeParams();return!0===e.flash_recording?"flash":!0===e.webrtc_streaming?"webrtc_streaming":!0===e.webrtc_recording?"webrtc":"file_capture"},_prepareRecording:function(){return this._requiresDeviceOrientation=Info.isMobile()&&Info.isiOS()&&window.orientation!==undefined&&this.recorder,this.get("video")?this.application.streams.create(this.get("video"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.videos.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(e){this.set("video",e.video.token),this.set("video_data",e.video),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("video")&&(this.get("simulate")?Promise.value(!0):this.application.streams._recorder_submit(this.get("video"),this.get("stream"),{rotation:this._requiresDeviceOrientation?this._readDeviceOrientation():undefined},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("video")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.videos.cacheInvalidate(this.get("video"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("video")&&(this.__inputBindElement.value=this.get("video")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([RecorderStates])}}}).register("ba-ziggeorecorder").register("ziggeorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
 
-Scoped.define("module:PopupRecorder", ["module:Recorder","mediacomponents:PopupHelper"], function (e,t,i){return e.extend({scoped:i},t.mixin)});
+Scoped.define("module:PopupRecorder", ["module:Recorder","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
 
 }).call(Scoped);

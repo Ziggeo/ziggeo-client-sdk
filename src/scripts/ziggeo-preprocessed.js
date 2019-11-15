@@ -1,5 +1,5 @@
 /*!
-ziggeo-js-sdk - v2.34.12 - 2019-10-18
+ziggeo-js-sdk - v2.34.13 - 2019-11-14
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
