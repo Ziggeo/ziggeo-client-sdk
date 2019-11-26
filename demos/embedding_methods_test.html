@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Testing embedding methods availability</title>
+		<link rel="stylesheet" href="//assets-cdn.ziggeo.com/v1-r34/ziggeo.css" />
+		<script src="//assets-cdn.ziggeo.com/v1-r34/ziggeo.js"></script>
+		<script>
+			/*
+				How to use:
+				1. Add app token into header
+				2. Add video token into player
+				3. Set up revision in the link and script sections above
+					* Values in this file have been tested from r14 to dev preview of r34 and left as examples
+				4. Add functions you want to test as object into the list as so:
+					{ name: 'function_name', revision: '', available:[] }
+					* You can see one with function name EXAMPLE. It will never be found really
+				5. Once page loads open console and call one of the following:
+					areFunctionsAvailable(true)
+						* Will only show the functions that do not have revision set in the object (the one we added in step 4) when they are available
+						* The test is run against recorder only
+					areFunctionsAvailable(true, 'player')
+						* Same as above however the tests are run against player only
+					areFunctionsAvailable(false)
+						* You are shown the full list of tested functions and if they are found or not
+						* This is run against recorder embedding only
+					areFunctionsAvailable(false, 'player')
+						* Same as above however this is run against player only.
+
+				Notes:
+					If you want to confirm methods you are using are available in specific revision that you want to switch to (going up or down) you could directly test against it. If you are moving a lot of revisions, you can always test half way there and then depending on the result half of that half and so on, again depending on the goal.
+			*/
+			var ziggeoApp = new ZiggeoApi.V2.Application({
+				token: "APPLICATION_TOKEN"
+			});
+
+			var embedding = null;
+
+			var the_list = [
+				{ name: 'activate', revision: '14', available:['player','recorder'] },
+				{ name: 'activated', revision: '22', available:['player','recorder'] },
+				{ name: 'activeElement', revision: '14', available:['player','recorder'] },
+				{ name: 'aspectRatio', revision: '14', available:['player','recorder'] },
+				{ name: 'averageFrameRate', revision: '14', available:['player','recorder'] },
+				{ name: 'destroy', revision: '14', available:['player','recorder'] },
+				{ name: 'destroyed', revision: '14', available:['player','recorder'] },
+				{ name: 'execute', revision: '14', available:['player','recorder'] },
+				{ name: 'get', revision: '14', available:['player','recorder'] },
+				{ name: 'getCurrentPosition', revision: '34', available:['player'] },
+				{ name: 'getPlaybackCount', revision: '34', available:['player'] },
+				{ name: 'hasKey', revision: '34', available:['player','recorder'] },
+				{ name: 'isFlash', revision: '14', available:['recorder'] },
+				{ name: 'isHD', revision: '34', available:['player'] },
+				{ name: 'isMobile', revision: '34', available:['player','recorder'] },
+				{ name: 'isSD', revision: '34', available:['player'] },
+				{ name: 'isRecording', revision: '32', available:['recorder'] },
+				{ name: 'lightLevel', revision: '15', available:['recorder'] },
+				{ name: 'parentAspectRatio', revision: '14', available:['player','recorder'] },
+				{ name: 'parentHeight', revision: '14', available:['player','recorder'] },
+				{ name: 'parentWidth', revision: '14', available:['player','recorder'] },
+				{ name: 'pause', revision: '14', available:['player','recorder'] },
+				{ name: 'play', revision: '14', available:['player','recorder'] },
+				{ name: 'popupAttrs', revision: '32', available:['player','recorder'] },
+				{ name: 'reattachVideo', revision: '14', available:['player'] },
+				{ name: 'reattachImage', revision: '33', available:['player'] },
+				{ name: 'record', revision: '14', available:['recorder'] },
+				{ name: 'rerecord', revision: '14', available:['player','recorder'] },
+				{ name: 'reset', revision: '21', available:['recorder'] },
+				{ name: 'seek', revision: '14', available:['player'] },
+				{ name: 'set', revision: '14', available:['player','recorder'] },
+				{ name: 'set_volume', revision: '14', available:['player'] },
+				{ name: 'soundLevel', revision: '15', available:['recorder'] },
+				{ name: 'stop', revision: '14', available:['player','recorder'] },
+				{ name: 'toggleFullscreen', revision: '34', available:['player'] },
+				{ name: 'toggleSubtitles', revision: '34', available:['player'] },
+				{ name: 'videoAttached', revision: '14', available:['player'] },
+				{ name: 'videoError', revision: '14', available:['player','recorder'] },
+				{ name: 'videoHeight', revision: '14', available:['player','recorder'] },
+				{ name: 'videoLoaded', revision: '14', available:['player'] },
+				{ name: 'videoWidth', revision: '14', available:['player','recorder'] },
+				{ name: 'EXAMPLE', revision: '', available:[] }
+			];
+
+			function areFunctionsAvailable(locate, type) {
+
+				if(type === 'player') {
+					embedding = ZiggeoApi.V2.Player.findByElement(document.getElementById('player'));
+				}
+				else {
+					embedding = ZiggeoApi.V2.Recorder.findByElement(document.getElementById('recorder'));
+				}
+
+				the_list.forEach(function(func) {
+					if(typeof embedding[func.name] === 'function') {
+						if(func.revision == '') {
+							console.log('embedding.' + func.name + '() tested [200 OK]');
+						}
+						else {
+							if(locate !== true) {
+								console.log('embedding.' + func.name + '()');
+							}
+						}
+					}
+					else {
+						if(locate !== true) {
+							console.log('embedding.' + func.name + '() >> [404 Not Found] <<');
+						}
+					}
+				});
+			}
+
+		</script>
+	</head>
+	<body>
+		<ziggeoplayer
+			id="player"
+			ziggeo-theme="minimalist"
+			ziggeo-video="VIDEO_TOKEN"
+			ziggeo-noflash>
+		</ziggeoplayer>
+		<ziggeorecorder
+			id="recorder"
+			ziggeo-theme="minimalist"
+			ziggeo-custom-data='{"key": "value"}'
+			ziggeo-tags="tag1,tag2"
+			ziggeo-noflash>
+		</ziggeorecorder>
+	</body>
+</html>
