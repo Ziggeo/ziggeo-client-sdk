@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.34.13 - 2019-11-14
+ziggeo-client-sdk - v2.34.14 - 2019-12-09
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -16301,8 +16301,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.145",
-    "datetime": 1573682443220
+    "version": "0.0.147",
+    "datetime": 1575925772650
 };
 });
 
@@ -21753,8 +21753,9 @@ Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMi
                                 mimeType: 'video/webm;codecs=vp9'
                             };
                         } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+                            // https://bugzilla.mozilla.org/show_bug.cgi?id=1594466
                             mediaRecorderOptions = {
-                                mimeType: 'video/webm;codecs=vp8'
+                                mimeType: 'video/webm;codecs=vp8' + (Info.isFirefox() && Info.firefoxVersion() >= 71 ? ",opus" : "")
                             };
                         } else if (MediaRecorder.isTypeSupported('video/webm')) {
                             mediaRecorderOptions = {
