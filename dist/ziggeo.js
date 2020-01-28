@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.35.0 - 2020-01-27
+ziggeo-client-sdk - v2.35.1 - 2020-01-28
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2373,8 +2373,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.198",
-    "datetime": 1576700336003
+    "version": "1.0.201",
+    "datetime": 1579055706652
 };
 });
 
@@ -7122,12 +7122,14 @@ Scoped.define("module:Strings", ["module:Objs"], function(Objs) {
             "\\u00d6": "Oe",
             "\\u00f6": "oe",
             "\\u00df": "ss",
+            /*
             "Ue": "U",
             "ue": "u",
             "Ae": "A",
             "ae": "a",
             "Oe": "O",
             "oe": "o",
+             */
             "\\W": " ",
             "\\s+": " "
         },
@@ -9200,6 +9202,7 @@ Scoped.define("module:Ajax.Support", ["module:Ajax.NoCandidateAjaxException","mo
                 postmessage: undefined,
                 contentType: "urlencoded", // json
                 resilience: 1,
+                resilience_filter: null,
                 resilience_delay: 1000,
                 cors: false,
                 sendContentType: true,
@@ -9277,7 +9280,11 @@ Scoped.define("module:Ajax.Support", ["module:Ajax.NoCandidateAjaxException","mo
                 if (!resilience || resilience <= 1)
                     return promise;
                 var returnPromise = Promise.create();
-                promise.forwardSuccess(returnPromise).error(function() {
+                promise.forwardSuccess(returnPromise).error(function(err) {
+                    if (RequestException.is_class_instance(err) && options.resilience_filter && options.resilience_filter(err)) {
+                        returnPromise.error(err);
+                        return;
+                    }
                     Async.eventually(function() {
                         helper(resilience - 1).forwardCallback(returnPromise);
                     }, options.resilience_delay);
@@ -9691,294 +9698,6 @@ Scoped.define("module:Classes.LocaleTable", ["module:Classes.StringTable","modul
 
         }
     ]);
-});
-
-Scoped.define("module:TimeFormat", ["module:Time","module:Strings","module:Objs"], function(Time, Strings, Objs) {
-    /**
-     * Module for formatting Time / Date
-     * 
-     * @module BetaJS.TimeFormat
-     */
-    return {
-
-        /*
-        	HH	Hours; leading zero for single-digit hours (24-hour clock).
-        	H	Hours; no leading zero for single-digit hours (24-hour clock).
-        	h+  Hours; hours as absolute number
-        	hh	Hours; leading zero for single-digit hours (12-hour clock).
-        	h	Hours; no leading zero for single-digit hours (12-hour clock).
-        	M+  Minutes; minutes as absolute number
-        	MM	Minutes; leading zero for single-digit minutes.
-        	M	Minutes; no leading zero for single-digit minutes.
-        	s+	Seconds; seconds as absolute number
-        	ss	Seconds; leading zero for single-digit seconds.
-        	s	Seconds; no leading zero for single-digit seconds.
-        	mmm	Month as a three-letter abbreviation.
-        	mm	Month as digits; leading zero for single-digit months.
-        	m	Month as digits; no leading zero for single-digit months.
-        	d+	Days; days as absolute number
-        	ddddDay of the week as string.
-        	ddd	Day of the week as a three-letter abbreviation.
-        	dd	Day of the month as digits; leading zero for single-digit days.
-        	d	Day of the month as digits; no leading zero for single-digit days.
-        	yy	Year as last two digits; leading zero for years less than 10.
-        	yyyyYear represented by four digits.
-        	l+  Milliseconds; absolute
-        	l   Milliseconds 3 digits
-        	L   Milliseconds 2 digits
-        	t	Lowercase, single-character time marker string: a or p.
-        	tt	Lowercase, two-character time marker string: am or pm.
-        	T	Uppercase, single-character time marker string: A or P.
-        	TT	Uppercase, two-character time marker string: AM or PM.
-        	o	GMT/UTC timezone offset, e.g. -0500 or +0230.
-        	
-        */
-
-        formatMappings: {
-            "HH": function(t) {
-                return Strings.padZeros(Time.timeModulo(t, "hour", "floor"), 2);
-            },
-            "H": function(t) {
-                return Time.timeModulo(t, "hour", "floor");
-            },
-            "h+": function(t) {
-                return Time.timeComponent(t, "hour", "floor");
-            },
-            "hh": function(t) {
-                var h = Time.timeModulo(t, "hour", "floor");
-                h = h === 0 ? 12 : (h > 12 ? h - 12 : h);
-                return Strings.padZeros(h, " ", 2);
-            },
-            "h": function(t) {
-                var h = Time.timeModulo(t, "hour", "floor");
-                h = h === 0 ? 12 : (h > 12 ? h - 12 : h);
-                return h;
-            },
-            "M+": function(t) {
-                return Time.timeComponent(t, "minute", "floor");
-            },
-            "MM": function(t) {
-                return Strings.padZeros(Time.timeModulo(t, "minute", "floor"), 2);
-            },
-            "M": function(t) {
-                return Time.timeModulo(t, "minute", "floor");
-            },
-            "s+": function(t) {
-                return Time.timeComponent(t, "second", "floor");
-            },
-            "ss": function(t) {
-                return Strings.padZeros(Time.timeModulo(t, "second", "floor"), 2);
-            },
-            "s": function(t) {
-                return Time.timeModulo(t, "second", "floor");
-            },
-            "mmm": function(t) {
-                return ((new Date(t)).toUTCString().split(" "))[2];
-            },
-            "mm": function(t) {
-                return Strings.padZeros(Time.timeComponentGet(t, "month") + 1, 2);
-            },
-            "m": function(t) {
-                return Time.timeComponentGet(t, "month") + 1;
-            },
-            "d+": function(t) {
-                return Time.timeComponent(t, "day", "floor");
-            },
-            "dddd": function(t) {
-                var map = {
-                    2: "s",
-                    3: "nes",
-                    4: "rs",
-                    6: "ur"
-                };
-                return (new Date(t)).toUTCString().substring(0, 3) + (map[Time.timeComponentGet(t, "weekday")] || "") + "day";
-            },
-            "ddd": function(t) {
-                return (new Date(t)).toUTCString().substring(0, 3);
-            },
-            "dd": function(t) {
-                return Strings.padZeros(Time.timeComponentGet(t, "day") + 1, 2);
-            },
-            "d": function(t) {
-                return Time.timeComponentGet(t, "day") + 1;
-            },
-            "yyyy": function(t) {
-                return Time.timeComponentGet(t, "year");
-            },
-            "yy": function(t) {
-                return Time.timeComponentGet(t, "year") % 100;
-            },
-            "l+": function(t) {
-                return t.getTime();
-            },
-            "l": function(t) {
-                return Time.timeComponentGet(t, "millisecond");
-            },
-            "L": function(t) {
-                return Math.floor(Time.timeComponentGet(t, "millisecond") / 10);
-            },
-            "tt": function(t) {
-                return Time.timeModulo(t, "hour", "floor") < 12 ? 'am' : 'pm';
-            },
-            "t": function(t) {
-                return Time.timeModulo(t, "hour", "floor") < 12 ? 'a' : 'p';
-            },
-            "TT": function(t) {
-                return Time.timeModulo(t, "hour", "floor") < 12 ? 'AM' : 'PM';
-            },
-            "T": function(t) {
-                return Time.timeModulo(t, "hour", "floor") < 12 ? 'A' : 'P';
-            },
-            "o": function(t, bias) {
-                bias = Math.floor(bias / 1000 / 60);
-                return (bias > 0 ? "-" : "+") + Strings.padZeros(Math.floor(Math.abs(bias) / 60) * 100 + Math.abs(bias) % 60, 4);
-            }
-
-        },
-
-        ELAPSED_HOURS_MINUTES_SECONDS: "h+:MM:ss",
-        ELAPSED_MINUTES_SECONDS: "M+:ss",
-        FULL_YEAR: "yyyy",
-        LETTER_MONTH: "mmm",
-        LETTER_MONTH_AND_DAY: "mmm d",
-        WEEKDAY: "ddd",
-        HOURS_MINUTES_TT: "hh:MM tt",
-
-
-        /**
-         * Format a given time w.r.t. a given time format
-         * 
-         * @param {string} timeFormat a time format string
-         * @param {int} time time as integer to be formatted
-         * @param {int} timezone timezone bias (optional)
-         * @return {string} formatted time
-         * 
-         */
-        format: function(timeFormat, time, timezone) {
-            time = time || Time.now();
-            var timezoneTime = Time.timeToTimezoneBasedDate(time, timezone);
-            var bias = Time.timezoneBias(timezone);
-            var result = timeFormat;
-            var replacers = [];
-            Objs.iter(this.formatMappings, function(formatter, key) {
-                if (result.indexOf(key) >= 0) {
-                    var i = replacers.length;
-                    replacers.push(formatter(timezoneTime, bias));
-                    result = result.replace(key, "$" + i + "$");
-                }
-            }, this);
-            for (var i = 0; i < replacers.length; ++i)
-                result = result.replace("$" + i + "$", replacers[i]);
-            return result;
-        },
-
-        /**
-         * Format the month as a three letter string
-         * 
-         * @param {int} month month as an int
-         * @return {string} three letter month string
-         */
-        monthString: function(month) {
-            return this.format("mmm", Time.encodePeriod({
-                month: month
-            }));
-        },
-
-        /**
-         * Format the weekday as a three letter string
-         * 
-         * @param {int} weekday weekday as an int
-         * @return {string} three letter weekday string
-         */
-        weekdayString: function(weekday) {
-            return this.format("ddd", Time.encodePeriod({
-                weekday: weekday
-            }));
-        },
-
-        /**
-         * Returns the week number
-         *
-         * @param {int} time time
-         * @param {int} timezone timezone
-         * @return {int} number of the week in a year
-         */
-        weekNumber: function(time, timezone) {
-            var base = new Date(time + Time.timezoneBias(timezone));
-            var d = new Date(Date.UTC(base.getFullYear(), base.getMonth(), base.getDate()));
-            var dayNum = d.getUTCDay() || 7;
-            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-            var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-        },
-
-        // /**
-        //  * Format most significant part of date / time relative to current time
-        //  *
-        //  * @param {int} time date/time to be formatted
-        //  * @param {int} currentTime relative to current time (optional)
-        //  * @param {int} timezone time zone bias (optional)
-        //  * @return {string} formatted time
-        //  */
-        // formatRelativeMostSignificant: function(time, currentTime, timezone) {
-        //     currentTime = currentTime || Time.now();
-        //     var t = Time.decodeTime(time, timezone);
-        //     var c = Time.decodeTime(currentTime, timezone);
-        //     // Same day. Return time.
-        //     if (t.year === c.year && t.month === c.month && t.day === c.day)
-        //         return this.format('hh:MM tt', time, timezone);
-        //     // Less than 7 days. Return week day.
-        //     if (currentTime - time < 7 * 24 * 60 * 60 * 1000 && t.weekday !== c.weekday)
-        //         return this.format('dddd', time, timezone);
-        //     // Last 2 months?
-        //     if ((t.year === c.year && t.month + 1 >= c.month) || (t.year + 1 === c.year && t.month + 1 >= c.month + 12 - 1))
-        //         return this.format('mmm d', time, timezone);
-        //     // Last 11 month?
-        //     if (t.year === c.year || (t.year + 1 === c.year && t.month > c.month))
-        //         return this.format('mmm', time, timezone);
-        //     // Return year
-        //     return this.format('yyyy', time, timezone);
-        // },
-
-        /**
-         * Format most significant part of date / time relative to current time
-         *
-         * @param {int} time date/time to be formatted
-         * @param {int} currentTime relative to current time (optional)
-         * @param {int} timezone time zone bias (optional)
-         * @return {string} formatted time
-         */
-        formatRelativeMostSignificant: function(time, currentTime, timezone) {
-            if (time === Infinity)
-                return 'Someday';
-
-            currentTime = currentTime || Time.now();
-            var t = Time.decodeTime(time, timezone);
-            var c = Time.decodeTime(currentTime, timezone);
-
-            // Yesterday + time
-            if (t.year === c.year && t.month === c.month && t.day === c.day - 1)
-                return 'Yesterday ' + this.format('hh:MM tt', time, timezone);
-            // Today + time
-            if (t.year === c.year && t.month === c.month && t.day === c.day)
-                return 'Today ' + this.format('hh:MM tt', time, timezone);
-            // Tomorrow + time.
-            if (t.year === c.year && t.month === c.month && t.day === c.day + 1)
-                return 'Tomorrow ' + this.format('hh:MM tt', time, timezone);
-            // Less than 7 days. Return week day.
-            if (Math.abs(currentTime - time) < 7 * 24 * 60 * 60 * 1000 && t.weekday !== c.weekday)
-                return this.format('dddd', time, timezone);
-            // Last 2 months?
-            if ((t.year === c.year && t.month + 1 >= c.month) || (t.year + 1 === c.year && t.month + 1 >= c.month + 12 - 1))
-                return this.format('mmm d', time, timezone);
-            // Last 11 month?
-            if (t.year === c.year || (t.year + 1 === c.year && t.month > c.month))
-                return this.format('mmm', time, timezone);
-            // Return year
-            return this.format('yyyy', time, timezone);
-        }
-
-    };
 });
 
 Scoped.define("module:Classes.ObjectIdScopeMixin", function() {
@@ -12041,6 +11760,294 @@ Scoped.define("module:Loggers.LoggableMixin", ["module:Loggers.Logger","module:O
     };
 });
 
+Scoped.define("module:TimeFormat", ["module:Time","module:Strings","module:Objs"], function(Time, Strings, Objs) {
+    /**
+     * Module for formatting Time / Date
+     * 
+     * @module BetaJS.TimeFormat
+     */
+    return {
+
+        /*
+        	HH	Hours; leading zero for single-digit hours (24-hour clock).
+        	H	Hours; no leading zero for single-digit hours (24-hour clock).
+        	h+  Hours; hours as absolute number
+        	hh	Hours; leading zero for single-digit hours (12-hour clock).
+        	h	Hours; no leading zero for single-digit hours (12-hour clock).
+        	M+  Minutes; minutes as absolute number
+        	MM	Minutes; leading zero for single-digit minutes.
+        	M	Minutes; no leading zero for single-digit minutes.
+        	s+	Seconds; seconds as absolute number
+        	ss	Seconds; leading zero for single-digit seconds.
+        	s	Seconds; no leading zero for single-digit seconds.
+        	mmm	Month as a three-letter abbreviation.
+        	mm	Month as digits; leading zero for single-digit months.
+        	m	Month as digits; no leading zero for single-digit months.
+        	d+	Days; days as absolute number
+        	ddddDay of the week as string.
+        	ddd	Day of the week as a three-letter abbreviation.
+        	dd	Day of the month as digits; leading zero for single-digit days.
+        	d	Day of the month as digits; no leading zero for single-digit days.
+        	yy	Year as last two digits; leading zero for years less than 10.
+        	yyyyYear represented by four digits.
+        	l+  Milliseconds; absolute
+        	l   Milliseconds 3 digits
+        	L   Milliseconds 2 digits
+        	t	Lowercase, single-character time marker string: a or p.
+        	tt	Lowercase, two-character time marker string: am or pm.
+        	T	Uppercase, single-character time marker string: A or P.
+        	TT	Uppercase, two-character time marker string: AM or PM.
+        	o	GMT/UTC timezone offset, e.g. -0500 or +0230.
+        	
+        */
+
+        formatMappings: {
+            "HH": function(t) {
+                return Strings.padZeros(Time.timeModulo(t, "hour", "floor"), 2);
+            },
+            "H": function(t) {
+                return Time.timeModulo(t, "hour", "floor");
+            },
+            "h+": function(t) {
+                return Time.timeComponent(t, "hour", "floor");
+            },
+            "hh": function(t) {
+                var h = Time.timeModulo(t, "hour", "floor");
+                h = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+                return Strings.padZeros(h, " ", 2);
+            },
+            "h": function(t) {
+                var h = Time.timeModulo(t, "hour", "floor");
+                h = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+                return h;
+            },
+            "M+": function(t) {
+                return Time.timeComponent(t, "minute", "floor");
+            },
+            "MM": function(t) {
+                return Strings.padZeros(Time.timeModulo(t, "minute", "floor"), 2);
+            },
+            "M": function(t) {
+                return Time.timeModulo(t, "minute", "floor");
+            },
+            "s+": function(t) {
+                return Time.timeComponent(t, "second", "floor");
+            },
+            "ss": function(t) {
+                return Strings.padZeros(Time.timeModulo(t, "second", "floor"), 2);
+            },
+            "s": function(t) {
+                return Time.timeModulo(t, "second", "floor");
+            },
+            "mmm": function(t) {
+                return ((new Date(t)).toUTCString().split(" "))[2];
+            },
+            "mm": function(t) {
+                return Strings.padZeros(Time.timeComponentGet(t, "month") + 1, 2);
+            },
+            "m": function(t) {
+                return Time.timeComponentGet(t, "month") + 1;
+            },
+            "d+": function(t) {
+                return Time.timeComponent(t, "day", "floor");
+            },
+            "dddd": function(t) {
+                var map = {
+                    2: "s",
+                    3: "nes",
+                    4: "rs",
+                    6: "ur"
+                };
+                return (new Date(t)).toUTCString().substring(0, 3) + (map[Time.timeComponentGet(t, "weekday")] || "") + "day";
+            },
+            "ddd": function(t) {
+                return (new Date(t)).toUTCString().substring(0, 3);
+            },
+            "dd": function(t) {
+                return Strings.padZeros(Time.timeComponentGet(t, "day") + 1, 2);
+            },
+            "d": function(t) {
+                return Time.timeComponentGet(t, "day") + 1;
+            },
+            "yyyy": function(t) {
+                return Time.timeComponentGet(t, "year");
+            },
+            "yy": function(t) {
+                return Time.timeComponentGet(t, "year") % 100;
+            },
+            "l+": function(t) {
+                return t.getTime();
+            },
+            "l": function(t) {
+                return Time.timeComponentGet(t, "millisecond");
+            },
+            "L": function(t) {
+                return Math.floor(Time.timeComponentGet(t, "millisecond") / 10);
+            },
+            "tt": function(t) {
+                return Time.timeModulo(t, "hour", "floor") < 12 ? 'am' : 'pm';
+            },
+            "t": function(t) {
+                return Time.timeModulo(t, "hour", "floor") < 12 ? 'a' : 'p';
+            },
+            "TT": function(t) {
+                return Time.timeModulo(t, "hour", "floor") < 12 ? 'AM' : 'PM';
+            },
+            "T": function(t) {
+                return Time.timeModulo(t, "hour", "floor") < 12 ? 'A' : 'P';
+            },
+            "o": function(t, bias) {
+                bias = Math.floor(bias / 1000 / 60);
+                return (bias > 0 ? "-" : "+") + Strings.padZeros(Math.floor(Math.abs(bias) / 60) * 100 + Math.abs(bias) % 60, 4);
+            }
+
+        },
+
+        ELAPSED_HOURS_MINUTES_SECONDS: "h+:MM:ss",
+        ELAPSED_MINUTES_SECONDS: "M+:ss",
+        FULL_YEAR: "yyyy",
+        LETTER_MONTH: "mmm",
+        LETTER_MONTH_AND_DAY: "mmm d",
+        WEEKDAY: "ddd",
+        HOURS_MINUTES_TT: "hh:MM tt",
+
+
+        /**
+         * Format a given time w.r.t. a given time format
+         * 
+         * @param {string} timeFormat a time format string
+         * @param {int} time time as integer to be formatted
+         * @param {int} timezone timezone bias (optional)
+         * @return {string} formatted time
+         * 
+         */
+        format: function(timeFormat, time, timezone) {
+            time = time || Time.now();
+            var timezoneTime = Time.timeToTimezoneBasedDate(time, timezone);
+            var bias = Time.timezoneBias(timezone);
+            var result = timeFormat;
+            var replacers = [];
+            Objs.iter(this.formatMappings, function(formatter, key) {
+                if (result.indexOf(key) >= 0) {
+                    var i = replacers.length;
+                    replacers.push(formatter(timezoneTime, bias));
+                    result = result.replace(key, "$" + i + "$");
+                }
+            }, this);
+            for (var i = 0; i < replacers.length; ++i)
+                result = result.replace("$" + i + "$", replacers[i]);
+            return result;
+        },
+
+        /**
+         * Format the month as a three letter string
+         * 
+         * @param {int} month month as an int
+         * @return {string} three letter month string
+         */
+        monthString: function(month) {
+            return this.format("mmm", Time.encodePeriod({
+                month: month
+            }));
+        },
+
+        /**
+         * Format the weekday as a three letter string
+         * 
+         * @param {int} weekday weekday as an int
+         * @return {string} three letter weekday string
+         */
+        weekdayString: function(weekday) {
+            return this.format("ddd", Time.encodePeriod({
+                weekday: weekday
+            }));
+        },
+
+        /**
+         * Returns the week number
+         *
+         * @param {int} time time
+         * @param {int} timezone timezone
+         * @return {int} number of the week in a year
+         */
+        weekNumber: function(time, timezone) {
+            var base = new Date(time + Time.timezoneBias(timezone));
+            var d = new Date(Date.UTC(base.getFullYear(), base.getMonth(), base.getDate()));
+            var dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        },
+
+        // /**
+        //  * Format most significant part of date / time relative to current time
+        //  *
+        //  * @param {int} time date/time to be formatted
+        //  * @param {int} currentTime relative to current time (optional)
+        //  * @param {int} timezone time zone bias (optional)
+        //  * @return {string} formatted time
+        //  */
+        // formatRelativeMostSignificant: function(time, currentTime, timezone) {
+        //     currentTime = currentTime || Time.now();
+        //     var t = Time.decodeTime(time, timezone);
+        //     var c = Time.decodeTime(currentTime, timezone);
+        //     // Same day. Return time.
+        //     if (t.year === c.year && t.month === c.month && t.day === c.day)
+        //         return this.format('hh:MM tt', time, timezone);
+        //     // Less than 7 days. Return week day.
+        //     if (currentTime - time < 7 * 24 * 60 * 60 * 1000 && t.weekday !== c.weekday)
+        //         return this.format('dddd', time, timezone);
+        //     // Last 2 months?
+        //     if ((t.year === c.year && t.month + 1 >= c.month) || (t.year + 1 === c.year && t.month + 1 >= c.month + 12 - 1))
+        //         return this.format('mmm d', time, timezone);
+        //     // Last 11 month?
+        //     if (t.year === c.year || (t.year + 1 === c.year && t.month > c.month))
+        //         return this.format('mmm', time, timezone);
+        //     // Return year
+        //     return this.format('yyyy', time, timezone);
+        // },
+
+        /**
+         * Format most significant part of date / time relative to current time
+         *
+         * @param {int} time date/time to be formatted
+         * @param {int} currentTime relative to current time (optional)
+         * @param {int} timezone time zone bias (optional)
+         * @return {string} formatted time
+         */
+        formatRelativeMostSignificant: function(time, currentTime, timezone) {
+            if (time === Infinity)
+                return 'Someday';
+
+            currentTime = currentTime || Time.now();
+            var t = Time.decodeTime(time, timezone);
+            var c = Time.decodeTime(currentTime, timezone);
+
+            // Yesterday + time
+            if (t.year === c.year && t.month === c.month && t.day === c.day - 1)
+                return 'Yesterday ' + this.format('hh:MM tt', time, timezone);
+            // Today + time
+            if (t.year === c.year && t.month === c.month && t.day === c.day)
+                return 'Today ' + this.format('hh:MM tt', time, timezone);
+            // Tomorrow + time.
+            if (t.year === c.year && t.month === c.month && t.day === c.day + 1)
+                return 'Tomorrow ' + this.format('hh:MM tt', time, timezone);
+            // Less than 7 days. Return week day.
+            if (Math.abs(currentTime - time) < 7 * 24 * 60 * 60 * 1000 && t.weekday !== c.weekday)
+                return this.format('dddd', time, timezone);
+            // Last 2 months?
+            if ((t.year === c.year && t.month + 1 >= c.month) || (t.year + 1 === c.year && t.month + 1 >= c.month + 12 - 1))
+                return this.format('mmm d', time, timezone);
+            // Last 11 month?
+            if (t.year === c.year || (t.year + 1 === c.year && t.month > c.month))
+                return this.format('mmm', time, timezone);
+            // Return year
+            return this.format('yyyy', time, timezone);
+        }
+
+    };
+});
+
 Scoped.define("module:Collections.FilteredCollection", ["module:Collections.Collection"], function(Collection, scoped) {
     return Collection.extend({
         scoped: scoped
@@ -13716,6 +13723,124 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
                 element.removeEventListener(event, listener, false);
             });
         },
+        __PIP_EVENTS: ["enterpictureinpicture", "leavepictureinpicture"],
+        /**
+         * If browser supports picture-in-picture
+         *
+         * INFO: to enable PIP in FF: about:config, set media.videocontrols.picture-in-picture.enabled,
+         * media.videocontrols.picture-in-picture.video-toggle.enabled;true
+         * and media.videocontrols.picture-in-picture.video-toggle.flyout-enabled
+         *
+         * @param {HTMLVideoElement =} videoElement
+         * @returns {boolean}
+         */
+        browserSupportsPIP: function(videoElement) {
+            videoElement = videoElement || HTMLVideoElement.prototype || {};
+
+            if ('pictureInPictureEnabled' in document)
+                return true;
+
+            if (Info.isMacOS() && Info.safariVersion() >= 9)
+                return !!(videoElement.webkitSupportsPresentationMode && typeof videoElement.webkitSetPresentationMode === "function");
+
+            return false;
+        },
+
+        /**
+         *
+         * @param {HTMLVideoElement} videoElement
+         */
+        videoElementEnterPIPMode: function(videoElement) {
+            if (!videoElement || !(videoElement instanceof HTMLVideoElement))
+                return;
+            videoElement = videoElement || HTMLVideoElement.prototype || {};
+
+            if ('pictureInPictureElement' in document) {
+                if (!document.pictureInPictureElement && typeof videoElement.requestPictureInPicture === 'function') {
+                    try {
+                        videoElement.requestPictureInPicture();
+                    } catch (err) {
+                        console.warn(err);
+                    }
+                }
+            }
+
+            if (Info.isMacOS() && Info.safariVersion() >= 9 && typeof videoElement.webkitSetPresentationMode === 'function')
+                videoElement.webkitSetPresentationMode("picture-in-picture");
+        },
+
+        /**
+         * Video Will Exit From PIP Mode
+         * @param {HTMLVideoElement} videoElement
+         */
+        videoElementExitPIPMode: function(videoElement) {
+            videoElement = videoElement || HTMLVideoElement.prototype || {};
+
+            if ('pictureInPictureElement' in document) {
+                if (document.pictureInPictureElement && typeof document.exitPictureInPicture === 'function') {
+                    try {
+                        document.exitPictureInPicture();
+                    } catch (err) {
+                        console.warn(err);
+                    }
+                }
+            }
+
+            if (Info.isMacOS() && Info.safariVersion() >= 9 && typeof videoElement.webkitSetPresentationMode === 'function') {
+                videoElement.webkitSetPresentationMode('inline');
+            }
+        },
+
+        /**
+         * Will check if Video Element in PIP Mode
+         * @param {HTMLVideoElement} videoElement
+         * @returns {boolean}
+         */
+        videoIsInPIPMode: function(videoElement) {
+            if ('pictureInPictureElement' in document)
+                return !!document.pictureInPictureElement;
+
+            if (Info.isMacOS() && Info.safariVersion() >= 9)
+                return (videoElement.webkitPresentationMode === "picture-in-picture");
+
+        },
+
+        /**
+         *
+         * @param {HTMLVideoElement} videoElement
+         * @param {function} callback
+         * @param {object =} context
+         * @returns {listener | null}
+         */
+        videoAddPIPChangeListeners: function(videoElement, callback, context) {
+            if (!videoElement || !(videoElement instanceof HTMLVideoElement))
+                return null;
+
+            var self = this;
+            var listener = function() {
+                callback.call(context || this, videoElement, self.videoIsInPIPMode(videoElement));
+            };
+            this.__PIP_EVENTS.forEach(function(event) {
+                videoElement.addEventListener(event, listener, false);
+            });
+            return listener;
+        },
+
+        /**
+         *
+         * @param {HTMLVideoElement} videoElement
+         * @param {function} callback
+         * @param {object =} context
+         * @returns {listener}
+         */
+        videoRemovePIPChangeListeners: function(videoElement) {
+            if (!videoElement || !(videoElement instanceof HTMLVideoElement))
+                return null;
+
+            this.__PIP_EVENTS.forEach(function(event) {
+                videoElement.removeEventListener(event, videoElement);
+            });
+        },
 
         entitiesToUnicode: function(s) {
             if (!s || !Types.is_string(s) || s.indexOf("&") < 0)
@@ -15307,6 +15432,28 @@ Scoped.define("module:Loader", ["base:Ajax.Support","module:Info"], function(Aja
     };
 });
 
+Scoped.define("module:Geometry", [], function() {
+    return {
+        /**
+         *
+         * @param videoWidth
+         * @param videoHeight
+         * @param embedWidth
+         * @param embedHeight
+         */
+        padFitBoxInBox: function(videoWidth, videoHeight, embedWidth, embedHeight) {
+            var videoAR = videoWidth / videoHeight;
+            var embedAR = embedWidth / embedHeight;
+            var scale = videoAR > embedAR ? (embedWidth / videoWidth) : (embedHeight / videoHeight);
+            return {
+                scale: scale,
+                offsetX: videoAR < embedAR ? (embedWidth - videoWidth * scale) / 2 : 0,
+                offsetY: videoAR > embedAR ? (embedHeight - videoHeight * scale) / 2 : 0
+            };
+        }
+    };
+});
+
 Scoped.define("module:Hotkeys", ["base:Objs"], function(Objs) {
     return {
 
@@ -16342,8 +16489,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.147",
-    "datetime": 1575925772650
+    "version": "0.0.150",
+    "datetime": 1580097338583
 };
 });
 
@@ -18281,6 +18428,18 @@ Scoped.define("module:Player.VideoPlayerWrapper", ["base:Classes.OptimisticCondi
                 return false;
             },
 
+            supportsPIP: function() {
+                return false;
+            },
+
+            enterPIPMode: function() {},
+
+            exitPIPMode: function() {},
+
+            isInPIPMode: function() {
+                return false;
+            },
+
             error: function() {
                 return this._error;
             },
@@ -18478,6 +18637,8 @@ Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:Player.VideoPlay
                     this._audioElement.remove();
                 if (this.supportsFullscreen() && this.__fullscreenListener)
                     Dom.elementOffFullscreenChange(this._element, this.__fullscreenListener);
+                if (this.supportsPIP() && this.__pipListener)
+                    Dom.videoRemovePIPChangeListeners(this._element, this.__pipListener);
                 if (!Info.isInternetExplorer() || Info.internetExplorerVersion() > 8)
                     this._element.innerHTML = "";
                 inherited.destroy.call(this);
@@ -18539,6 +18700,11 @@ Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:Player.VideoPlay
                         }
                     }, this);
                 }
+                if (this.supportsPIP() && ('pictureInPictureElement' in document)) {
+                    this.__pipListener = Dom.videoAddPIPChangeListeners(this._element, function(element, inPIPMode) {
+                        this.trigger("pip-mode-change", element, inPIPMode);
+                    }, this);
+                }
             },
 
             buffered: function() {
@@ -18572,6 +18738,21 @@ Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:Player.VideoPlay
 
             isFullscreen: function(element) {
                 return Dom.elementIsFullscreen(this._fullscreenElement(element));
+            },
+            supportsPIP: function() {
+                return Dom.browserSupportsPIP(this._element);
+            },
+
+            enterPIPMode: function(element) {
+                Dom.videoElementEnterPIPMode(this._element);
+            },
+
+            exitPIPMode: function() {
+                Dom.videoElementExitPIPMode(this._element);
+            },
+
+            isInPIPMode: function() {
+                return Dom.videoIsInPIPMode(this._element);
             },
 
             videoWidth: function() {
@@ -22125,6 +22306,8 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 this._hasVideo = false;
                 this._screen = options.screen;
                 this._flip = !!options.flip;
+                if (this._screen && !options.flipscreen)
+                    this._flip = false;
                 this._videoTrackSettings = {
                     slippedFromOrigin: {
                         height: 1.00,
@@ -22960,6 +23143,7 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
                 this._recorder = RecorderWrapper.create({
                     video: this._element,
                     flip: !!this._options.flip,
+                    flipscreen: !!this._options.flipscreen,
                     framerate: this._options.framerate,
                     recordVideo: this._options.recordVideo,
                     recordFakeVideo: !this._options.recordVideo,
@@ -23226,7 +23410,7 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
             },
 
             _softwareDependencies: function() {
-                if (!this._options.screen || Support.globals().supportedConstraints.mediaSource)
+                if (!this._options.screen || (this._options.screen && typeof navigator.mediaDevices.getDisplayMedia !== 'undefined') || Support.globals().supportedConstraints.mediaSource)
                     return Promise.value(true);
                 var ext = Support.chromeExtensionExtract(this._options.screen);
                 var err = [{
@@ -25728,6 +25912,8 @@ Scoped.define("module:Dynamic", ["module:Data.Scope","module:Parser","module:Han
                 this.__domEvents = new DomEvents();
                 this.inheritables = (this.parent() ? this.parent().inheritables : []).concat(this.inheritables || []);
                 this.friendgroup.registerScope(this, this.cls.registeredName());
+                if (this.friendgroup && this.parent() && this.parent().friendgroup !== this.friendgroup)
+                    this.parent().friendgroup.registerScope(this, this.cls.registeredName());
             },
 
             handle_call_exception: function(name, args, e) {
@@ -25762,6 +25948,8 @@ Scoped.define("module:Dynamic", ["module:Data.Scope","module:Parser","module:Han
             },
 
             destroy: function() {
+                if (this.friendgroup && this.parent() && this.parent().friendgroup !== this.friendgroup)
+                    this.parent().friendgroup.unregisterScope(this, this.cls.registeredName());
                 this.friendgroup.unregisterScope(this, this.cls.registeredName());
                 if (this.free)
                     this.free();
@@ -26006,130 +26194,6 @@ Scoped.define("module:Handlers.Partial", ["base:Class","base:JavaScript","base:F
         }
 
     });
-});
-
-Scoped.define("module:Partials.StylesPartial", ["module:Handlers.Partial"], function(Partial, scoped) {
-    var Cls = Partial.extend({
-        scoped: scoped
-    }, {
-
-        _apply: function(value) {
-            for (var key in value)
-                this._node._element.style[key] = value[key];
-        }
-
-    });
-    Cls.register("ba-styles");
-    return Cls;
-});
-
-Scoped.define("module:Partials.ShowPartial", ["module:Handlers.Partial"], function(Partial, scoped) {
-    /**
-     * @name ba-show
-     *
-     * @description
-     * The ba-show partials controls showing the internal Html on the Dom based on
-     * the truth value of the given expression.
-     *
-     * @param {expression} baShow Expression to evaluate for truth. If true,
-     * internal html will be displayed. If false, internal html will not be
-     * displayed. Expression must be wrapped in {{}} so it will be evaluated, as
-     * seen below.
-     *
-     * @example <p ba-show="{{1 === 1}}">Hi</p>
-     * // Evalues to <p>Hi</p>
-     * @example <p ba-show="{{1 === 2}}">Hi</p>
-     * // Evalues to <p style="display: none;">Hi</p>
-     */
-    var Cls = Partial.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-
-            constructor: function(node, args, value) {
-                inherited.constructor.apply(this, arguments);
-                this.__oldDisplay = undefined;
-                this.__readOldDisplay = false;
-                this.__hidden = false;
-                if (!value)
-                    this.__hide();
-            },
-
-            __hide: function() {
-                if (this.__hidden)
-                    return;
-                this.__hidden = true;
-                if (!this.__readOldDisplay) {
-                    this.__oldDisplay = this._node._element.style.display;
-                    this.__readOldDisplay = true;
-                }
-                this._node._element.style.display = "none";
-            },
-
-            __show: function() {
-                if (!this.__hidden)
-                    return;
-                this.__hidden = false;
-                this._node._element.style.display = this.__oldDisplay && this.__oldDisplay !== 'none' ? this.__oldDisplay : "";
-            },
-
-            _apply: function(value) {
-                if (value)
-                    this.__show();
-                else
-                    this.__hide();
-            }
-
-        };
-    });
-    Cls.register("ba-show");
-    return Cls;
-});
-
-Scoped.define("module:Partials.IfPartial", ["module:Partials.ShowPartial"], function(Partial, scoped) {
-    /**
-     * @name ba-if
-     *
-     * @description
-     * The ba-if partial controls rendering of internal Html based on the truth
-     * value of a given expression. It differs from ba-show in that ba-show
-     * renders internal Html, but hides it, while ba-if will not render the
-     * internal Html at all.
-     *
-     * @param {expression} baIf Expression to evaluate for truth. If true,
-     * internal html will be rendered. If false, internal html will not be
-     * rendered. Note, if the expression should be evaluted, it must be wrapped in
-     * {{}}. See the examples below.
-     *
-     * @example <div ba-if="{{1 === 1}}"><h1>Hi</h1><div>
-     * // Evaluated to <div><h1>Hi</h1></div>
-     *
-     * @example <div ba-if="{{1 === 2}}"></h1>Hi</h1></div>
-     * // Evaluated to <div></div>
-     */
-    var Cls = Partial.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-
-            constructor: function(node, args, value) {
-                inherited.constructor.apply(this, arguments);
-                if (!value)
-                    node.deactivate();
-            },
-
-            _apply: function(value) {
-                inherited._apply.call(this, value);
-                if (value)
-                    this._node.activate();
-                else
-                    this._node.deactivate();
-            }
-
-        };
-    });
-    Cls.register("ba-if");
-    return Cls;
 });
 
 Scoped.define("module:Partials.ClickPartial", ["module:Handlers.Partial","browser:Events"], function(Partial, Events, scoped) {
@@ -26484,6 +26548,130 @@ Scoped.define("module:Partials.RepeatElementPartial", ["module:Partials.RepeatPa
     return Cls;
 });
 
+Scoped.define("module:Partials.StylesPartial", ["module:Handlers.Partial"], function(Partial, scoped) {
+    var Cls = Partial.extend({
+        scoped: scoped
+    }, {
+
+        _apply: function(value) {
+            for (var key in value)
+                this._node._element.style[key] = value[key];
+        }
+
+    });
+    Cls.register("ba-styles");
+    return Cls;
+});
+
+Scoped.define("module:Partials.ShowPartial", ["module:Handlers.Partial"], function(Partial, scoped) {
+    /**
+     * @name ba-show
+     *
+     * @description
+     * The ba-show partials controls showing the internal Html on the Dom based on
+     * the truth value of the given expression.
+     *
+     * @param {expression} baShow Expression to evaluate for truth. If true,
+     * internal html will be displayed. If false, internal html will not be
+     * displayed. Expression must be wrapped in {{}} so it will be evaluated, as
+     * seen below.
+     *
+     * @example <p ba-show="{{1 === 1}}">Hi</p>
+     * // Evalues to <p>Hi</p>
+     * @example <p ba-show="{{1 === 2}}">Hi</p>
+     * // Evalues to <p style="display: none;">Hi</p>
+     */
+    var Cls = Partial.extend({
+        scoped: scoped
+    }, function(inherited) {
+        return {
+
+            constructor: function(node, args, value) {
+                inherited.constructor.apply(this, arguments);
+                this.__oldDisplay = undefined;
+                this.__readOldDisplay = false;
+                this.__hidden = false;
+                if (!value)
+                    this.__hide();
+            },
+
+            __hide: function() {
+                if (this.__hidden)
+                    return;
+                this.__hidden = true;
+                if (!this.__readOldDisplay) {
+                    this.__oldDisplay = this._node._element.style.display;
+                    this.__readOldDisplay = true;
+                }
+                this._node._element.style.display = "none";
+            },
+
+            __show: function() {
+                if (!this.__hidden)
+                    return;
+                this.__hidden = false;
+                this._node._element.style.display = this.__oldDisplay && this.__oldDisplay !== 'none' ? this.__oldDisplay : "";
+            },
+
+            _apply: function(value) {
+                if (value)
+                    this.__show();
+                else
+                    this.__hide();
+            }
+
+        };
+    });
+    Cls.register("ba-show");
+    return Cls;
+});
+
+Scoped.define("module:Partials.IfPartial", ["module:Partials.ShowPartial"], function(Partial, scoped) {
+    /**
+     * @name ba-if
+     *
+     * @description
+     * The ba-if partial controls rendering of internal Html based on the truth
+     * value of a given expression. It differs from ba-show in that ba-show
+     * renders internal Html, but hides it, while ba-if will not render the
+     * internal Html at all.
+     *
+     * @param {expression} baIf Expression to evaluate for truth. If true,
+     * internal html will be rendered. If false, internal html will not be
+     * rendered. Note, if the expression should be evaluted, it must be wrapped in
+     * {{}}. See the examples below.
+     *
+     * @example <div ba-if="{{1 === 1}}"><h1>Hi</h1><div>
+     * // Evaluated to <div><h1>Hi</h1></div>
+     *
+     * @example <div ba-if="{{1 === 2}}"></h1>Hi</h1></div>
+     * // Evaluated to <div></div>
+     */
+    var Cls = Partial.extend({
+        scoped: scoped
+    }, function(inherited) {
+        return {
+
+            constructor: function(node, args, value) {
+                inherited.constructor.apply(this, arguments);
+                if (!value)
+                    node.deactivate();
+            },
+
+            _apply: function(value) {
+                inherited._apply.call(this, value);
+                if (value)
+                    this._node.activate();
+                else
+                    this._node.deactivate();
+            }
+
+        };
+    });
+    Cls.register("ba-if");
+    return Cls;
+});
+
 Scoped.define("module:Partials.EventPartial", ["module:Handlers.Partial","base:Functions"], function(Partial, Functions, scoped) {
     var Cls = Partial.extend({
         scoped: scoped
@@ -26815,8 +27003,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.201",
-    "datetime": 1571454911116
+    "version": "0.0.213",
+    "datetime": 1580155535262
 };
 });
 
@@ -29008,243 +29196,363 @@ Scoped.define("module:AudioVisualisation", ["base:Class","browser:Dom","browser:
     });
 });
 
-Scoped.define("module:Settings", ["base:Class","base:Objs","base:Events.EventsMixin","base:Async","base:Timers.Timer","browser:Dom","browser:Events"], function(Class, Objs, EventsMixin, Async, Timer, Dom, DomEvents, scoped) {
-
+Scoped.define("module:Common.Dynamics.Helperframe", ["dynamics:Dynamic","base:Async","base:Timers.Timer","base:Objs","browser:Events","browser:Geometry","browser:Info"], function(Class, Async, Timer, Objs, DomEvents, Geometry, Info, scoped) {
     return Class.extend({
         scoped: scoped
-    }, [EventsMixin, function(inherited) {
+    }, function(inherited) {
         return {
 
-            constructor: function(options, dynamics) {
-                inherited.constructor.call(this);
-                var _selector, _css;
-                this.options = options;
-                this.dyn = dynamics;
-                this.selected = {};
-                _css = this.dyn.get('css');
-                // Dom.ready(function () {
-                try {
-                    _selector = '.' + _css + '-overlay';
-                    this.currentElement = dynamics.activeElement().querySelector(_selector);
-                    this.settingsContainer = document.createElement("div");
-                    this.settingsContainer.className = "ba-settings-overlay";
-                    this.currentElement.appendChild(this.settingsContainer);
-                } catch (e) {
-                    console.warn('Could not select settings element. Details: ' + e);
-                    return;
+            attrs: {
+                "css": "ba-videorecorder",
+                "framereversable": true,
+                "framedragable": true,
+                "frameresizeable": false,
+                "framewidth": 120,
+                "frameheight": 95,
+                "framepositionx": 5,
+                "framepositiony": 5,
+                "frameminwidth": 120,
+                "frameminheight": 95,
+                "flipframe": false,
+                "frameproportional": true,
+                "framemainstyle": {
+                    opacity: 0.5,
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    zIndex: 100
                 }
+            },
 
-                this.domEvents = this.auto_destroy(new DomEvents());
+            types: {
+                "framereversable": "boolean",
+                "framedragable": "boolean",
+                "frameresizeable": "boolean",
+                "frameproportional": "boolean",
+                "framewidth": "int",
+                "frameheight": "int",
+                "framepositionx": "int",
+                "framepositiony": "int",
+                "frameminwidth": "int",
+                "frameminheight": "int"
+            },
 
-                // If mouse clicked outside of the element
-                this.domEvents.on(document, "click touchstart", function(event) {
-                    var isClickInside = this.settingsContainer.contains(event.target);
-                    if (!isClickInside && this.containerInner) {
-                        this.dyn.set("settingsoptionsvisible", false);
-                        this._removeSettingsContent();
+            computed: {},
+
+            events: {
+                "change:framepositionx change:framepositiony change:framewidth change:frameheight": function(value) {
+                    if (typeof this.recorder._recorder === 'object' && this.__visibleDimensions.accessible) {
+                        this.recorder._recorder.updateMultiStreamPosition(
+                            this.get("framepositionx"),
+                            this.get("framepositiony"),
+                            this.get("framewidth"),
+                            this.get("frameheight")
+                        );
                     }
+                }
+            },
+
+            create: function() {
+                var _interactionEvent;
+                var _frameClicksCount = 0;
+                this.__parent = this.parent();
+
+                Objs.iter(this.get("framemainstyle"), function(value, index) {
+                    this.activeElement().style[index] = value;
                 }, this);
 
-                // }, this);
-            },
+                // Create additional related elements after reverse element created
+                _interactionEvent = Info.isTouchable() ? 'touch' : 'click';
 
-            /**
-             * Toggle settings
-             */
-            toggle_settings_block: function() {
-                if (this.containerInner) {
-                    this._removeSettingsContent();
-                    return;
-                }
-                this._showRootSettings(this.options, this.hasSubMenu);
-            },
+                this._frameInteractionEventHandler = this.auto_destroy(new DomEvents());
 
-            /**
-             * Hide settings
-             */
-            hide_settings: function() {
-                if (this.containerInner) {
-                    this._removeSettingsContent();
-                    return;
-                }
-            },
+                this.recorder = this.__parent.recorder;
+                this.player = this.__parent.player;
+                this.__visibleDimensions = {};
+                this.__setHelperFrameDimensions();
 
-            /**
-             * If exists remove old inner container and create a new one
-             * @private
-             */
-            _buildSettingsContainer: function(callback) {
-                try {
-                    this._removeSettingsContent();
-                    Async.eventually(function() {
-                        this.containerInner = document.createElement("ul");
-                        this.containerInner.className = "ba-settings-overlay-inner";
-                        this.settingsContainer.appendChild(this.containerInner);
-                        callback.call(this, null, this.containerInner);
-                    }, this, 10);
-                } catch (e) {
-                    callback(e, null);
-                }
-            },
-
-            /**
-             * Show root settings as a list
-             * @param {Object} options
-             * @private
-             */
-            _showRootSettings: function(options) {
-                options = options || this.options;
-                var _singleSetting, _label, _hasOptions, _rightAngleIcon;
-                this._buildSettingsContainer(function(err, container) {
-                    if (err) {
-                        console.warn('Error: ', err);
-                        return;
-                    } else {
-                        //Objs.count(options)
-                        Objs.iter(options, function(setting) {
-                            _singleSetting = document.createElement('li');
-                            _label = this.dyn.string(setting.label) || setting.label;
-                            _hasOptions = setting.options ? 'true' : false;
-                            _rightAngleIcon = _hasOptions ? '<i class="' + this.dyn.get('csscommon') + '-icon-angle-right' + '"></i>' : '';
-                            _singleSetting.tabIndex = 0;
-                            _singleSetting.innerHTML = _label + '<span class="ba-settings-label-icon">' + _rightAngleIcon + '</span>';
-                            if (!this.selected[setting.id]) {
-                                this.selected[setting.id] = {};
-                                this.selected[setting.id].value = setting.defaultValue;
-                            }
-                            if (setting.options) {
-                                this.domEvents.on(_singleSetting, "click touchstart", function(ev) {
-                                    this._showChildOptions(setting);
-                                }, this);
-                            } else {
-                                this._attachEventToElement(setting, _singleSetting);
-                            }
-                            container.appendChild(_singleSetting);
-                        }, this);
-                        this._animateFade(false, container);
-                    }
-                });
-            },
-
-            /**
-             * Show inner child options of the setting
-             * @param {Object} setting
-             * @private
-             */
-            _showChildOptions: function(setting) {
-                var _singleSettingElement, _label, _selected, _checkedIcon;
-                this._buildSettingsContainer(function(err, container) {
-                    if (err) {
-                        console.warn('Error: ', err);
-                    } else {
-                        if (Objs.count(setting.options) > 0) {
-                            this._createBackPointer(container);
-                        } else return;
-
-                        Objs.iter(setting.options, function(option) {
-                            _singleSettingElement = document.createElement('li');
-                            _selected = this.selected[setting.id].value === option.value;
-                            _checkedIcon = _selected ? '<i class="' + this.dyn.get('csscommon') + '-icon-check' + '"></i>' : '';
-                            _singleSettingElement.tabIndex = 0;
-                            _singleSettingElement.className = 'ba-settings-popup-list-item ba-' + setting.className + '-list-item';
-                            _singleSettingElement.className += _selected ? ' ba-settings-popup-selected-list-item' : '';
-                            _label = this.dyn.string(option.label) || option.label;
-
-                            _singleSettingElement.innerHTML = '<span class="ba-settings-label-icon">' + _checkedIcon + '</span> ' + _label;
-
-                            this._attachEventToElement(setting, _singleSettingElement, option);
-                            container.appendChild(_singleSettingElement);
-                        }, this);
-                    }
-                    this._animateFade(false, container);
-                });
-            },
-
-            /**
-             * Create link to back to the main settings link
-             * @private
-             */
-            _createBackPointer: function(container) {
-                var _singleSettingElement, _leftAngleIcon;
-                _singleSettingElement = document.createElement('li');
-                _leftAngleIcon = '<span class="ba-settings-label-icon"><i class="' + this.dyn.get('csscommon') + '-icon-angle-left' + '"></i></span>';
-                _singleSettingElement.innerHTML = _leftAngleIcon + this.dyn.string('all-settings');
-                _singleSettingElement.className = 'ba-settings-popup-list-item ba-settings-back-to-settings';
-                this.domEvents.on(_singleSettingElement, 'click touchstart', function() {
-                    this._showRootSettings(this.options);
-                }, this);
-                container.appendChild(_singleSettingElement);
-            },
-
-            /**
-             * Will attach provided events on
-             * @param {Object} setting
-             * @param element
-             * @param {Object} option
-             * @private
-             */
-            _attachEventToElement: function(setting, element, option) {
-                Objs.map(setting.events, function(event) {
-                    this.domEvents.on(element, event.type, function() {
-                        _method = event.method;
-                        if (option) {
-                            this.selected[setting.id].value = option.value;
-                            this.dyn.functions[_method].call(this.dyn, option.value);
-                        } else
-                            this.dyn.functions[_method].call(this.dyn);
-                        if (option)
-                            this._showRootSettings(this.options);
-                        else
-                            this.toggle_settings_block();
-                    }, this);
-                }, this);
-            },
-
-            /**
-             * Remove Settings container
-             * @private
-             */
-            _removeSettingsContent: function() {
-                if (this.containerInner) {
-                    if (this.containerInner.parentNode)
-                        try {
-                            this.containerInner.parentNode.removeChild(this.containerInner);
-                            this.containerInner = null;
-                        } catch (e) {
-                            console.warn(e);
-                        }
-                }
-            },
-
-            /**
-             * Animate fade in or out
-             * @param {boolean} hide
-             * @param {Object} container
-             * @private
-             */
-            _animateFade: function(hide, container) {
-                var _opacity, _step, _target, _timer;
-                _opacity = hide ? 1.00 : 0.00;
-                _step = hide ? -0.1 : 0.1;
-                _target = hide ? 0.00 : 1.00;
-                container.style.opacity = _opacity;
-                Async.eventually(function() {
-                    _timer = this.auto_destroy(new Timer({
+                // fit frame dimensions based on source resolution
+                // Only after we have _recorder informer
+                if (!this.__visibleDimensions.accessible) {
+                    var timer = new Timer({
                         context: this,
                         fire: function() {
-                            container.style.opacity = _opacity;
-                            _opacity = _opacity + (_step * 1.0);
-                            if ((hide && _opacity < _target) || (!hide && _opacity > _target)) {
-                                _timer.destroy();
+                            if (typeof this.recorder._recorder._videoTrackSettings.videoElement === 'object' && timer) {
+                                this.fitFrameViewOnScreenVideo();
+                                timer.stop();
                             }
                         },
                         delay: 10,
+                        destroy_on_stop: true,
                         immediate: true
-                    }));
-                }, this, 100);
+                    });
+                }
+
+                if (this.recorder) {
+                    // DO RECORDER STUFF
+
+                    // If Reverse Cameras Settings is true
+                    if (this.get("framereversable")) {
+                        this._frameInteractionEventHandler.on(this.activeElement(), _interactionEvent, function(ev) {
+                            _frameClicksCount++;
+                            // because not enough info regarding supported versions also not be able to support mobile, avoided to use dblclick event
+                            if (_frameClicksCount === 1)
+                                Async.eventually(function() {
+                                    _frameClicksCount = 0;
+                                }, this, 400);
+
+                            if (_frameClicksCount >= 2) {
+                                this.recorder.reverseCameraScreens();
+                            }
+                        }, this);
+                    }
+
+                    // If Drag Settings is true
+                    if (this.get("framedragable"))
+                        this.addDragOption(this.__parent.activeElement());
+
+                    if (this.get("frameresizeable")) {
+                        this.addResize(Info.isTouchable(), null, {
+                            width: '7px',
+                            height: '7px',
+                            borderRight: '1px solid white',
+                            borderBottom: '1px solid white',
+                            bottom: 0,
+                            right: 0,
+                            position: 'absolute',
+                            cursor: 'nwse-resize',
+                            zIndex: 200
+                        });
+                    }
+                } else if (this.player) {
+                    // DO PLAYER STUFF
+                }
+            },
+
+            functions: {},
+
+            /**
+             * Will calculate real
+             * @private
+             */
+            fitFrameViewOnScreenVideo: function() {
+
+                // It will be accessible when at least one of the
+                // EventListeners will be fired
+                var vts = this.recorder._recorder._videoTrackSettings;
+                var _height = this.__parent.get('height') ? vts.videoElement.height : vts.videoInnerFrame.height;
+
+                if (!this.__vts) this.__vts = vts;
+
+                this.__translate = Geometry.padFitBoxInBox(vts.width, vts.height, vts.videoElement.width, _height);
+
+                if (!this.__resizing) {
+                    this.__visibleDimensions.x = this.__translate.offsetX + this.get("framepositionx") * this.__translate.scale;
+                    this.__visibleDimensions.y = this.__translate.offsetY + this.get("framepositiony") * this.__translate.scale;
+                }
+
+                this.__visibleDimensions.width = this.get("framewidth") * this.__translate.scale;
+                this.__visibleDimensions.height = this.get("frameheight") * this.__translate.scale;
+
+                this.__visibleDimensions.accessible = true;
+
+                if (!this.__dragging && !this.__resizing) {
+                    this.__positions = {
+                        initialX: this.__visibleDimensions.x,
+                        initialY: this.__visibleDimensions.y,
+                        currentX: this.__visibleDimensions.x,
+                        currentY: this.__visibleDimensions.y,
+                        bottomX: this.__visibleDimensions.x + this.__visibleDimensions.width,
+                        bottomY: this.__visibleDimensions.y + this.__visibleDimensions.height,
+                        xOffset: 0,
+                        yOffset: 0
+                    };
+                }
+
+                this.__setHelperFrameDimensions();
+            },
+
+            /**
+             * Will add Drag
+             *
+             * @param {HTMLElement} container
+             * @private
+             */
+            addDragOption: function(container) {
+                this._draggingEvent = this.auto_destroy(new DomEvents());
+
+                // switch to touch events if using a touch screen
+                var _endEvent = Info.isTouchable() ? 'touchend' : 'mouseup';
+                var _moveEvent = Info.isTouchable() ? 'touchmove' : 'mousemove';
+                var _startEvent = Info.isTouchable() ? 'touchstart' : 'mousedown';
+
+                this._draggingEvent.on(container, _endEvent, this.__handleMouseEndEvent, this);
+                this._draggingEvent.on(container, _moveEvent, this.__handleMouseMoveEvent, this);
+                this._draggingEvent.on(container, _startEvent, this.__handleMouseStartEvent, this);
+            },
+
+            /**
+             * @param {Boolean} isTouchDevice
+             * @param {HTMLElement} container
+             * @param {Object} options
+             * @private
+             */
+            addResize: function(isTouchDevice, container, options) {
+                container = container || this.activeElement();
+
+                this.__resizerElement = document.createElement('div');
+
+                Objs.iter(options, function(value, index) {
+                    this.__resizerElement.style[index] = value;
+                }, this);
+
+                container.append(this.__resizerElement);
+                this.__resizeEvent = this.auto_destroy(new DomEvents());
+            },
+
+            /**
+             * Handle Draggable Element Mouse Event
+             *
+             * @param {MouseEvent|TouchEvent} ev
+             * @private
+             */
+            __handleMouseStartEvent: function(ev) {
+                ev.preventDefault();
+                if (typeof this.__visibleDimensions.accessible === 'undefined') {
+                    this.fitFrameViewOnScreenVideo();
+                    return;
+                }
+                this.__dragging = ev.target === this.activeElement();
+                this.__resizing = ev.target === this.__resizerElement;
+
+                if (typeof this.__positions === 'object') {
+                    if (ev.type === "touchstart") {
+                        this.__positions.initialX = ev.touches[0].clientX - this.__positions.xOffset;
+                        this.__positions.frame.initialY = ev.touches[0].clientY - this.__positions.yOffset;
+                    } else {
+                        if (this.__dragging) {
+                            this.__positions.initialX = ev.clientX - this.__positions.xOffset;
+                            this.__positions.initialY = ev.clientY - this.__positions.yOffset;
+                        }
+                        this.__positions.bottomX = this.__positions.initialX + this.__visibleDimensions.width;
+                        this.__positions.bottomY = this.__positions.initialY + this.__visibleDimensions.height;
+                    }
+                }
+            },
+
+
+            /**
+             * Listener of mouse movement
+             *
+             * @param {MouseEvent|TouchEvent} ev
+             * @private
+             */
+            __handleMouseMoveEvent: function(ev) {
+                var setTranslate = function(el, posX, posY) {
+                    el.style.transform = "translate3d(" + posX + "px, " + posY + "px, 0)";
+                };
+
+                var setDimension = function(el, width, height) {
+                    el.style.width = width;
+                    el.style.height = height;
+                };
+
+                ev.preventDefault();
+                if (!this.__dragging && !this.__resizing) return;
+                this.activeElement().style.cursor = 'move';
+                this.activeElement().style.opacity = '0';
+
+                var _diffX, _diffY;
+
+                if (ev.type === "touchmove") {
+                    this.__positions.currentX = ev.touches[0].clientX - this.__positions.initialX;
+                    this.__positions.currentY = ev.touches[0].clientY - this.__positions.initialY;
+                } else {
+                    if (this.__dragging) {
+                        this.__positions.currentX = ev.clientX - this.__positions.initialX;
+                        this.__positions.currentY = ev.clientY - this.__positions.initialY;
+                    }
+
+                    if (this.__resizing) {
+                        // var _d = this.activeElement().getBoundingClientRect();
+                        // this.__visibleDimensions.width = this.get("framewidth") * this.__translate.scale;
+                        // this.__visibleDimensions.height = this.get("frameheight") * this.__translate.scale;
+                        _diffX = ev.clientX - this.__positions.bottomX; //(this.__positions.currentX + this.__visibleDimensions.width);
+                        _diffY = ev.clientY - this.__positions.bottomY; //(this.__positions.currentY + this.__visibleDimensions.height);
+                    }
+                }
+
+
+                if (this.__dragging) {
+                    this.__positions.xOffset = this.__positions.currentX;
+                    this.__positions.yOffset = this.__positions.currentY;
+
+                    setTranslate(this.activeElement(), this.__positions.currentX, this.__positions.currentY);
+                    this.set("framepositionx", this.__positions.currentX / this.__translate.scale);
+                    this.set("framepositiony", this.__positions.currentY / this.__translate.scale);
+                }
+
+                if (this.__resizing) {
+                    var _height;
+                    var _width = this.__visibleDimensions.width + _diffX;
+                    if (this.get("frameproportional"))
+                        _height = _width / this.__vts.aspectRatio;
+                    else
+                        _height = this.__visibleDimensions.height + _diffY;
+
+                    this.__positions.bottomX = this.__positions.currentX + _width;
+                    this.__positions.bottomY = this.__positions.currentY + _height;
+
+                    this.set("framewidth", _width / this.__translate.scale);
+                    this.set("frameheight", _height / this.__translate.scale);
+
+                    this.fitFrameViewOnScreenVideo();
+                    setDimension(this.activeElement(), _width, _height);
+                }
+
+            },
+
+            /**
+             * Listener of movement end
+             *
+             * @param {MouseEvent|TouchEvent} ev
+             * @private
+             */
+            __handleMouseEndEvent: function(ev) {
+                ev.preventDefault();
+                if (!this.__dragging && !this.__resizing) return;
+
+                if (!this.__resizing) {
+                    this.__positions.initialX = this.__positions.currentX;
+                    this.__positions.initialY = this.__positions.currentY;
+                } else {
+                    this.__positions.bottomX = this.__positions.currentX + this.__visibleDimensions.width;
+                    this.__positions.bottomY = this.__positions.currentY + this.__visibleDimensions.height;
+                }
+
+                this.activeElement().style.cursor = 'pointer';
+                this.activeElement().style.opacity = this.get("framemainstyle").opacity;
+
+                this.__dragging = false;
+                this.__resizing = false;
+            },
+
+            /**
+             * Helper method will set dimensions for multi-screen recorder related elements
+             *
+             * @param {HTMLElement=} element - HTML element or Null to set dimentions and position
+             * @private
+             */
+            __setHelperFrameDimensions: function(element) {
+                element = element || this.activeElement();
+                if (element) {
+                    element.style.top = this.__visibleDimensions.y + 'px';
+                    element.style.left = this.__visibleDimensions.x + 'px';
+                    element.style.width = this.__visibleDimensions.width + 'px';
+                    element.style.height = this.__visibleDimensions.height + 'px';
+                }
             }
         };
-    }]);
+    }).register("ba-helperframe");
 });
 
 Scoped.define("module:TrackTags", ["base:Class","base:Objs","base:Events.EventsMixin","base:Async","base:TimeFormat","browser:Dom","browser:Info","browser:Events"], function(Class, Objs, EventsMixin, Async, TimeFormat, Dom, Info, DomEvents, scoped) {
@@ -29564,6 +29872,337 @@ Scoped.define("module:TrackTags", ["base:Class","base:Objs","base:Events.EventsM
             }
         };
     }]);
+});
+
+Scoped.define("module:Common.Dynamics.Settingsmenu", ["dynamics:Dynamic","base:Objs","base:Async","base:Timers.Timer","browser:Dom","browser:Events","module:Assets"], ["dynamics:Partials.ClickPartial","dynamics:Partials.RepeatElementPartial"], function(Class, Objs, Async, Timer, Dom, DomEvents, Assets, scoped) {
+    return Class.extend({
+            scoped: scoped
+        }, function(inherited) {
+
+            return {
+
+                template: "<div if=\"{{visiblesettings.length > 0}}\" class=\"{{csscommon}}-settings-menu {{csstheme}}-settings-menu\" role=\"settingsblock\">\n    <div class=\"{{csscommon}}-settings-menu-overlay\">\n        <div ba-if=\"{{root}}\"\n             class=\"{{csscommon}}-settings-menu-item\"\n             ba-repeat-element=\"{{setting :: visiblesettings}}\"\n             title=\"{{string(setting.label)}}\"\n             ba-click=\"{{select_setting(setting.id)}}\"\n        >\n            <div class=\"{{csscommon}}-settings-menu-label\" role=\"settingslabel\">\n                {{string(setting.label) || setting.label}}\n            </div>\n\n            <div ba-if=\"{{setting.options}}\" class=\"{{csscommon}}-settings-menu-value {{csscommon}}-setting-option-value\"\n                 role=\"settingsvalue\"\n            >\n                {{setting.value}}\n            </div>\n\n            <div ba-if=\"{{!setting.options}}\" class=\"{{csscommon}}-settings-menu-value \"\n                 role=\"settingicon\"\n            >\n                <div ba-if=\"{{setting.showicon}}\"\n                     style=\"{{setting.value ? setting.icontruestyle : setting.iconfalsestyle}}\"\n                     class=\"{{csscommon}}-setting-menu-icon {{csscommon + (setting.value ? '-setting-on' : '-setting-off')}}\">\n                    {{setting.value ? setting.trueicon : setting.falseicon}}\n                </div>\n            </div>\n\n        </div>\n\n        <div ba-if=\"{{!root}}\">\n            <div class=\"{{csscommon}}-setting-menu-options-title {{csscommon}}-settings-menu-options-item\"\n                 ba-click=\"{{show_root()}}\"\n            > <div>{{ string(selected.label) || string('setting-menu')}}</div></div>\n            <div\n                class=\"{{csscommon}}-settings-menu-options-item\"\n                ba-repeat-element=\"{{option :: visiblesettings}}\"\n                title=\"{{string(selected.label) || string('')}}\"\n                ba-click=\"{{select_value(option)}}\"\n            >\n                <div>\n                    <i ba-if=\"{{option === selected.value}}\" class=\"{{csscommon}}-icon-check\"></i>\n                    {{option.label || option}}\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n",
+
+
+                attrs: {
+                    "css": "ba-common",
+                    "csscommon": "ba-commoncss",
+                    "cssplayer": "ba-player",
+                    "settings": [],
+                    "visiblesettings": [],
+                    "selected": null,
+                    "root": true,
+
+                    "default": {
+                        value: false,
+                        label: 'setting-item',
+                        visible: true, // small < 320 , medium < 400, normal >= 401, false
+                        flashSupport: false,
+                        mobileSupport: true,
+                        showicon: true,
+                        // https://www.htmlsymbols.xyz/unicode
+                        trueicon: '&#x2713;',
+                        falseicon: '&#x2573;',
+                        icontruestyle: 'color: #5dbb96;',
+                        iconfalsestyle: 'color: #dd4b39'
+                    },
+
+                    "predefined": {
+                        player: [{
+                            id: 'playerspeeds',
+                            label: 'player-speed',
+                            value: 1.0,
+                            options: [0.50, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00],
+                            func: function(setting, value) {
+                                /** @var Dynamic this */
+                                if (typeof this.functions.set_speed === 'function' && value > 0) {
+                                    this.functions.set_speed.call(this, value);
+                                    return true;
+                                } else {
+                                    console.error('Wrong argument or function provided');
+                                    return false;
+                                }
+                            }
+                        }],
+                        recorder: [{}]
+                    }
+                },
+
+                computed: {
+                    "settings": function() {
+                        var predefined = typeof this.__parent.recorder !== 'object' ? this.get("predefined").player : this.get("predefined").recorder;
+                        Objs.iter(predefined, function(setting, index) {
+                            if (setting.visible || typeof setting.visible === 'undefined')
+                                this.addSetting(setting);
+                        }, this);
+                        return this.get("settings");
+                    }
+                },
+
+                events: {
+                    "change:visiblesettings": function(newValue) {
+                        var probe = Objs.peek(newValue);
+                        if (typeof probe === 'object' && probe) {
+
+                            // Reset selected setting
+                            this.set("selected", null);
+
+                            // If object has ID key, then it's menu item
+                            if (probe.hasOwnProperty('id'))
+                                this.set("root", true);
+
+                        } else {
+                            this.set("root", false);
+
+                            this._animateFade(false, this.activeElement());
+                        }
+                    }
+                },
+
+                functions: {
+                    show_root: function() {
+                        this.switchToRoot();
+                    },
+
+                    /**
+                     * @param {String} settingId
+                     */
+                    select_setting: function(settingId) {
+                        Objs.iter(this.get("settings"), function(setting, i) {
+                            if (setting.id === settingId)
+                                this.build_setting(setting, settingId);
+                        }, this);
+                    },
+
+                    /**
+                     * Call function of the setting
+                     * @param value
+                     */
+                    select_value: function(value) {
+                        this._setSettingWithMethod(value);
+                    },
+
+                    add_new_settings_item: function(settingObject) {
+                        this.addSetting(settingObject);
+                    },
+
+                    update_new_settings_item: function(id, updatedSetting) {
+                        this.updateSetting(id, updatedSetting);
+                    },
+
+                    remove_settings_item: function(id) {
+                        this.removeSetting(id);
+                    }
+                },
+
+                /**
+                 * Initial Function After Render
+                 */
+                create: function() {
+                    this.domEvents = this.auto_destroy(new DomEvents());
+
+                    // If mouse clicked outside of the element
+                    this.domEvents.on(document, "click touchstart", function(event) {
+                        var isClickInside = this.activeElement().contains(event.target);
+                        if (!isClickInside && this.activeElement()) {
+                            this.parent().set("settingsmenu_active", false);
+                        }
+                    }, this);
+                },
+
+                /**
+                 * @param {object =} settingMenu
+                 * @param {string =} settingId
+                 */
+                build_setting: function(settingMenu, settingId) {
+
+                    if (!settingMenu || !settingId) {
+                        console.warn('At least on of the arguments are required');
+                        return;
+                    }
+
+                    if (Objs.count(settingMenu.options) > 1) {
+                        this.set("selected", settingMenu);
+                        this._buildChildMenu(settingMenu);
+                    } else {
+                        Objs.iter(this.get("settings"), function(setting, i) {
+                            if (setting.id === settingId) {
+                                setting.value = !setting.value;
+                                this.set("selected", setting);
+                                this._setSettingWithMethod(false, i);
+                            }
+                        }, this);
+                    }
+                },
+
+                switchToRoot: function() {
+                    this.set("visiblesettings", this.get("settings"));
+                },
+
+                /*
+                 * @param {Object} setting
+                 * @private
+                 */
+                _buildChildMenu: function(setting) {
+                    this.set("selected", setting);
+                    this.set("visiblesettings", setting.options);
+                },
+
+                /**
+                 *
+                 * @param {string | boolean =} value
+                 * @param {int =} index
+                 * @private
+                 */
+                _setSettingWithMethod: function(value, index) {
+                    if (typeof this.get("selected").func === 'function') {
+                        if (typeof this.get("selected").func.call(this.__parent, this, value, index) === 'boolean') {
+                            if (value)
+                                this.get("selected").value = value;
+                            else
+                                this.get("selected").value = !this.get("selected").value;
+                            Objs.iter(this.get("settings"), function(setting, index) {
+                                if (this.get("selected") && setting)
+                                    if (this.get("selected").id === setting.id) {
+                                        if (!value) {
+                                            this.get("settings")[index].value = !this.get("settings")[index].value;
+                                        }
+                                        this.get("settings")[index] = this.get("selected");
+                                        this.set("visiblesettings", []);
+                                        this.set("visiblesettings", this.get("settings"));
+                                        // In case if want do not leave child menu can comment above and uncomment below
+                                        // this.set("visiblesettings", value ? this.get("selected").options : this.get("settings"));
+                                    }
+                            }, this);
+                        }
+                    }
+
+                },
+
+                /**
+                 * @param {Object} newMenuItem
+                 */
+                addSetting: function(newMenuItem) {
+                    if (typeof newMenuItem !== 'object') {
+                        console.warn('Sorry you should add new option as an Object');
+                        return;
+                    }
+
+                    if (!newMenuItem.func || !newMenuItem.id) {
+                        console.warn('Your added new setting missing mandatory `id`, `func` or `label` keys, please add them');
+                        return;
+                    } else {
+                        if (typeof newMenuItem.func !== 'function') {
+                            console.warn('Sorry func key has to be function type');
+                            return;
+                        }
+                    }
+
+                    this.mergeAndRebuildSettings(this.get("default"), newMenuItem);
+                },
+
+                /**
+                 * @param {string} settingId
+                 * @param {object} newOptions
+                 */
+                updateSetting: function(settingId, newOptions) {
+                    if (typeof newOptions !== 'object') {
+                        console.warn('Sorry you should provide any new option as an Object');
+                        return;
+                    }
+
+                    Objs.iter(this.get("settings"), function(setting, index) {
+                        if (setting.id === settingId) {
+                            this.get("settings")[index] = Objs.tree_merge(this.get("settings")[index], newOptions);
+                            this.set("visiblesettings", []);
+                            this.set("visiblesettings", this.get("settings"));
+                        }
+                    }, this);
+                },
+
+                /**
+                 * @param {String} settingId
+                 */
+                removeSetting: function(settingId) {
+                    if (typeof settingId !== 'string') {
+                        console.warn('Sorry you should provide setting ID');
+                        return;
+                    }
+
+                    Objs.iter(this.get("settings"), function(setting, index) {
+                        if (setting.id === settingId) {
+                            this.get("settings").splice(index);
+                            this.set("visiblesettings", []);
+                            this.set("visiblesettings", this.get("settings"));
+                        }
+                    }, this);
+                },
+
+                /**
+                 *
+                 * @param result
+                 * @param initial
+                 * @private
+                 */
+                mergeAndRebuildSettings: function(result, initial) {
+                    var _setting = Objs.tree_merge(result, initial);
+                    var _currentSettings = this.get("settings");
+                    _currentSettings.push(_setting);
+                    this.set("visiblesettings", []);
+                    this.set("visiblesettings", _currentSettings);
+                    this.set("settings", _currentSettings);
+                },
+
+                /**
+                 * Animate fade in or out
+                 *
+                 * @param {boolean} hide
+                 * @param {HTMLElement} container
+                 * @param {boolean =} immedately
+                 * @private
+                 */
+                _animateFade: function(hide, container, immedately) {
+                    if (immedately) {
+                        container.style.opacity = hide ? "0" : "1";
+                    } else {
+                        var _opacity, _step, _target, _timer;
+                        _opacity = hide ? 1.00 : 0.00;
+                        _step = hide ? -0.1 : 0.1;
+                        _target = hide ? 0.00 : 1.00;
+                        container.style.opacity = _opacity;
+                        _timer = this.auto_destroy(new Timer({
+                            context: this,
+                            fire: function() {
+                                container.style.opacity = _opacity;
+                                _opacity = _opacity + (_step * 1.0);
+                                if ((hide && _opacity < _target) || (!hide && _opacity > _target)) {
+                                    this.__animationInProcess = false;
+                                    _timer.destroy();
+                                }
+                            },
+                            delay: 30,
+                            immediate: true
+                        }));
+                    }
+                }
+            };
+        })
+        .register("ba-common-settingsmenu")
+        .registerFunctions({
+            /**/"visiblesettings.length > 0": function (obj) { with (obj) { return visiblesettings.length > 0; } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "root": function (obj) { with (obj) { return root; } }, "visiblesettings": function (obj) { with (obj) { return visiblesettings; } }, "string(setting.label)": function (obj) { with (obj) { return string(setting.label); } }, "select_setting(setting.id)": function (obj) { with (obj) { return select_setting(setting.id); } }, "string(setting.label) || setting.label": function (obj) { with (obj) { return string(setting.label) || setting.label; } }, "setting.options": function (obj) { with (obj) { return setting.options; } }, "setting.value": function (obj) { with (obj) { return setting.value; } }, "!setting.options": function (obj) { with (obj) { return !setting.options; } }, "setting.showicon": function (obj) { with (obj) { return setting.showicon; } }, "setting.value ? setting.icontruestyle : setting.iconfalsestyle": function (obj) { with (obj) { return setting.value ? setting.icontruestyle : setting.iconfalsestyle; } }, "csscommon + (setting.value ? '-setting-on' : '-setting-off')": function (obj) { with (obj) { return csscommon + (setting.value ? '-setting-on' : '-setting-off'); } }, "setting.value ? setting.trueicon : setting.falseicon": function (obj) { with (obj) { return setting.value ? setting.trueicon : setting.falseicon; } }, "!root": function (obj) { with (obj) { return !root; } }, "show_root()": function (obj) { with (obj) { return show_root(); } }, "string(selected.label) || string('setting-menu')": function (obj) { with (obj) { return string(selected.label) || string('setting-menu'); } }, "string(selected.label) || string('')": function (obj) { with (obj) { return string(selected.label) || string(''); } }, "select_value(option)": function (obj) { with (obj) { return select_value(option); } }, "option === selected.value": function (obj) { with (obj) { return option === selected.value; } }, "option.label || option": function (obj) { with (obj) { return option.label || option; } }/**/
+        })
+        .attachStringTable(Assets.strings)
+        .addStrings({
+            "tooltip": "Click to play.",
+            "setting-menu": "All settings",
+            "source-quality": "Source quality",
+            "player-speed": "Player speed",
+            "set-menu-option": "Set option",
+            "submit-video": "Confirm video",
+            "picture-in-picture": "Picture in picture",
+            "exit-fullscreen-video": "Exit fullscreen",
+            "fullscreen-video": "Enter fullscreen"
+        });
 });
 
 Scoped.define("module:PopupHelper", ["base:Class","base:Events.EventsMixin","browser:Dom","browser:Events"], function(Class, EventsMixin, Dom, DomEvents, scoped) {
@@ -29950,7 +30589,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
         }, function(inherited) {
             return {
 
-                template: "\n<div class=\"{{cssplayer}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\t<div tabindex=\"{{skipinitial ? 2 : 1}}\" data-selector=\"progress-bar-inner\" class=\"{{css}}-progressbar {{activitydelta < 2500 || ismobile ? '' : (css + '-progressbar-small')}} {{disableseeking ? cssplayer + '-disabled' : ''}}\"\n\t\t ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n\t\t ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n         ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\"\n         ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n\t\t onmouseout=\"this.blur()\"\n\t\t ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n\t\t ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n\t\t ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n\t     onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n\t     onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n\t     onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n\t     onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n\t>\n\t\t<div class=\"{{css}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n\t\t<div class=\"{{css}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n\t\t\t<div class=\"{{css}}-progressbar-button\"></div>\n\t\t</div>\n\t</div>\n\n\t<div class=\"{{css}}-backbar\"></div>\n\n\t<div class=\"{{css}}-controlbar\">\n\n        <div tabindex=\"0\" data-selector=\"submit-video-button\"\n\t\t\t ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-leftbutton-container\"\n\t\t\t ba-if=\"{{submittable}}\" ba-click=\"{{submit()}}\">\n            <div class=\"{{css}}-button-inner\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n\n        <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n\t\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-leftbutton-container\" ba-if=\"{{rerecordable}}\"\n\t\t\t ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n\t\t>\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-ccw\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 2}}\" data-selector=\"button-icon-play\"\n\t\t\t ba-hotkey:space^enter=\"{{toggle_player()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-leftbutton-container\" title=\"{{string('play-video')}}\"\n\t\t\t onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\" ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\"\n\t\t>\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-play\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 2}}\" data-selector=\"button-icon-pause\"\n\t\t\t ba-hotkey:space^enter=\"{{toggle_player()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-leftbutton-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n\t\t\t onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\" ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\"\n\t\t\t title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n\t\t>\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-pause\"></i>\n            </div>\n        </div>\n\n\t\t<div class=\"{{css}}-time-container\">\n\t\t\t<div class=\"{{css}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n\t\t\t<div class=\"{{css}}-time-sep\">/</div>\n\t\t\t<div class=\"{{css}}-time-value {{css}}-time-total-duration\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n\t\t</div>\n\n\t\t<div data-selector=\"video-title-block\" class=\"{{css}}-title-container\" ba-if=\"{{title}}\">\n\t\t\t<p class=\"{{css}}-title\">\n\t\t\t\t{{title}}\n\t\t\t</p>\n\t\t</div>\n\n\t\t<div tabindex=\"11\" data-selector=\"button-icon-settings\"\n\t\t\t ba-hotkey:space^enter=\"{{toggle_settings()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-rightbutton-container {{cssplayer}}-settings-{{settingsoptionsvisible ? 'visible' : 'hidden'}}\"\n\t\t\t onkeydown=\"{{tab_index_move(domEvent)}}\"\n\t\t\t ba-if=\"{{settings}}\" ba-click=\"{{toggle_settings()}}\"\n\t\t\t title=\"{{string('settings')}}\">\n\t\t\t<div class=\"{{css}}-button-inner {{css}}-settings-button\">\n\t\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t\t</div>\n\t\t</div>\n\n\t\t<div tabindex=\"10\" data-selector=\"cc-button-container\"\n\t\t\t ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n\t\t\t ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n\t\t\t class=\"{{css}}-rightbutton-container  {{cssplayer}}-cc-{{tracktextvisible ? 'active' : 'inactive'}}\"\n\t\t\t title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n\t\t\t ba-click=\"{{toggle_tracks()}}\"\n\t\t\t onmouseover=\"{{hover_cc(true)}}\"\n\t\t\t onmouseleave=\"{{hover_cc(false)}}\"\n\t\t>\n\t\t\t<div class=\"{{css}}-button-inner\">\n\t\t\t\t<i class=\"{{csscommon}}-icon-subtitle\"></i>\n\t\t\t</div>\n\t\t</div>\n\n\t\t<div tabindex=9 data-selector=\"button-icon-resize-full\"\n\t\t\t ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-rightbutton-container\"\n\t\t\t onkeydown=\"{{tab_index_move(domEvent)}}\" ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\">\n\t\t\t<div class=\"{{css}}-button-inner\">\n\t\t\t\t<i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n\t\t\t</div>\n\t\t</div>\n\n        <div tabindex=\"7\" data-selector=\"button-airplay\"\n\t\t\t ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-rightbutton-container\"\n\t\t\t ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\">\n            <div class=\"{{css}}-airplay-container\">\n                <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                    \n                    <title>{{string('airplay')}}</title>\n                    <desc>{{string('airplay-icon')}}</desc>\n                    <defs></defs>\n                    <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                        <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                    </g>\n                </svg>\n            </div>\n        </div>\n\n        <div data-selector=\"button-chromecast\" class=\"{{css}}-rightbutton-container {{css}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n            <button tabindex=\"0\" class=\"{{css}}-gcast-button\" is=\"google-cast-button\"></button>\n        </div>\n\n        <div tabindex=\"6\" data-selector=\"button-stream-label\"\n\t\t\t ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-rightbutton-container\"\n\t\t\t ba-if=\"{{streams.length > 1 && currentstream}}\" ba-click=\"{{toggle_stream()}}\"\n\t\t\t title=\"{{string('change-resolution')}}\"\n\t\t>\n\t\t\t<div class=\"{{css}}-button-inner\">\n\t\t\t\t<span class=\"{{css}}-button-text\">{{currentstream_label}}</span>\n\t\t\t</div>\n\t\t</div>\n\n\t\t<div class=\"{{css}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n\t\t\t<div tabindex=\"5\" data-selector=\"button-volume-bar\"\n\t\t\t\t ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\" ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n\t\t\t\t ba-hotkey:up=\"{{set_volume(1)}}\" ba-hotkey:down=\"{{set_volume(0)}}\"\n\t\t\t\t onmouseout=\"this.blur()\"\n\t\t\t\t class=\"{{css}}-volumebar-inner\"\n\t\t\t\t ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n\t\t\t\t ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n\t\t\t\t ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n\t\t\t     onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n                 onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n                 onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n                 onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n\t\t\t>\n\t\t\t\t<div class=\"{{css}}-volumebar-position\" ba-styles=\"{{{width: Math.min(100, Math.round(volume * 100)) + '%'}}}\">\n\t\t\t\t    <div class=\"{{css}}-volumebar-button\" title=\"{{string('volume-button')}}\"></div>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t</div>\n\n\t\t<div tabindex=\"4\" data-selector=\"button-icon-volume\"\n\t\t\t ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n\t\t\t class=\"{{css}}-rightbutton-container\"\n\t\t\t ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\">\n\t\t\t<div class=\"{{css}}-button-inner\">\n\t\t\t\t<i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n\t\t\t</div>\n\t\t</div>\n\n\t</div>\n</div>\n",
+                template: "\n<div class=\"{{cssplayer}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n    <div tabindex=\"{{skipinitial ? 2 : 1}}\" data-selector=\"progress-bar-inner\" class=\"{{css}}-progressbar {{activitydelta < 2500 || ismobile ? '' : (css + '-progressbar-small')}} {{disableseeking ? cssplayer + '-disabled' : ''}}\"\n         ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n         ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n         ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\"\n         ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n         onmouseout=\"this.blur()\"\n         ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n         ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n         ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n         onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n         onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n         onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n         onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n    >\n        <div class=\"{{css}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n        <div class=\"{{css}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n            <div class=\"{{css}}-progressbar-button\"></div>\n        </div>\n    </div>\n\n    <div class=\"{{css}}-backbar\"></div>\n\n    <div class=\"{{css}}-controlbar\">\n\n        <div tabindex=\"0\" data-selector=\"submit-video-button\"\n             ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-leftbutton-container\"\n             ba-if=\"{{submittable}}\" ba-click=\"{{submit()}}\">\n            <div class=\"{{css}}-button-inner\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n\n        <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n             ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-leftbutton-container\" ba-if=\"{{rerecordable}}\"\n             ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n        >\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-ccw\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 2}}\" data-selector=\"button-icon-play\"\n             ba-hotkey:space^enter=\"{{toggle_player()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-leftbutton-container\" title=\"{{string('play-video')}}\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\" ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\"\n        >\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-play\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 2}}\" data-selector=\"button-icon-pause\"\n             ba-hotkey:space^enter=\"{{toggle_player()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-leftbutton-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\" ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\"\n             title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n        >\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-pause\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{css}}-time-container\">\n            <div class=\"{{css}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n            <div class=\"{{css}}-time-sep\">/</div>\n            <div class=\"{{css}}-time-value {{css}}-time-total-duration\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n        </div>\n\n        <div data-selector=\"video-title-block\" class=\"{{css}}-title-container\" ba-if=\"{{title}}\">\n            <p class=\"{{css}}-title\">\n                {{title}}\n            </p>\n        </div>\n\n        <div tabindex=\"11\" data-selector=\"button-icon-settings\"\n             ba-hotkey:space^enter=\"{{toggle_settings_menu()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-rightbutton-container {{cssplayer}}-button-{{settingsmenuactive ? 'active' : 'inactive'}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n             ba-if=\"{{settingsmenubutton}}\" ba-click=\"{{toggle_settings_menu()}}\"\n             title=\"{{string('settings')}}\"\n        >\n            <div class=\"{{css}}-button-inner {{css}}-settings-button\">\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"10\" data-selector=\"cc-button-container\"\n             ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n             ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n             class=\"{{css}}-rightbutton-container {{cssplayer}}-button-{{tracktextvisible ? 'active' : 'inactive'}}\"\n             title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n             ba-click=\"{{toggle_tracks()}}\"\n             onmouseover=\"{{hover_cc(true)}}\"\n             onmouseleave=\"{{hover_cc(false)}}\"\n        >\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-subtitle\"></i>\n            </div>\n        </div>\n\n        <div tabindex=9 data-selector=\"button-icon-resize-full\"\n             ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-rightbutton-container\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\" ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\">\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"7\" data-selector=\"button-airplay\"\n             ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-rightbutton-container\"\n             ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\">\n            <div class=\"{{css}}-airplay-container\">\n                <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                    \n                    <title>{{string('airplay')}}</title>\n                    <desc>{{string('airplay-icon')}}</desc>\n                    <defs></defs>\n                    <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                        <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                    </g>\n                </svg>\n            </div>\n        </div>\n\n        <div data-selector=\"button-chromecast\" class=\"{{css}}-rightbutton-container {{css}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n            <button tabindex=\"0\" class=\"{{css}}-gcast-button\" is=\"google-cast-button\"></button>\n        </div>\n\n        <div tabindex=\"6\" data-selector=\"button-stream-label\"\n             ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-rightbutton-container\"\n             ba-if=\"{{streams.length > 1 && currentstream}}\" ba-click=\"{{toggle_stream()}}\"\n             title=\"{{string('change-resolution')}}\"\n        >\n            <div class=\"{{css}}-button-inner\">\n                <span class=\"{{css}}-button-text\">{{currentstream_label}}</span>\n            </div>\n        </div>\n\n        <div class=\"{{css}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n            <div tabindex=\"5\" data-selector=\"button-volume-bar\"\n                 ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\" ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n                 ba-hotkey:up=\"{{set_volume(1)}}\" ba-hotkey:down=\"{{set_volume(0)}}\"\n                 onmouseout=\"this.blur()\"\n                 class=\"{{css}}-volumebar-inner\"\n                 ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n                 ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n                 ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n                 onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n                 onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n                 onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n                 onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n            >\n                <div class=\"{{css}}-volumebar-position\" ba-styles=\"{{{width: Math.min(100, Math.round(volume * 100)) + '%'}}}\">\n                    <div class=\"{{css}}-volumebar-button\" title=\"{{string('volume-button')}}\"></div>\n                </div>\n            </div>\n        </div>\n\n        <div tabindex=\"4\" data-selector=\"button-icon-volume\"\n             ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n             class=\"{{css}}-rightbutton-container\"\n             ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n        >\n            <div class=\"{{css}}-button-inner\">\n                <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n            </div>\n        </div>\n\n    </div>\n</div>\n",
 
                 attrs: {
                     "css": "ba-videoplayer",
@@ -29972,7 +30611,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
                     "hidebarafter": 5000,
                     "preventinteraction": false,
                     "title": "",
-                    "settings": false,
+                    "settingsmenubutton": false,
                     "hoveredblock": false, // Set true when mouse hovered
                     "allowtexttrackupload": false,
                     'thumbisvisible': false,
@@ -30146,6 +30785,10 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
                         this.trigger("fullscreen");
                     },
 
+                    toggle_settings_menu: function() {
+                        this.trigger("settings_menu");
+                    },
+
                     rerecord: function() {
                         this.trigger("rerecord");
                     },
@@ -30189,9 +30832,9 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
                     // Hover on CC button in controller
                     hover_cc: function(hover) {
                         // Not show CC on hover during settings block is open
-                        // Reason why use parent not local settingsoptionsvisible,
+                        // Reason why use parent not local settingsmenu_active,
                         // is that settings model also has to be aware it's state. So we need as a global variable
-                        if (this.parent().get("settingsoptionsvisible")) return;
+                        if (this.parent().get("settingsmenu_active")) return;
                         Async.eventually(function() {
                             this.parent().set("tracksshowselection", hover);
                         }, this, 300);
@@ -30210,34 +30853,18 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
                     },
 
                     toggle_settings: function() {
-                        this.parent().set("settingsoptionsvisible", !this.parent().get("settingsoptionsvisible"));
                         this.trigger("toggle_settings");
                     }
                 },
 
                 create: function() {
-                    var dynamic = this.__parent;
                     this.set("ismobile", Info.isMobile());
-                    if (dynamic.get("showsettings")) {
-                        this.set("isflash", dynamic.get('forceflash') && !dynamic.get('noflash'));
-                        Objs.iter(dynamic.get('settingsoptions'), function(setting) {
-                            if (this.get())
-                                if (this.get("isflash")) {
-                                    if (setting.flashSupport)
-                                        this.set("settings", true);
-                                } else if (this.get("ismobile")) {
-                                if (setting.mobileSupport)
-                                    this.set("settings", true);
-                            } else
-                                this.set("settings", true);
-                        }, this);
-                    }
                 }
             };
         })
         .register("ba-videoplayer-controlbar")
         .registerFunctions({
-            /**/"cssplayer": function (obj) { with (obj) { return cssplayer; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "skipinitial ? 2 : 1": function (obj) { with (obj) { return skipinitial ? 2 : 1; } }, "css": function (obj) { with (obj) { return css; } }, "activitydelta < 2500 || ismobile ? '' : (css + '-progressbar-small')": function (obj) { with (obj) { return activitydelta < 2500 || ismobile ? '' : (css + '-progressbar-small'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 2": function (obj) { with (obj) { return skipinitial ? 0 : 2; } }, "toggle_player()": function (obj) { with (obj) { return toggle_player(); } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "play()": function (obj) { with (obj) { return play(); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "playing": function (obj) { with (obj) { return playing; } }, "pause()": function (obj) { with (obj) { return pause(); } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "title": function (obj) { with (obj) { return title; } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "string('airplay')": function (obj) { with (obj) { return string('airplay'); } }, "string('airplay-icon')": function (obj) { with (obj) { return string('airplay-icon'); } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "set_volume(1)": function (obj) { with (obj) { return set_volume(1); } }, "set_volume(0)": function (obj) { with (obj) { return set_volume(0); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.min(100, Math.round(volume * 100)) + '%'}": function (obj) { with (obj) { return {width: Math.min(100, Math.round(volume * 100)) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }/**/
+            /**/"cssplayer": function (obj) { with (obj) { return cssplayer; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "skipinitial ? 2 : 1": function (obj) { with (obj) { return skipinitial ? 2 : 1; } }, "css": function (obj) { with (obj) { return css; } }, "activitydelta < 2500 || ismobile ? '' : (css + '-progressbar-small')": function (obj) { with (obj) { return activitydelta < 2500 || ismobile ? '' : (css + '-progressbar-small'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 2": function (obj) { with (obj) { return skipinitial ? 0 : 2; } }, "toggle_player()": function (obj) { with (obj) { return toggle_player(); } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "play()": function (obj) { with (obj) { return play(); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "playing": function (obj) { with (obj) { return playing; } }, "pause()": function (obj) { with (obj) { return pause(); } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "title": function (obj) { with (obj) { return title; } }, "toggle_settings_menu()": function (obj) { with (obj) { return toggle_settings_menu(); } }, "settingsmenuactive ? 'active' : 'inactive'": function (obj) { with (obj) { return settingsmenuactive ? 'active' : 'inactive'; } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "settingsmenubutton": function (obj) { with (obj) { return settingsmenubutton; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "string('airplay')": function (obj) { with (obj) { return string('airplay'); } }, "string('airplay-icon')": function (obj) { with (obj) { return string('airplay-icon'); } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "set_volume(1)": function (obj) { with (obj) { return set_volume(1); } }, "set_volume(0)": function (obj) { with (obj) { return set_volume(0); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.min(100, Math.round(volume * 100)) + '%'}": function (obj) { with (obj) { return {width: Math.min(100, Math.round(volume * 100)) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }/**/
         })
         .attachStringTable(Assets.strings)
         .addStrings({
@@ -30979,7 +31606,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Tracks", ["dynamics:Dynamic","base:As
 
                     hover_cc: function(ev, hover) {
                         // Not show CC on hover during settings block is open
-                        if (this.parent().get("settingsoptionsvisible")) return;
+                        if (this.parent().get("settingsmenu_active")) return;
 
                         // Don't lose focus on clicking move between sliders
                         // After if element has an focus not close it till next mouseover/mouseleave
@@ -31047,13 +31674,13 @@ Scoped.define("module:VideoPlayer.Dynamics.Tracks", ["dynamics:Dynamic","base:As
         });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:Assets","module:TrackTags","browser:Info","browser:Dom","media:Player.VideoPlayerWrapper","media:Player.Broadcasting","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Async","module:Settings","module:VideoPlayer.Dynamics.PlayerStates.Initial","module:VideoPlayer.Dynamics.PlayerStates","module:Ads.AbstractVideoAdProvider","browser:Events"], ["module:VideoPlayer.Dynamics.Playbutton","module:VideoPlayer.Dynamics.Message","module:VideoPlayer.Dynamics.Loader","module:VideoPlayer.Dynamics.Share","module:VideoPlayer.Dynamics.Controlbar","module:VideoPlayer.Dynamics.Tracks","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TogglePartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, TrackTags, Info, Dom, VideoPlayerWrapper, Broadcasting, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Async, Settings, InitialState, PlayerStates, AdProvider, DomEvents, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:Assets","module:TrackTags","browser:Info","browser:Dom","media:Player.VideoPlayerWrapper","media:Player.Broadcasting","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Async","module:VideoPlayer.Dynamics.PlayerStates.Initial","module:VideoPlayer.Dynamics.PlayerStates","module:Ads.AbstractVideoAdProvider","browser:Events"], ["module:Common.Dynamics.Settingsmenu","module:VideoPlayer.Dynamics.Playbutton","module:VideoPlayer.Dynamics.Message","module:VideoPlayer.Dynamics.Loader","module:VideoPlayer.Dynamics.Share","module:VideoPlayer.Dynamics.Controlbar","module:VideoPlayer.Dynamics.Tracks","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TogglePartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, TrackTags, Info, Dom, VideoPlayerWrapper, Broadcasting, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Async, InitialState, PlayerStates, AdProvider, DomEvents, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
             return {
 
-                template: "<div itemscope itemtype=\"http://schema.org/VideoObject\"\n     class=\"{{css}}-container {{cssplayer}}-size-{{csssize}} {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{csstheme}}\n     {{cssplayer}}-{{ fullscreened ? 'fullscreen' : 'normal' }}-view {{cssplayer}}-{{ firefox ? 'firefox' : 'common'}}-browser\n     {{cssplayer}}-{{themecolor}}-color {{cssplayer}}-device-type-{{ mobileview ? 'mobile' : 'desktop'}}\"\n     ba-on:mousemove=\"{{user_activity()}}\"\n     ba-on:mousedown=\"{{user_activity(true)}}\"\n     ba-on:touchstart=\"{{user_activity(true)}}\"\n     ba-styles=\"{{widthHeightStyles}}\"\n>\n    <div ba-show=\"{{videoelement_active}}\">\n        <video tabindex=\"-1\" class=\"{{css}}-video\" data-video=\"video\"\n               ba-toggle:playsinline=\"{{!playfullscreenonmobile}}\"\n        ></video>\n    </div>\n    <div ba-show=\"{{imageelement_active && !videoelement_active}}\">\n        <img tabindex=\"-1\" class=\"{{css}}-video\" data-image=\"image\" alt=\"{{posteralt}}\"/>\n    </div>\n    <div class=\"{{css}}-overlay\">\n        <div tabindex=\"-1\" class=\"{{css}}-player-toggle-overlay\" data-selector=\"player-toggle-overlay\"\n             ba-hotkey:right=\"{{seek(position + skipseconds)}}\" ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n             ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\" ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n             ba-hotkey:up=\"{{set_volume(volume + 0.1)}}\" ba-hotkey:down=\"{{set_volume(volume - 0.1)}}\"\n             ba-hotkey:space^enter=\"{{toggle_player()}}\"\n             ba-on:click=\"{{toggle_player()}}\"\n        ></div>\n        <ba-{{dyncontrolbar}}\n            ba-css=\"{{csscontrolbar || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-themecolor=\"{{themecolor}}\"\n            ba-template=\"{{tmplcontrolbar}}\"\n            ba-show=\"{{controlbar_active}}\"\n            ba-playing=\"{{playing}}\"\n            ba-playwhenvisible=\"{{playwhenvisible}}\"\n            ba-playerspeeds=\"{{playerspeeds}}\"\n            ba-playercurrentspeed=\"{{playercurrentspeed}}\"\n            ba-airplay=\"{{airplay}}\"\n            ba-airplaybuttonvisible=\"{{airplaybuttonvisible}}\"\n            ba-chromecast=\"{{chromecast}}\"\n            ba-castbuttonvisble=\"{{castbuttonvisble}}\"\n            ba-event:rerecord=\"rerecord\"\n            ba-event:submit=\"submit\"\n            ba-event:play=\"play\"\n            ba-event:pause=\"pause\"\n            ba-event:position=\"seek\"\n            ba-event:volume=\"set_volume\"\n            ba-event:set_speed=\"set_speed\"\n            ba-event:toggle_settings=\"toggle_settings\"\n            ba-event:fullscreen=\"toggle_fullscreen\"\n            ba-event:toggle_player=\"toggle_player\"\n            ba-event:tab_index_move=\"tab_index_move\"\n            ba-event:seek=\"seek\"\n            ba-event:set_volume=\"set_volume\"\n            ba-tabindex=\"{{tabindex}}\"\n            ba-tracktextvisible=\"{{tracktextvisible}}\"\n            ba-tracktags=\"{{tracktags}}\"\n            ba-showsubtitlebutton=\"{{hassubtitles && tracktagssupport}}\"\n            ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n            ba-tracksshowselection=\"{{tracksshowselection}}\"\n            ba-volume=\"{{volume}}\"\n            ba-duration=\"{{duration}}\"\n            ba-cached=\"{{buffered}}\"\n            ba-title=\"{{title}}\"\n            ba-position=\"{{position}}\"\n            ba-activitydelta=\"{{activity_delta}}\"\n            ba-hideoninactivity=\"{{hideoninactivity}}\"\n            ba-hidebarafter=\"{{hidebarafter}}\"\n            ba-rerecordable=\"{{rerecordable}}\"\n            ba-submittable=\"{{submittable}}\"\n            ba-streams=\"{{streams}}\"\n            ba-currentstream=\"{{=currentstream}}\"\n            ba-fullscreen=\"{{fullscreensupport && !nofullscreen}}\"\n            ba-fullscreened=\"{{fullscreened}}\"\n            ba-source=\"{{source}}\"\n            ba-disablepause=\"{{disablepause}}\"\n            ba-disableseeking=\"{{disableseeking}}\"\n            ba-skipseconds=\"{{skipseconds}}\"\n            ba-skipinitial=\"{{skipinitial}}\"\n            ba-showsettings=\"{{showsettings}}\"\n            ba-hidevolumebar=\"{{hidevolumebar}}\"\n            ba-settingsoptionsvisible=\"{{settingsoptionsvisible}}\"\n        ></ba-{{dyncontrolbar}}>\n\n        <ba-{{dyntracks}}\n            ba-css=\"{{csstracks || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-show=\"{{tracktagssupport || allowtexttrackupload}}\"\n            ba-tracksshowselection=\"{{tracksshowselection}}\"\n            ba-trackselectorhovered=\"{{trackselectorhovered}}\"\n            ba-tracktags=\"{{tracktags}}\"\n            ba-hidebarafter=\"{{hidebarafter}}\"\n            ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n            ba-trackcuetext=\"{{trackcuetext}}\"\n            ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n            ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n            ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n            ba-uploadlocales=\"{{uploadlocales}}\"\n            ba-activitydelta=\"{{activity_delta}}\"\n            ba-hideoninactivity=\"{{hideoninactivity}}\"\n            ba-event:selected_label_value=\"selected_label_value\"\n            ba-event:upload-text-tracks=\"upload_text_tracks\"\n            ba-event:move_to_option=\"move_to_option\"\n        ></ba-{{dyntracks}}>\n\n        <ba-{{dynplaybutton}}\n            ba-css=\"{{cssplaybutton || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplplaybutton}}\"\n            ba-show=\"{{playbutton_active}}\"\n            ba-rerecordable=\"{{rerecordable}}\"\n\t\t\tba-submittable=\"{{submittable}}\"\n\t\t\tba-showduration=\"{{showduration}}\"\n\t\t\tba-duration=\"{{duration}}\"\n            ba-event:play=\"playbutton_click\"\n            ba-event:rerecord=\"rerecord\"\n            ba-event:submit=\"submit\"\n            ba-event:tab_index_move=\"tab_index_move\"\n        ></ba-{{dynplaybutton}}>\n\n        <ba-{{dynloader}}\n            ba-css=\"{{cssloader || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplloader}}\"\n            ba-playwhenvisible=\"{{playwhenvisible}}\"\n            ba-show=\"{{loader_active}}\"\n        ></ba-{{dynloader}}>\n\n        <ba-{{dynshare}}\n            ba-css=\"{{cssshare || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplshare}}\"\n            ba-show=\"{{sharevideourl && sharevideo.length > 0}}\"\n            ba-url=\"{{sharevideourl}}\"\n            ba-shares=\"{{sharevideo}}\"\n        ></ba-{{dynshare}}>\n\n        <ba-{{dynmessage}}\n            ba-css=\"{{cssmessage || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplmessage}}\"\n            ba-show=\"{{message_active}}\"\n            ba-message=\"{{message}}\"\n            ba-event:click=\"message_click\"\n        ></ba-{{dynmessage}}>\n\n        <ba-{{dyntopmessage}}\n            ba-css=\"{{csstopmessage || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmpltopmessage}}\"\n            ba-show=\"{{topmessage}}\"\n            ba-topmessage=\"{{topmessage}}\"\n        ></ba-{{dyntopmessage}}>\n\n        <meta itemprop=\"caption\" content=\"{{title}}\" />\n        <meta itemprop=\"thumbnailUrl\" content=\"{{poster}}\"/>\n        <meta itemprop=\"contentUrl\" content=\"{{source}}\"/>\n    </div>\n    <div class=\"{{cssplayer}}-overlay\" data-video=\"ad\" style=\"display:none\"></div>\n</div>\n",
+                template: "<div itemscope itemtype=\"http://schema.org/VideoObject\"\n     class=\"{{css}}-container {{cssplayer}}-size-{{csssize}} {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{csstheme}}\n     {{cssplayer}}-{{ fullscreened ? 'fullscreen' : 'normal' }}-view {{cssplayer}}-{{ firefox ? 'firefox' : 'common'}}-browser\n     {{cssplayer}}-{{themecolor}}-color {{cssplayer}}-device-type-{{ mobileview ? 'mobile' : 'desktop'}}\n     {{(stretchheight || stretchwidth) ? css + '-self-stretched' : ''}}\"\n     ba-on:mousemove=\"{{user_activity()}}\"\n     ba-on:mousedown=\"{{user_activity(true)}}\"\n     ba-on:touchstart=\"{{user_activity(true)}}\"\n     ba-styles=\"{{widthHeightStyles}}\"\n>\n    <div ba-show=\"{{videoelement_active}}\">\n        <video tabindex=\"-1\" class=\"{{css}}-video\" data-video=\"video\" {{ allowpip ? '' : 'disablePictureInPicture'}}\n               ba-toggle:playsinline=\"{{!playfullscreenonmobile}}\"\n        ></video>\n    </div>\n    <div ba-show=\"{{imageelement_active && !videoelement_active}}\">\n        <img tabindex=\"-1\" class=\"{{css}}-video\" data-image=\"image\" alt=\"{{posteralt}}\"/>\n    </div>\n    <div class=\"{{css}}-overlay\">\n        <div tabindex=\"-1\" class=\"{{css}}-player-toggle-overlay\" data-selector=\"player-toggle-overlay\"\n             ba-hotkey:right=\"{{seek(position + skipseconds)}}\" ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n             ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\" ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n             ba-hotkey:up=\"{{set_volume(volume + 0.1)}}\" ba-hotkey:down=\"{{set_volume(volume - 0.1)}}\"\n             ba-hotkey:space^enter=\"{{toggle_player()}}\"\n             ba-on:click=\"{{toggle_player()}}\"\n        ></div>\n        <ba-{{dyncontrolbar}}\n            ba-css=\"{{csscontrolbar || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-themecolor=\"{{themecolor}}\"\n            ba-template=\"{{tmplcontrolbar}}\"\n            ba-show=\"{{controlbar_active}}\"\n            ba-playing=\"{{playing}}\"\n            ba-playwhenvisible=\"{{playwhenvisible}}\"\n            ba-playerspeeds=\"{{playerspeeds}}\"\n            ba-playercurrentspeed=\"{{playercurrentspeed}}\"\n            ba-airplay=\"{{airplay}}\"\n            ba-airplaybuttonvisible=\"{{airplaybuttonvisible}}\"\n            ba-chromecast=\"{{chromecast}}\"\n            ba-castbuttonvisble=\"{{castbuttonvisble}}\"\n            ba-event:rerecord=\"rerecord\"\n            ba-event:submit=\"submit\"\n            ba-event:play=\"play\"\n            ba-event:pause=\"pause\"\n            ba-event:position=\"seek\"\n            ba-event:volume=\"set_volume\"\n            ba-event:set_speed=\"set_speed\"\n            ba-event:settings_menu=\"toggle_settings_menu\"\n            ba-event:fullscreen=\"toggle_fullscreen\"\n            ba-event:toggle_player=\"toggle_player\"\n            ba-event:tab_index_move=\"tab_index_move\"\n            ba-event:seek=\"seek\"\n            ba-event:set_volume=\"set_volume\"\n            ba-tabindex=\"{{tabindex}}\"\n            ba-tracktextvisible=\"{{tracktextvisible}}\"\n            ba-tracktags=\"{{tracktags}}\"\n            ba-showsubtitlebutton=\"{{hassubtitles && tracktagssupport}}\"\n            ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n            ba-tracksshowselection=\"{{tracksshowselection}}\"\n            ba-volume=\"{{volume}}\"\n            ba-duration=\"{{duration}}\"\n            ba-cached=\"{{buffered}}\"\n            ba-title=\"{{title}}\"\n            ba-position=\"{{position}}\"\n            ba-activitydelta=\"{{activity_delta}}\"\n            ba-hideoninactivity=\"{{hideoninactivity}}\"\n            ba-hidebarafter=\"{{hidebarafter}}\"\n            ba-rerecordable=\"{{rerecordable}}\"\n            ba-submittable=\"{{submittable}}\"\n            ba-streams=\"{{streams}}\"\n            ba-currentstream=\"{{=currentstream}}\"\n            ba-fullscreen=\"{{fullscreensupport && !nofullscreen}}\"\n            ba-fullscreened=\"{{fullscreened}}\"\n            ba-source=\"{{source}}\"\n            ba-disablepause=\"{{disablepause}}\"\n            ba-disableseeking=\"{{disableseeking}}\"\n            ba-skipseconds=\"{{skipseconds}}\"\n            ba-skipinitial=\"{{skipinitial}}\"\n            ba-settingsmenubutton=\"{{showsettingsmenu}}\"\n            ba-settingsmenuactive=\"{{settingsmenu_active}}\"\n            ba-hidevolumebar=\"{{hidevolumebar}}\"\n        ></ba-{{dyncontrolbar}}>\n\n        <ba-{{dyntracks}}\n            ba-css=\"{{csstracks || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-show=\"{{tracktagssupport || allowtexttrackupload}}\"\n            ba-tracksshowselection=\"{{tracksshowselection}}\"\n            ba-trackselectorhovered=\"{{trackselectorhovered}}\"\n            ba-tracktags=\"{{tracktags}}\"\n            ba-hidebarafter=\"{{hidebarafter}}\"\n            ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n            ba-trackcuetext=\"{{trackcuetext}}\"\n            ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n            ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n            ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n            ba-uploadlocales=\"{{uploadlocales}}\"\n            ba-activitydelta=\"{{activity_delta}}\"\n            ba-hideoninactivity=\"{{hideoninactivity}}\"\n            ba-event:selected_label_value=\"selected_label_value\"\n            ba-event:upload-text-tracks=\"upload_text_tracks\"\n            ba-event:move_to_option=\"move_to_option\"\n        ></ba-{{dyntracks}}>\n\n        <ba-{{dynsettingsmenu}}\n            ba-css=\"{{css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-show=\"{{settingsmenu_active}}\"\n            ba-template=\"{{tmplsettingsmenu}}\"\n        ></ba-{{dynsettingsmenu}}>\n\n        <ba-{{dynplaybutton}}\n            ba-css=\"{{cssplaybutton || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplplaybutton}}\"\n            ba-show=\"{{playbutton_active}}\"\n            ba-rerecordable=\"{{rerecordable}}\"\n\t\t\tba-submittable=\"{{submittable}}\"\n\t\t\tba-showduration=\"{{showduration}}\"\n\t\t\tba-duration=\"{{duration}}\"\n            ba-event:play=\"playbutton_click\"\n            ba-event:rerecord=\"rerecord\"\n            ba-event:submit=\"submit\"\n            ba-event:tab_index_move=\"tab_index_move\"\n        ></ba-{{dynplaybutton}}>\n\n        <ba-{{dynloader}}\n            ba-css=\"{{cssloader || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplloader}}\"\n            ba-playwhenvisible=\"{{playwhenvisible}}\"\n            ba-show=\"{{loader_active}}\"\n        ></ba-{{dynloader}}>\n\n        <ba-{{dynshare}}\n            ba-css=\"{{cssshare || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplshare}}\"\n            ba-show=\"{{sharevideourl && sharevideo.length > 0}}\"\n            ba-url=\"{{sharevideourl}}\"\n            ba-shares=\"{{sharevideo}}\"\n        ></ba-{{dynshare}}>\n\n        <ba-{{dynmessage}}\n            ba-css=\"{{cssmessage || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplmessage}}\"\n            ba-show=\"{{message_active}}\"\n            ba-message=\"{{message}}\"\n            ba-event:click=\"message_click\"\n        ></ba-{{dynmessage}}>\n\n        <ba-{{dyntopmessage}}\n            ba-css=\"{{csstopmessage || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmpltopmessage}}\"\n            ba-show=\"{{topmessage}}\"\n            ba-topmessage=\"{{topmessage}}\"\n        ></ba-{{dyntopmessage}}>\n\n        <meta itemprop=\"caption\" content=\"{{title}}\" />\n        <meta itemprop=\"thumbnailUrl\" content=\"{{poster}}\"/>\n        <meta itemprop=\"contentUrl\" content=\"{{source}}\"/>\n    </div>\n    <div class=\"{{cssplayer}}-overlay\" data-video=\"ad\" style=\"display:none\"></div>\n</div>\n",
 
                 attrs: {
                     /* CSS */
@@ -31083,6 +31710,8 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "dyncontrolbar": "videoplayer-controlbar",
                     "dynshare": "videoplayer-share",
                     "dyntracks": "videoplayer-tracks",
+                    "dynsettingsmenu": "common-settingsmenu",
+
                     /* Templates */
                     "tmplplaybutton": "",
                     "tmplloader": "",
@@ -31091,6 +31720,8 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "tmpltopmessage": "",
                     "tmplcontrolbar": "",
                     "tmpltracks": "",
+                    "tmplsettingsmenu": "",
+
                     /* Attributes */
                     "poster": "",
                     "source": "",
@@ -31113,7 +31744,9 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     /* Ads */
                     "adprovider": null,
                     "preroll": false,
+
                     /* Options */
+                    "allowpip": false, // Disable Picture-In-Picture by default
                     "rerecordable": false,
                     "submittable": false,
                     "autoplay": false,
@@ -31137,7 +31770,6 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "disablepause": false,
                     "disableseeking": false,
                     "airplay": false,
-                    "airplaydevicesavailable": false,
                     "chromecast": false,
                     "skipseconds": 5,
                     "tracktags": [],
@@ -31146,68 +31778,10 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "tracksshowselection": false,
                     "thumbimage": {},
                     "thumbcuelist": [],
-                    "showsettings": true,
                     "showduration": false,
+                    "showsettingsmenu": true, // As a property show/hide from users
                     "posteralt": "",
                     "hidevolumebar": false,
-                    "settingsoptions": [{
-                            id: 'playerspeeds',
-                            label: 'player-speed',
-                            defaultValue: 1.0,
-                            visible: 'media-all',
-                            flashSupport: false,
-                            mobileSupport: true,
-                            className: 'player-speed',
-                            options: [{
-                                    label: 0.50,
-                                    value: 0.50
-                                },
-                                {
-                                    label: 0.75,
-                                    value: 0.75
-                                },
-                                {
-                                    label: 1.00,
-                                    value: 1.00
-                                },
-                                {
-                                    label: 1.25,
-                                    value: 1.25
-                                },
-                                {
-                                    label: 1.50,
-                                    value: 1.50
-                                },
-                                {
-                                    label: 1.75,
-                                    value: 1.75
-                                },
-                                {
-                                    label: 2.00,
-                                    value: 2.00
-                                }
-                            ],
-                            events: [{
-                                type: 'click touchstart',
-                                method: 'set_speed',
-                                argument: true
-                            }]
-                        }
-                        // INFO: left here just as an example
-                        // ,{
-                        //     id: 'fullscreen',
-                        //     label: '<i class="ba-commoncss-icon-resize-full"></i>',
-                        //     visible: 'media-all',
-                        //     flashSupport: true,
-                        //     mobileSupport: true,
-                        //     className: 'full-screen',
-                        //     events: [{
-                        //         type: 'click touchstart',
-                        //         method: 'toggle_fullscreen',
-                        //         argument: false
-                        //     }]
-                        // }
-                    ],
                     "allowtexttrackupload": false,
                     "uploadtexttracksvisible": false,
                     "acceptedtracktexts": null,
@@ -31226,6 +31800,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         "volumelevel": null,
                         "playlist": []
                     },
+                    "inpipmode": false,
                     "lastplaylistitem": false,
                     "manuallypaused": false,
                     "playedonce": false,
@@ -31235,7 +31810,6 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "playbackcount": 0,
                     "playbackended": 0,
                     // If settings are open and visible
-                    "settingsoptionsvisible": false,
                     "states": {
                         "poster_error": {
                             "ignore": false,
@@ -31250,6 +31824,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                 },
 
                 types: {
+                    "allowpip": "boolean",
                     "forceflash": "boolean",
                     "noflash": "boolean",
                     "rerecordable": "boolean",
@@ -31298,10 +31873,15 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "playerspeeds": "array",
                     "playercurrentspeed": "float",
                     "showsettings": "boolean",
-                    "showduration": "boolean"
+                    "showduration": "boolean",
+                    "visibilityfraction": "float"
                 },
 
                 extendables: ["states"],
+
+                scopes: {
+                    settingsmenu: ">[tagname='ba-common-settingsmenu']"
+                },
 
                 computed: {
                     "widthHeightStyles:width,height": function() {
@@ -31406,6 +31986,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     this.set("playbutton_active", false);
                     this.set("controlbar_active", false);
                     this.set("message_active", false);
+                    this.set("settingsmenu_active", false);
 
                     this.set("last_activity", Time.now());
                     this.set("activity_delta", 0);
@@ -31456,6 +32037,38 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
 
                 videoError: function() {
                     return this.__error;
+                },
+
+                /**
+                 *
+                 * @param {object} settingObject
+                 */
+                addSettingsMenuItem: function(settingObject) {
+                    this.__settingsMenu.execute('add_new_settings_item', settingObject);
+                },
+
+                /**
+                 *
+                 * @param {string} id
+                 * @param {object} updatedSettingObject
+                 */
+                updateSettingsMenuItem: function(id, updatedSettingObject) {
+                    this.__settingsMenu.execute('update_new_settings_item', id, updatedSettingObject);
+                },
+
+                /**
+                 *
+                 * @param {string} id
+                 */
+                removeSettingsMenuItem: function(id) {
+                    this.__settingsMenu.execute('remove_settings_item', id);
+                },
+
+                toggle_pip: function() {
+                    if (this.player.isInPIPMode())
+                        this.player.exitPIPMode();
+                    else
+                        this.player.enterPIPMode();
                 },
 
                 _error: function(error_type, error_code) {
@@ -31671,8 +32284,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             this.set("playing", false);
                             this.set('playedonce', true);
                             this.set("playbackended", this.get('playbackended') + 1);
-                            if (this.settings)
-                                this.settings.hide_settings();
+                            this.set("settingsmenu_active", false);
                             this.trigger("ended");
                         }, this);
                         this.trigger("attached", instance);
@@ -31686,6 +32298,23 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             this._updateStretch();
                             if (this.get("initialseek"))
                                 this.player.setPosition(this.get("initialseek"));
+                            if (this.get("allowpip")) {
+                                this.addSettingsMenuItem({
+                                    id: 'pip',
+                                    label: 'Picture-in-Picture',
+                                    showicon: true,
+                                    visible: this.player.supportsPIP(),
+                                    func: function(settings) {
+                                        this.player.on("pip-mode-change", function(ev, inPIPMode) {
+                                            this.set("inpipmode", inPIPMode);
+                                            this.updateSettingsMenuItem('pip', {
+                                                value: inPIPMode
+                                            });
+                                        }, this);
+                                        return !!this.toggle_pip();
+                                    }
+                                });
+                            }
                         }, this);
                         if (this.player.loaded())
                             this.player.trigger("loaded");
@@ -31714,6 +32343,11 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                 _afterActivate: function(element) {
                     inherited._afterActivate.call(this, element);
                     this.__activated = true;
+
+                    this.__settingsMenu = this.scopes.settingsmenu;
+                    if (this.__settingsMenu.get('settings'))
+                        this.set("hassettings", true);
+
                     if (this.__attachRequested)
                         this._attachVideo();
                 },
@@ -31805,7 +32439,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
 
                 /**
                  * Click CC buttons will trigger
-                 * @param status
+                 * @param {boolean} status
                  */
                 toggleTrackTags: function(status) {
                     if (!this.__trackTags) return;
@@ -32044,12 +32678,8 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         }
                     },
 
-                    toggle_settings: function() {
-                        if (this.get('settingsoptions')) {
-                            if (!this.settings)
-                                this.settings = new Settings(this.get('settingsoptions'), this);
-                            this.settings.toggle_settings_block();
-                        }
+                    toggle_settings_menu: function() {
+                        this.set("settingsmenu_active", !this.get("settingsmenu_active"));
                     },
 
                     toggle_fullscreen: function() {
@@ -32215,11 +32845,8 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                 this.set("duration", this.get("totalduration") || new_position);
                             this.set("fullscreened", this.player.isFullscreen(this.activeElement().childNodes[0]));
                             // If settings pop-up is open hide it together with control-bar if hideOnInactivity is true
-                            if (
-                                this.settings && this.get('hideoninactivity') &&
-                                (this.get('activity_delta') > this.get('hidebarafter'))
-                            ) {
-                                this.settings.hide_settings();
+                            if (this.get('hideoninactivity') && (this.get('activity_delta') > this.get('hidebarafter'))) {
+                                this.set("settingsmenu_active", false);
                             }
                         }
                     } catch (e) {}
@@ -32383,7 +33010,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
 
         }).register("ba-videoplayer")
         .registerFunctions({
-            /**/"css": function (obj) { with (obj) { return css; } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "fullscreened ? 'fullscreen' : 'normal'": function (obj) { with (obj) { return fullscreened ? 'fullscreen' : 'normal'; } }, "firefox ? 'firefox' : 'common'": function (obj) { with (obj) { return firefox ? 'firefox' : 'common'; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "mobileview ? 'mobile' : 'desktop'": function (obj) { with (obj) { return mobileview ? 'mobile' : 'desktop'; } }, "user_activity()": function (obj) { with (obj) { return user_activity(); } }, "user_activity(true)": function (obj) { with (obj) { return user_activity(true); } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "videoelement_active": function (obj) { with (obj) { return videoelement_active; } }, "!playfullscreenonmobile": function (obj) { with (obj) { return !playfullscreenonmobile; } }, "imageelement_active && !videoelement_active": function (obj) { with (obj) { return imageelement_active && !videoelement_active; } }, "posteralt": function (obj) { with (obj) { return posteralt; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "toggle_player()": function (obj) { with (obj) { return toggle_player(); } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "cssplayer || css": function (obj) { with (obj) { return cssplayer || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "playing": function (obj) { with (obj) { return playing; } }, "playwhenvisible": function (obj) { with (obj) { return playwhenvisible; } }, "playerspeeds": function (obj) { with (obj) { return playerspeeds; } }, "playercurrentspeed": function (obj) { with (obj) { return playercurrentspeed; } }, "airplay": function (obj) { with (obj) { return airplay; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "chromecast": function (obj) { with (obj) { return chromecast; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "tabindex": function (obj) { with (obj) { return tabindex; } }, "tracktextvisible": function (obj) { with (obj) { return tracktextvisible; } }, "tracktags": function (obj) { with (obj) { return tracktags; } }, "hassubtitles && tracktagssupport": function (obj) { with (obj) { return hassubtitles && tracktagssupport; } }, "allowtexttrackupload": function (obj) { with (obj) { return allowtexttrackupload; } }, "tracksshowselection": function (obj) { with (obj) { return tracksshowselection; } }, "volume": function (obj) { with (obj) { return volume; } }, "duration": function (obj) { with (obj) { return duration; } }, "buffered": function (obj) { with (obj) { return buffered; } }, "title": function (obj) { with (obj) { return title; } }, "position": function (obj) { with (obj) { return position; } }, "activity_delta": function (obj) { with (obj) { return activity_delta; } }, "hideoninactivity": function (obj) { with (obj) { return hideoninactivity; } }, "hidebarafter": function (obj) { with (obj) { return hidebarafter; } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "streams": function (obj) { with (obj) { return streams; } }, "currentstream": function (obj) { with (obj) { return currentstream; } }, "fullscreensupport && !nofullscreen": function (obj) { with (obj) { return fullscreensupport && !nofullscreen; } }, "fullscreened": function (obj) { with (obj) { return fullscreened; } }, "source": function (obj) { with (obj) { return source; } }, "disablepause": function (obj) { with (obj) { return disablepause; } }, "disableseeking": function (obj) { with (obj) { return disableseeking; } }, "skipseconds": function (obj) { with (obj) { return skipseconds; } }, "skipinitial": function (obj) { with (obj) { return skipinitial; } }, "showsettings": function (obj) { with (obj) { return showsettings; } }, "hidevolumebar": function (obj) { with (obj) { return hidevolumebar; } }, "settingsoptionsvisible": function (obj) { with (obj) { return settingsoptionsvisible; } }, "dyntracks": function (obj) { with (obj) { return dyntracks; } }, "csstracks || css": function (obj) { with (obj) { return csstracks || css; } }, "tracktagssupport || allowtexttrackupload": function (obj) { with (obj) { return tracktagssupport || allowtexttrackupload; } }, "trackselectorhovered": function (obj) { with (obj) { return trackselectorhovered; } }, "tracktagsstyled": function (obj) { with (obj) { return tracktagsstyled; } }, "trackcuetext": function (obj) { with (obj) { return trackcuetext; } }, "uploadtexttracksvisible": function (obj) { with (obj) { return uploadtexttracksvisible; } }, "acceptedtracktexts": function (obj) { with (obj) { return acceptedtracktexts; } }, "uploadlocales": function (obj) { with (obj) { return uploadlocales; } }, "dynplaybutton": function (obj) { with (obj) { return dynplaybutton; } }, "cssplaybutton || css": function (obj) { with (obj) { return cssplaybutton || css; } }, "tmplplaybutton": function (obj) { with (obj) { return tmplplaybutton; } }, "playbutton_active": function (obj) { with (obj) { return playbutton_active; } }, "showduration": function (obj) { with (obj) { return showduration; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "dynshare": function (obj) { with (obj) { return dynshare; } }, "cssshare || css": function (obj) { with (obj) { return cssshare || css; } }, "tmplshare": function (obj) { with (obj) { return tmplshare; } }, "sharevideourl && sharevideo.length > 0": function (obj) { with (obj) { return sharevideourl && sharevideo.length > 0; } }, "sharevideourl": function (obj) { with (obj) { return sharevideourl; } }, "sharevideo": function (obj) { with (obj) { return sharevideo; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "dyntopmessage": function (obj) { with (obj) { return dyntopmessage; } }, "csstopmessage || css": function (obj) { with (obj) { return csstopmessage || css; } }, "tmpltopmessage": function (obj) { with (obj) { return tmpltopmessage; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }, "poster": function (obj) { with (obj) { return poster; } }/**/
+            /**/"css": function (obj) { with (obj) { return css; } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "fullscreened ? 'fullscreen' : 'normal'": function (obj) { with (obj) { return fullscreened ? 'fullscreen' : 'normal'; } }, "firefox ? 'firefox' : 'common'": function (obj) { with (obj) { return firefox ? 'firefox' : 'common'; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "mobileview ? 'mobile' : 'desktop'": function (obj) { with (obj) { return mobileview ? 'mobile' : 'desktop'; } }, "(stretchheight || stretchwidth) ? css + '-self-stretched' : ''": function (obj) { with (obj) { return (stretchheight || stretchwidth) ? css + '-self-stretched' : ''; } }, "user_activity()": function (obj) { with (obj) { return user_activity(); } }, "user_activity(true)": function (obj) { with (obj) { return user_activity(true); } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "videoelement_active": function (obj) { with (obj) { return videoelement_active; } }, "allowpip ? '' : 'disablePictureInPicture'": function (obj) { with (obj) { return allowpip ? '' : 'disablePictureInPicture'; } }, "!playfullscreenonmobile": function (obj) { with (obj) { return !playfullscreenonmobile; } }, "imageelement_active && !videoelement_active": function (obj) { with (obj) { return imageelement_active && !videoelement_active; } }, "posteralt": function (obj) { with (obj) { return posteralt; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "toggle_player()": function (obj) { with (obj) { return toggle_player(); } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "cssplayer || css": function (obj) { with (obj) { return cssplayer || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "playing": function (obj) { with (obj) { return playing; } }, "playwhenvisible": function (obj) { with (obj) { return playwhenvisible; } }, "playerspeeds": function (obj) { with (obj) { return playerspeeds; } }, "playercurrentspeed": function (obj) { with (obj) { return playercurrentspeed; } }, "airplay": function (obj) { with (obj) { return airplay; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "chromecast": function (obj) { with (obj) { return chromecast; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "tabindex": function (obj) { with (obj) { return tabindex; } }, "tracktextvisible": function (obj) { with (obj) { return tracktextvisible; } }, "tracktags": function (obj) { with (obj) { return tracktags; } }, "hassubtitles && tracktagssupport": function (obj) { with (obj) { return hassubtitles && tracktagssupport; } }, "allowtexttrackupload": function (obj) { with (obj) { return allowtexttrackupload; } }, "tracksshowselection": function (obj) { with (obj) { return tracksshowselection; } }, "volume": function (obj) { with (obj) { return volume; } }, "duration": function (obj) { with (obj) { return duration; } }, "buffered": function (obj) { with (obj) { return buffered; } }, "title": function (obj) { with (obj) { return title; } }, "position": function (obj) { with (obj) { return position; } }, "activity_delta": function (obj) { with (obj) { return activity_delta; } }, "hideoninactivity": function (obj) { with (obj) { return hideoninactivity; } }, "hidebarafter": function (obj) { with (obj) { return hidebarafter; } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "streams": function (obj) { with (obj) { return streams; } }, "currentstream": function (obj) { with (obj) { return currentstream; } }, "fullscreensupport && !nofullscreen": function (obj) { with (obj) { return fullscreensupport && !nofullscreen; } }, "fullscreened": function (obj) { with (obj) { return fullscreened; } }, "source": function (obj) { with (obj) { return source; } }, "disablepause": function (obj) { with (obj) { return disablepause; } }, "disableseeking": function (obj) { with (obj) { return disableseeking; } }, "skipseconds": function (obj) { with (obj) { return skipseconds; } }, "skipinitial": function (obj) { with (obj) { return skipinitial; } }, "showsettingsmenu": function (obj) { with (obj) { return showsettingsmenu; } }, "settingsmenu_active": function (obj) { with (obj) { return settingsmenu_active; } }, "hidevolumebar": function (obj) { with (obj) { return hidevolumebar; } }, "dyntracks": function (obj) { with (obj) { return dyntracks; } }, "csstracks || css": function (obj) { with (obj) { return csstracks || css; } }, "tracktagssupport || allowtexttrackupload": function (obj) { with (obj) { return tracktagssupport || allowtexttrackupload; } }, "trackselectorhovered": function (obj) { with (obj) { return trackselectorhovered; } }, "tracktagsstyled": function (obj) { with (obj) { return tracktagsstyled; } }, "trackcuetext": function (obj) { with (obj) { return trackcuetext; } }, "uploadtexttracksvisible": function (obj) { with (obj) { return uploadtexttracksvisible; } }, "acceptedtracktexts": function (obj) { with (obj) { return acceptedtracktexts; } }, "uploadlocales": function (obj) { with (obj) { return uploadlocales; } }, "dynsettingsmenu": function (obj) { with (obj) { return dynsettingsmenu; } }, "tmplsettingsmenu": function (obj) { with (obj) { return tmplsettingsmenu; } }, "dynplaybutton": function (obj) { with (obj) { return dynplaybutton; } }, "cssplaybutton || css": function (obj) { with (obj) { return cssplaybutton || css; } }, "tmplplaybutton": function (obj) { with (obj) { return tmplplaybutton; } }, "playbutton_active": function (obj) { with (obj) { return playbutton_active; } }, "showduration": function (obj) { with (obj) { return showduration; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "dynshare": function (obj) { with (obj) { return dynshare; } }, "cssshare || css": function (obj) { with (obj) { return cssshare || css; } }, "tmplshare": function (obj) { with (obj) { return tmplshare; } }, "sharevideourl && sharevideo.length > 0": function (obj) { with (obj) { return sharevideourl && sharevideo.length > 0; } }, "sharevideourl": function (obj) { with (obj) { return sharevideourl; } }, "sharevideo": function (obj) { with (obj) { return sharevideo; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "dyntopmessage": function (obj) { with (obj) { return dyntopmessage; } }, "csstopmessage || css": function (obj) { with (obj) { return csstopmessage || css; } }, "tmpltopmessage": function (obj) { with (obj) { return tmpltopmessage; } }, "topmessage": function (obj) { with (obj) { return topmessage; } }, "poster": function (obj) { with (obj) { return poster; } }/**/
         })
         .attachStringTable(Assets.strings)
         .addStrings({
@@ -32796,6 +33423,11 @@ Scoped.define("module:VideoRecorder.Dynamics.Imagegallery", ["dynamics:Dynamic",
                     var id = this.get("imagedelta");
                     var h = this.get("containerheight");
                     if (ih > 1.00) {
+                        // If images count is 1
+                        if (this.get("images").count() === 1) {
+                            iw *= 0.45;
+                            ih *= 0.45;
+                        }
                         image.set("left", 1 + Math.round(i * (iw + id)));
                         image.set("top", 1 + Math.round((h - ih) / 2));
                         image.set("width", 1 + Math.round(iw));
@@ -32995,7 +33627,8 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.State", ["base:State
                 "topmessage": false,
                 "controlbar": false,
                 "loader": false,
-                "imagegallery": false
+                "imagegallery": false,
+                "helperframe": false
             }, Objs.objectify(this.dynamics)), function(value, key) {
                 this.dyn.set(key + "_active", value);
             }, this);
@@ -34160,13 +34793,13 @@ Scoped.define("module:VideoRecorder.Dynamics.Topmessage", ["dynamics:Dynamic"], 
         .register("ba-videorecorder-topmessage");
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","module:Assets","browser:Info","browser:Dom","browser:Events","browser:Upload.MultiUploader","browser:Upload.FileUploader","media:Recorder.VideoRecorderWrapper","media:Recorder.Support","media:WebRTC.Support","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Collections.Collection","base:Promise","module:VideoRecorder.Dynamics.RecorderStates.Initial","module:VideoRecorder.Dynamics.RecorderStates"], ["module:VideoRecorder.Dynamics.Imagegallery","module:VideoRecorder.Dynamics.Loader","module:VideoRecorder.Dynamics.Controlbar","module:VideoRecorder.Dynamics.Message","module:VideoRecorder.Dynamics.Topmessage","module:VideoRecorder.Dynamics.Chooser","module:VideoRecorder.Dynamics.Faceoutline","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.DataPartial","dynamics:Partials.AttrsPartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, Info, Dom, DomEvents, MultiUploader, FileUploader, VideoRecorderWrapper, RecorderSupport, WebRTCSupport, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Collection, Promise, InitialState, RecorderStates, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","module:Assets","browser:Info","browser:Dom","browser:Events","browser:Upload.MultiUploader","browser:Upload.FileUploader","media:Recorder.VideoRecorderWrapper","media:Recorder.Support","media:WebRTC.Support","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Collections.Collection","base:Promise","module:VideoRecorder.Dynamics.RecorderStates.Initial","module:VideoRecorder.Dynamics.RecorderStates"], ["module:VideoRecorder.Dynamics.Imagegallery","module:VideoRecorder.Dynamics.Loader","module:VideoRecorder.Dynamics.Controlbar","module:VideoRecorder.Dynamics.Message","module:VideoRecorder.Dynamics.Topmessage","module:VideoRecorder.Dynamics.Chooser","module:VideoRecorder.Dynamics.Faceoutline","module:Common.Dynamics.Helperframe","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.DataPartial","dynamics:Partials.AttrsPartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, Info, Dom, DomEvents, MultiUploader, FileUploader, VideoRecorderWrapper, RecorderSupport, WebRTCSupport, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Collection, Promise, InitialState, RecorderStates, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
             return {
 
-                template: "\n<div data-selector=\"video-recorder-container\" ba-show=\"{{!player_active}}\"\n     class=\"{{css}}-container {{csstheme}} {{css}}-size-{{csssize}}\n     {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{css}}-{{ fullscreened ? 'fullscreen' : 'normal' }}-view\n     {{cssrecorder}}-{{ firefox ? 'firefox' : 'common'}}-browser\n     {{cssrecorder}}-{{themecolor}}-color\" ba-styles=\"{{widthHeightStyles}}\"\n>\n\n    <video tabindex=\"-1\" data-selector=\"recorder-status\" class=\"{{css}}-video {{css}}-{{hasrecorder ? 'hasrecorder' : 'norecorder'}}\" data-video=\"video\" playsinline></video>\n\t<ba-videorecorder-faceoutline class=\"{{css}}-overlay\" ba-if=\"{{faceoutline && hasrecorder && isrecorderready}}\"></ba-videorecorder-faceoutline>\n    <div data-selector=\"recorder-overlay\" class='{{cssrecorder}}-overlay' ba-show=\"{{!hideoverlay}}\" data-overlay=\"overlay\">\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t    ba-tooltip=\"{{loadertooltip}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-label=\"{{loaderlabel}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t\tba-links=\"{{message_links}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t\tba-event:link=\"message_link_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dyntopmessage}}\n\t\t    ba-css=\"{{csstopmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmpltopmessage}}\"\n\t\t    ba-show=\"{{topmessage_active && (topmessage || hovermessage)}}\"\n\t\t    ba-topmessage=\"{{hovermessage || topmessage}}\"\n\t\t></ba-{{dyntopmessage}}>\n\n\t\t<ba-{{dynchooser}}\n\t\t\tba-onlyaudio=\"{{onlyaudio}}\"\n\t\t\tba-facecamera=\"{{facecamera}}\"\n\t\t\tba-recordviafilecapture=\"{{recordviafilecapture}}\"\n\t\t    ba-css=\"{{csschooser || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplchooser}}\"\n\t\t\tba-allowscreen=\"{{allowscreen}}\"\n\t\t\tba-allowmultistreams=\"{{allowmultistreams}}\"\n\t\t\tba-parentpopup=\"{{popup}}\"\n\t\t    ba-if=\"{{chooser_active && !is_initial_state}}\"\n\t\t    ba-allowrecord=\"{{allowrecord}}\"\n\t\t    ba-allowupload=\"{{allowupload}}\"\n\t\t    ba-allowcustomupload=\"{{allowcustomupload}}\"\n\t\t    ba-allowedextensions=\"{{allowedextensions}}\"\n\t\t    ba-primaryrecord=\"{{primaryrecord}}\"\n\t\t    ba-timelimit=\"{{timelimit}}\"\n\t\t    ba-event:record=\"record_video\"\n\t\t\tba-event:record-screen=\"record_screen\"\n\t\t    ba-event:upload=\"video_file_selected\"\n\t\t></ba-{{dynchooser}}>\n\n\t\t<ba-{{dynimagegallery}}\n\t\t    ba-css=\"{{cssimagegallery || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t    ba-template=\"{{tmplimagegallery}}\"\n\t\t    ba-if=\"{{imagegallery_active}}\"\n\t\t    ba-imagecount=\"{{gallerysnapshots}}\"\n\t\t    ba-imagenativewidth=\"{{nativeRecordingWidth}}\"\n\t\t    ba-imagenativeheight=\"{{nativeRecordingHeight}}\"\n\t\t    ba-event:image-selected=\"select_image\"\n\t\t></ba-{{dynimagegallery}}>\n\n\t\t<ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-cameras=\"{{cameras}}\"\n\t\t    ba-microphones=\"{{microphones}}\"\n\t\t    ba-noaudio=\"{{noaudio}}\"\n\t\t\tba-novideo=\"{{onlyaudio}}\"\n\t\t\tba-allowscreen=\"{{record_media==='screen' || record_media==='multistream'}}\"\n\t\t    ba-selectedcamera=\"{{selectedcamera || 0}}\"\n\t\t    ba-selectedmicrophone=\"{{selectedmicrophone || 0}}\"\n\t\t\tba-showaddstreambutton=\"{{showaddstreambutton}}\"\n\t\t    ba-camerahealthy=\"{{camerahealthy}}\"\n\t\t    ba-microphonehealthy=\"{{microphonehealthy}}\"\n\t\t    ba-hovermessage=\"{{=hovermessage}}\"\n\t\t    ba-settingsvisible=\"{{settingsvisible}}\"\n\t\t    ba-recordvisible=\"{{recordvisible}}\"\n\t\t\tba-cancelvisible=\"{{allowcancel && cancancel}}\"\n\t\t    ba-uploadcovershotvisible=\"{{uploadcovershotvisible}}\"\n\t\t    ba-rerecordvisible=\"{{rerecordvisible}}\"\n\t\t    ba-stopvisible=\"{{stopvisible}}\"\n\t\t    ba-skipvisible=\"{{skipvisible}}\"\n\t\t    ba-controlbarlabel=\"{{controlbarlabel}}\"\n\t\t\tba-mintimeindicator=\"{{mintimeindicator}}\"\n\t\t\tba-timeminlimit=\"{{timeminlimit}}\"\n\t\t\tba-resumevisible=\"{{resumevisible}}\"\n\t\t\tba-pausable=\"{{pausable}}\"\n\t\t\tba-firefox=\"{{firefox}}\"\n\t\t    ba-event:select-camera=\"select_camera\"\n\t\t    ba-event:select-microphone=\"select_microphone\"\n\t\t    ba-event:invoke-record=\"record\"\n\t\t    ba-event:invoke-rerecord=\"rerecord\"\n\t\t    ba-event:invoke-stop=\"stop\"\n\t\t    ba-event:invoke-skip=\"invoke_skip\"\n            ba-event:invoke-pause=\"pause_recorder\"\n            ba-event:invoke-resume=\"resume\"\n\t\t\tba-event:upload-covershot=\"upload_covershot\"\n\t\t    ba-event:toggle-face-mode=\"toggle_face_mode\"\n\t\t\tba-event:add-new-stream=\"add_new_stream\"\n\t\t></ba-{{dyncontrolbar}}>\n    </div>\n</div>\n\n\n<div data-selector=\"recorder-player\" ba-if=\"{{player_active}}\" ba-styles=\"{{widthHeightStyles}}\">\n\t<span ba-show=\"{{ie8}}\">&nbsp;</span>\n\t<ba-{{dynvideoplayer}}\n\t    ba-theme=\"{{theme || 'default'}}\"\n        ba-themecolor=\"{{themecolor}}\"\n\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n        ba-source=\"{{localplayback ? playbacksource : ''}}\"\n        ba-poster=\"{{localplayback ? playbackposter : ''}}\"\n        ba-hideoninactivity=\"{{false}}\"\n        ba-forceflash=\"{{forceflash}}\"\n        ba-noflash=\"{{noflash}}\"\n        ba-stretch=\"{{stretch}}\"\n\t\tba-stretchheight=\"{{stretchheight}}\"\n\t\tba-stretchwidth=\"{{stretchwidth}}\"\n\t\tba-onlyaudio=\"{{onlyaudio}}\"\n        ba-attrs=\"{{playerattrs}}\"\n        ba-data:id=\"player\"\n\t\tba-width=\"{{width || (onlyaudio ? 240 : undefined)}}\"\n\t\tba-height=\"{{height}}\"\n        ba-totalduration=\"{{duration / 1000}}\"\n        ba-rerecordable=\"{{rerecordable && (recordings === null || recordings > 0)}}\"\n        ba-submittable=\"{{manualsubmit && verified}}\"\n        ba-reloadonplay=\"{{true}}\"\n        ba-autoplay=\"{{autoplay}}\"\n        ba-nofullscreen=\"{{nofullscreen}}\"\n        ba-topmessage=\"{{playertopmessage}}\"\n        ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n        ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n        ba-tracktags=\"{{tracktags}}\"\n        ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n        ba-trackcuetext=\"{{trackcuetext}}\"\n        ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n\t\tba-event:loaded=\"ready_to_play\"\n        ba-event:rerecord=\"rerecord\"\n        ba-event:playing=\"playing\"\n        ba-event:paused=\"paused\"\n        ba-event:ended=\"ended\"\n        ba-event:submit=\"manual_submit\"\n        ba-event:upload-text-tracks=\"upload_text_tracks\"\n\t\tba-tracksshowselection=\"{{tracksshowselection}}\"\n\t\tba-trackselectorhovered=\"{{trackselectorhovered}}\"\n\t\tba-uploadlocales=\"{{uploadlocales}}\"\n\t\tba-event:selected_label_value=\"selected_label_value\"\n\t\tba-event:move_to_option=\"move_to_option\"\n\t>\n\t</ba-{{dynvideoplayer}}>\n</div>\n",
+                template: "\n<div data-selector=\"video-recorder-container\" ba-show=\"{{!player_active}}\"\n     class=\"{{css}}-container {{csstheme}} {{css}}-size-{{csssize}}\n     {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{css}}-{{ fullscreened ? 'fullscreen' : 'normal' }}-view\n     {{cssrecorder}}-{{ firefox ? 'firefox' : 'common'}}-browser\n     {{cssrecorder}}-{{themecolor}}-color\" ba-styles=\"{{widthHeightStyles}}\"\n>\n\n    <video tabindex=\"-1\" data-selector=\"recorder-status\" class=\"{{css}}-video {{css}}-{{hasrecorder ? 'hasrecorder' : 'norecorder'}}\" data-video=\"video\" playsinline></video>\n\t<ba-videorecorder-faceoutline class=\"{{css}}-overlay\" ba-if=\"{{faceoutline && hasrecorder && isrecorderready}}\"></ba-videorecorder-faceoutline>\n    <div data-selector=\"recorder-overlay\" class='{{cssrecorder}}-overlay' ba-show=\"{{!hideoverlay}}\" data-overlay=\"overlay\">\n\t\t<ba-{{dynloader}}\n\t\t\tba-css=\"{{cssloader || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-template=\"{{tmplloader}}\"\n\t\t\tba-show=\"{{loader_active}}\"\n\t\t\tba-tooltip=\"{{loadertooltip}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t\tba-label=\"{{loaderlabel}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t\tba-css=\"{{cssmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-template=\"{{tmplmessage}}\"\n\t\t\tba-show=\"{{message_active}}\"\n\t\t\tba-message=\"{{message}}\"\n\t\t\tba-links=\"{{message_links}}\"\n\t\t\tba-event:click=\"message_click\"\n\t\tba-event:link=\"message_link_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dyntopmessage}}\n\t\t\tba-css=\"{{csstopmessage || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-template=\"{{tmpltopmessage}}\"\n\t\t\tba-show=\"{{topmessage_active && (topmessage || hovermessage)}}\"\n\t\t\tba-topmessage=\"{{hovermessage || topmessage}}\"\n\t\t></ba-{{dyntopmessage}}>\n\n\t\t<ba-{{dynchooser}}\n\t\t\tba-onlyaudio=\"{{onlyaudio}}\"\n\t\t\tba-facecamera=\"{{facecamera}}\"\n\t\t\tba-recordviafilecapture=\"{{recordviafilecapture}}\"\n\t\t\tba-css=\"{{csschooser || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-template=\"{{tmplchooser}}\"\n\t\t\tba-allowscreen=\"{{allowscreen}}\"\n\t\t\tba-allowmultistreams=\"{{allowmultistreams}}\"\n\t\t\tba-parentpopup=\"{{popup}}\"\n\t\t\tba-if=\"{{chooser_active && !is_initial_state}}\"\n\t\t\tba-allowrecord=\"{{allowrecord}}\"\n\t\t\tba-allowupload=\"{{allowupload}}\"\n\t\t\tba-allowcustomupload=\"{{allowcustomupload}}\"\n\t\t\tba-allowedextensions=\"{{allowedextensions}}\"\n\t\t\tba-primaryrecord=\"{{primaryrecord}}\"\n\t\t\tba-timelimit=\"{{timelimit}}\"\n\t\t\tba-event:record=\"record_video\"\n\t\t\tba-event:record-screen=\"record_screen\"\n\t\t\tba-event:upload=\"video_file_selected\"\n\t\t></ba-{{dynchooser}}>\n\n\t\t<ba-{{dynimagegallery}}\n\t\t\tba-css=\"{{cssimagegallery || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-template=\"{{tmplimagegallery}}\"\n\t\t\tba-if=\"{{imagegallery_active}}\"\n\t\t\tba-imagecount=\"{{gallerysnapshots}}\"\n\t\t\tba-imagenativewidth=\"{{nativeRecordingWidth}}\"\n\t\t\tba-imagenativeheight=\"{{nativeRecordingHeight}}\"\n\t\t\tba-event:image-selected=\"select_image\"\n\t\t></ba-{{dynimagegallery}}>\n\n\t\t<ba-{{dyncontrolbar}}\n\t\t\tba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t\tba-template=\"{{tmplcontrolbar}}\"\n\t\t\tba-show=\"{{controlbar_active}}\"\n\t\t\tba-cameras=\"{{cameras}}\"\n\t\t\tba-microphones=\"{{microphones}}\"\n\t\t\tba-noaudio=\"{{noaudio}}\"\n\t\t\tba-novideo=\"{{onlyaudio}}\"\n\t\t\tba-allowscreen=\"{{record_media==='screen' || record_media==='multistream'}}\"\n\t\t\tba-selectedcamera=\"{{selectedcamera || 0}}\"\n\t\t\tba-selectedmicrophone=\"{{selectedmicrophone || 0}}\"\n\t\t\tba-showaddstreambutton=\"{{showaddstreambutton}}\"\n\t\t\tba-camerahealthy=\"{{camerahealthy}}\"\n\t\t\tba-microphonehealthy=\"{{microphonehealthy}}\"\n\t\t\tba-hovermessage=\"{{=hovermessage}}\"\n\t\t\tba-settingsvisible=\"{{settingsvisible}}\"\n\t\t\tba-recordvisible=\"{{recordvisible}}\"\n\t\t\tba-cancelvisible=\"{{allowcancel && cancancel}}\"\n\t\t\tba-uploadcovershotvisible=\"{{uploadcovershotvisible}}\"\n\t\t\tba-rerecordvisible=\"{{rerecordvisible}}\"\n\t\t\tba-stopvisible=\"{{stopvisible}}\"\n\t\t\tba-skipvisible=\"{{skipvisible}}\"\n\t\t\tba-controlbarlabel=\"{{controlbarlabel}}\"\n\t\t\tba-mintimeindicator=\"{{mintimeindicator}}\"\n\t\t\tba-timeminlimit=\"{{timeminlimit}}\"\n\t\t\tba-resumevisible=\"{{resumevisible}}\"\n\t\t\tba-pausable=\"{{pausable}}\"\n\t\t\tba-firefox=\"{{firefox}}\"\n\t\t\tba-event:select-camera=\"select_camera\"\n\t\t\tba-event:select-microphone=\"select_microphone\"\n\t\t\tba-event:invoke-record=\"record\"\n\t\t\tba-event:invoke-rerecord=\"rerecord\"\n\t\t\tba-event:invoke-stop=\"stop\"\n\t\t\tba-event:invoke-skip=\"invoke_skip\"\n\t\t\tba-event:invoke-pause=\"pause_recorder\"\n\t\t\tba-event:invoke-resume=\"resume\"\n\t\t\tba-event:upload-covershot=\"upload_covershot\"\n\t\t\tba-event:toggle-face-mode=\"toggle_face_mode\"\n\t\t\tba-event:add-new-stream=\"add_new_stream\"\n\t\t></ba-{{dyncontrolbar}}>\n\n\t\t<ba-{{dynhelperframe}}\n\t\t\tba-if=\"{{helperframe_active || framevisible}}\"\n\t\t\tba-template=\"{{tmphelperframe}}\"\n\t\t\tba-framereversable= \"{{multistreamreversable}}\"\n\t\t\tba-framedragable=\"{{multistreamdraggable}}\"\n\t\t\tba-frameresizeable=\"{{multistreamresizeable}}\"\n\t\t\tba-framepositionx=\"{{addstreampositionx}}\"\n\t\t\tba-framepositiony=\"{{addstreampositiony}}\"\n\t\t\tba-framewidth=\"{{addstreampositionwidth}}\"\n\t\t\tba-frameheight=\"{{addstreampositionheight}}\"\n\t\t\tba-frameproportional=\"{{addstreamproportional}}\"\n\t\t\tba-flipframe=\"{{flip-camera}}\"\n\t\t></ba-{{dynhelperframe}}>\n\t</div>\n</div>\n\n\n<div data-selector=\"recorder-player\" ba-if=\"{{player_active}}\" ba-styles=\"{{widthHeightStyles}}\">\n\t<span ba-show=\"{{ie8}}\">&nbsp;</span>\n\t<ba-{{dynvideoplayer}}\n\t\tba-theme=\"{{theme || 'default'}}\"\n\t\tba-themecolor=\"{{themecolor}}\"\n\t\tba-cssrecorder=\"{{cssrecorder || css}}\"\n\t\tba-source=\"{{localplayback ? playbacksource : ''}}\"\n\t\tba-poster=\"{{localplayback ? playbackposter : ''}}\"\n\t\tba-hideoninactivity=\"{{false}}\"\n\t\tba-forceflash=\"{{forceflash}}\"\n\t\tba-noflash=\"{{noflash}}\"\n\t\tba-stretch=\"{{stretch}}\"\n\t\tba-stretchheight=\"{{stretchheight}}\"\n\t\tba-stretchwidth=\"{{stretchwidth}}\"\n\t\tba-onlyaudio=\"{{onlyaudio}}\"\n\t\tba-attrs=\"{{playerattrs}}\"\n\t\tba-data:id=\"player\"\n\t\tba-width=\"{{width || (onlyaudio ? 240 : undefined)}}\"\n\t\tba-height=\"{{height}}\"\n\t\tba-totalduration=\"{{duration / 1000}}\"\n\t\tba-rerecordable=\"{{rerecordable && (recordings === null || recordings > 0)}}\"\n\t\tba-submittable=\"{{manualsubmit && verified}}\"\n\t\tba-reloadonplay=\"{{true}}\"\n\t\tba-autoplay=\"{{autoplay}}\"\n\t\tba-nofullscreen=\"{{nofullscreen}}\"\n\t\tba-topmessage=\"{{playertopmessage}}\"\n\t\tba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n\t\tba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n\t\tba-tracktags=\"{{tracktags}}\"\n\t\tba-tracktagsstyled=\"{{tracktagsstyled}}\"\n\t\tba-trackcuetext=\"{{trackcuetext}}\"\n\t\tba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n\t\tba-event:loaded=\"ready_to_play\"\n\t\tba-event:rerecord=\"rerecord\"\n\t\tba-event:playing=\"playing\"\n\t\tba-event:paused=\"paused\"\n\t\tba-event:ended=\"ended\"\n\t\tba-event:submit=\"manual_submit\"\n\t\tba-event:upload-text-tracks=\"upload_text_tracks\"\n\t\tba-tracksshowselection=\"{{tracksshowselection}}\"\n\t\tba-trackselectorhovered=\"{{trackselectorhovered}}\"\n\t\tba-uploadlocales=\"{{uploadlocales}}\"\n\t\tba-event:selected_label_value=\"selected_label_value\"\n\t\tba-event:move_to_option=\"move_to_option\"\n\t>\n\t</ba-{{dynvideoplayer}}>\n</div>\n",
 
                 attrs: {
                     /* CSS */
@@ -34180,6 +34813,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "cssmessage": "",
                     "csstopmessage": "",
                     "csschooser": "",
+                    "csshelperframe": "",
                     "width": "",
                     "height": "",
                     "gallerysnapshots": 3,
@@ -34199,6 +34833,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "dyntopmessage": "videorecorder-topmessage",
                     "dynchooser": "videorecorder-chooser",
                     "dynvideoplayer": "videoplayer",
+                    "dynhelperframe": "helperframe",
 
                     /* Templates */
                     "tmplimagegallery": "",
@@ -34207,6 +34842,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "tmplmessage": "",
                     "tmpltopmessage": "",
                     "tmplchooser": "",
+                    "tmplhelperframe": "",
 
                     /* Attributes */
                     "autorecord": false,
@@ -34249,6 +34885,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "webrtcstreamingifnecessary": false,
                     "microphone-volume": 1.0,
                     "flip-camera": false,
+                    "flipscreen": false, // Will affect as true, if flip-camera also set as true
                     "early-rerecord": false,
                     "custom-covershots": false,
                     "manualsubmit": false,
@@ -34287,12 +34924,19 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "snapshotfrommobilecapture": false,
                     "allowmultistreams": false,
                     "showaddstreambutton": false,
+                    "multistreamreversable": true,
+                    "multistreamdraggable": true,
+                    "multistreamresizeable": false,
+                    "addstreamproportional": true,
                     "addstreampositionx": 5,
                     "addstreampositiony": 5,
                     "addstreampositionwidth": 120,
                     "addstreampositionheight": 95,
+                    "addstreamminwidth": 120,
+                    "addstreamminheight": 95,
 
                     "allowtexttrackupload": false,
+                    "framevisible": false,
                     "uploadlocales": [{
                         lang: 'en',
                         label: 'English'
@@ -34309,6 +34953,20 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "nativeRecordingHeight:recordingheight,record_media": function() {
                         return this.get("recordingheight") || ((this.get("record_media") !== "screen" && (this.get("record_media") !== "multistream")) ? 480 : (window.innerHeight || document.body.clientHeight));
                     },
+                    // "nativeRecordingWidth:recordingwidth,record_media": function() {
+                    //     if (this.get("record_media") !== "multistream") {
+                    //         return this.videoWidth();
+                    //     } else {
+                    //         return this.get("recordingwidth") || (this.get("record_media") !== "screen" ? 640 : (window.innerWidth || document.body.clientWidth));
+                    //     }
+                    // },
+                    // "nativeRecordingHeight:recordingheight,record_media": function() {
+                    //     if (this.get("record_media") !== "multistream") {
+                    //         return this.videoWidth() * this.aspectRatio();
+                    //     } else {
+                    //         return this.get("recordingheight") || (this.get("record_media") !== "screen" ? 480 : (window.innerHeight || document.body.clientHeight));
+                    //     }
+                    // },
                     "widthHeightStyles:width,height": function() {
                         var result = {};
                         var width = this.get("width");
@@ -34373,6 +35031,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "snapshotfromuploader": "boolean",
                     "snapshotfrommobilecapture": "boolean",
                     "flip-camera": "boolean",
+                    "flipscreen": "boolean",
                     "faceoutline": "boolean",
                     "early-rerecord": "boolean",
                     "custom-covershots": "boolean",
@@ -34386,7 +35045,17 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "allowtexttrackupload": "boolean",
                     "uploadlocales": "array",
                     "allowmultistreams": "boolean",
-                    "pausable": "boolean"
+                    "pausable": "boolean",
+                    "multistreamreversable": "boolean",
+                    "multistreamdraggable": "boolean",
+                    "multistreamresizeable": "boolean",
+                    "addstreamproportional": "boolean",
+                    "addstreampositionx": "int",
+                    "addstreampositiony": "int",
+                    "addstreampositionwidth": "int",
+                    "addstreampositionheight": "int",
+                    "addstreamminwidth": "int",
+                    "addstreamminheight": "int"
                 },
 
                 extendables: ["states"],
@@ -34535,7 +35204,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                         localPlaybackRequested: this.get("localplayback"),
                         screen: (this.get("allowscreen") && this.get("record_media") === "screen") || (this.get("allowmultistreams") && this.get("record_media") === "multistream") ? this.get("screen") : null,
                         framerate: this.get("framerate"),
-                        flip: this.get("flip-camera")
+                        flip: this.get("flip-camera"),
+                        flipscreen: this.get("flipscreen")
                     };
                 },
 
@@ -34780,8 +35450,22 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     this.__backgroundSnapshot = this.recorder.createSnapshot(this.get("snapshottype"));
                     var el = this.activeElement().querySelector("[data-video]");
                     var dimensions = Dom.elementDimensions(el);
-                    if (this.__backgroundSnapshot)
-                        this.__backgroundSnapshotDisplay = this.recorder.createSnapshotDisplay(el, this.__backgroundSnapshot, 0, 0, dimensions.width, dimensions.height);
+                    if (this.__backgroundSnapshot) {
+                        var _top, _left, _width, _height, _dimensions;
+                        _top = 0;
+                        _left = 0;
+                        _width = dimensions.width;
+                        _height = dimensions.height;
+                        if (typeof this.recorder._recorder._videoTrackSettings.videoInnerFrame !== "undefined") {
+                            _dimensions = this.recorder._recorder._videoTrackSettings.videoInnerFrame;
+                            _width = _dimensions.width || _width;
+                            _height = _dimensions.height || _height;
+                            _left = (dimensions.width - _width) / 2;
+                            _top = (dimensions.height - _height) / 2;
+                        }
+                        this.__backgroundSnapshotDisplay = this.recorder.createSnapshotDisplay(el, this.__backgroundSnapshot, _left, _top, _width, _height);
+                    }
+
                 },
 
                 _hideBackgroundSnapshot: function() {
@@ -35240,7 +35924,10 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                                 this.set("loadlabel", "");
                                 this.set("loader_active", false);
                                 this.set("showaddstreambutton", false);
-                                this.__appendNewCameraReverseElement(this.activeElement());
+                                if (this.get("allowmultistreams") && (this.get("multistreamreversable") || this.get("multistreamdraggable") || this.get("multistreamresizeable"))) {
+                                    this.set("helperframe_active", true);
+                                    this.set("framevisible", true);
+                                }
                             }, this).error(function(message) {
                                 console.warn(message);
                                 this.set("loadlabel", message);
@@ -35248,34 +35935,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                             }, this);
                         }
                     }, this);
-                },
-
-                /**
-                 * Will append DIV element which will affect as a button
-                 * @param {HTMLElement} recorderContainer
-                 * @private
-                 */
-                __appendNewCameraReverseElement: function(recorderContainer) {
-                    var _screenSwitcherElement = document.createElement('div');
-                    recorderContainer.append(_screenSwitcherElement);
-                    Dom.elementAddClass(_screenSwitcherElement, 'ba-screen-switcher');
-                    // _screenSwitcherElement.style.border = '3px solid red'; // for testing purposes only
-                    _screenSwitcherElement.style.opacity = 0;
-                    _screenSwitcherElement.style.position = 'absolute';
-                    _screenSwitcherElement.style.cursor = 'pointer';
-                    _screenSwitcherElement.style.top = this.get("addstreampositionx") + 'px';
-                    _screenSwitcherElement.style.left = this.get("addstreampositionx") + 'px';
-                    _screenSwitcherElement.style.width = this.get("addstreampositionwidth") + 'px';
-                    _screenSwitcherElement.style.height = this.get("addstreampositionheight") + 'px';
-                    _screenSwitcherElement.style.width = 'pointer';
-                    _screenSwitcherElement.style.zIndex = '100';
-
-                    this._changeVideoEventHandler = this.auto_destroy(new DomEvents());
-                    this._changeVideoEventHandler.on(_screenSwitcherElement, "click touch", function() {
-                        this.recorder.reverseCameraScreens();
-                    }, this);
                 }
-
             };
         }, {
 
@@ -35286,7 +35946,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
         })
         .register("ba-videorecorder")
         .registerFunctions({
-            /**/"!player_active": function (obj) { with (obj) { return !player_active; } }, "css": function (obj) { with (obj) { return css; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "fullscreened ? 'fullscreen' : 'normal'": function (obj) { with (obj) { return fullscreened ? 'fullscreen' : 'normal'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "firefox ? 'firefox' : 'common'": function (obj) { with (obj) { return firefox ? 'firefox' : 'common'; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "hasrecorder ? 'hasrecorder' : 'norecorder'": function (obj) { with (obj) { return hasrecorder ? 'hasrecorder' : 'norecorder'; } }, "faceoutline && hasrecorder && isrecorderready": function (obj) { with (obj) { return faceoutline && hasrecorder && isrecorderready; } }, "!hideoverlay": function (obj) { with (obj) { return !hideoverlay; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "cssrecorder || css": function (obj) { with (obj) { return cssrecorder || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "loadertooltip": function (obj) { with (obj) { return loadertooltip; } }, "hovermessage": function (obj) { with (obj) { return hovermessage; } }, "loaderlabel": function (obj) { with (obj) { return loaderlabel; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "message_links": function (obj) { with (obj) { return message_links; } }, "dyntopmessage": function (obj) { with (obj) { return dyntopmessage; } }, "csstopmessage || css": function (obj) { with (obj) { return csstopmessage || css; } }, "tmpltopmessage": function (obj) { with (obj) { return tmpltopmessage; } }, "topmessage_active && (topmessage || hovermessage)": function (obj) { with (obj) { return topmessage_active && (topmessage || hovermessage); } }, "hovermessage || topmessage": function (obj) { with (obj) { return hovermessage || topmessage; } }, "dynchooser": function (obj) { with (obj) { return dynchooser; } }, "onlyaudio": function (obj) { with (obj) { return onlyaudio; } }, "facecamera": function (obj) { with (obj) { return facecamera; } }, "recordviafilecapture": function (obj) { with (obj) { return recordviafilecapture; } }, "csschooser || css": function (obj) { with (obj) { return csschooser || css; } }, "tmplchooser": function (obj) { with (obj) { return tmplchooser; } }, "allowscreen": function (obj) { with (obj) { return allowscreen; } }, "allowmultistreams": function (obj) { with (obj) { return allowmultistreams; } }, "popup": function (obj) { with (obj) { return popup; } }, "chooser_active && !is_initial_state": function (obj) { with (obj) { return chooser_active && !is_initial_state; } }, "allowrecord": function (obj) { with (obj) { return allowrecord; } }, "allowupload": function (obj) { with (obj) { return allowupload; } }, "allowcustomupload": function (obj) { with (obj) { return allowcustomupload; } }, "allowedextensions": function (obj) { with (obj) { return allowedextensions; } }, "primaryrecord": function (obj) { with (obj) { return primaryrecord; } }, "timelimit": function (obj) { with (obj) { return timelimit; } }, "dynimagegallery": function (obj) { with (obj) { return dynimagegallery; } }, "cssimagegallery || css": function (obj) { with (obj) { return cssimagegallery || css; } }, "tmplimagegallery": function (obj) { with (obj) { return tmplimagegallery; } }, "imagegallery_active": function (obj) { with (obj) { return imagegallery_active; } }, "gallerysnapshots": function (obj) { with (obj) { return gallerysnapshots; } }, "nativeRecordingWidth": function (obj) { with (obj) { return nativeRecordingWidth; } }, "nativeRecordingHeight": function (obj) { with (obj) { return nativeRecordingHeight; } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "noaudio": function (obj) { with (obj) { return noaudio; } }, "record_media==='screen' || record_media==='multistream'": function (obj) { with (obj) { return record_media==='screen' || record_media==='multistream'; } }, "selectedcamera || 0": function (obj) { with (obj) { return selectedcamera || 0; } }, "selectedmicrophone || 0": function (obj) { with (obj) { return selectedmicrophone || 0; } }, "showaddstreambutton": function (obj) { with (obj) { return showaddstreambutton; } }, "camerahealthy": function (obj) { with (obj) { return camerahealthy; } }, "microphonehealthy": function (obj) { with (obj) { return microphonehealthy; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "allowcancel && cancancel": function (obj) { with (obj) { return allowcancel && cancancel; } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "mintimeindicator": function (obj) { with (obj) { return mintimeindicator; } }, "timeminlimit": function (obj) { with (obj) { return timeminlimit; } }, "resumevisible": function (obj) { with (obj) { return resumevisible; } }, "pausable": function (obj) { with (obj) { return pausable; } }, "firefox": function (obj) { with (obj) { return firefox; } }, "player_active": function (obj) { with (obj) { return player_active; } }, "ie8": function (obj) { with (obj) { return ie8; } }, "dynvideoplayer": function (obj) { with (obj) { return dynvideoplayer; } }, "theme || 'default'": function (obj) { with (obj) { return theme || 'default'; } }, "localplayback ? playbacksource : ''": function (obj) { with (obj) { return localplayback ? playbacksource : ''; } }, "localplayback ? playbackposter : ''": function (obj) { with (obj) { return localplayback ? playbackposter : ''; } }, "false": function (obj) { with (obj) { return false; } }, "forceflash": function (obj) { with (obj) { return forceflash; } }, "noflash": function (obj) { with (obj) { return noflash; } }, "stretch": function (obj) { with (obj) { return stretch; } }, "stretchheight": function (obj) { with (obj) { return stretchheight; } }, "stretchwidth": function (obj) { with (obj) { return stretchwidth; } }, "playerattrs": function (obj) { with (obj) { return playerattrs; } }, "width || (onlyaudio ? 240 : undefined)": function (obj) { with (obj) { return width || (onlyaudio ? 240 : undefined); } }, "height": function (obj) { with (obj) { return height; } }, "duration / 1000": function (obj) { with (obj) { return duration / 1000; } }, "rerecordable && (recordings === null || recordings > 0)": function (obj) { with (obj) { return rerecordable && (recordings === null || recordings > 0); } }, "manualsubmit && verified": function (obj) { with (obj) { return manualsubmit && verified; } }, "true": function (obj) { with (obj) { return true; } }, "autoplay": function (obj) { with (obj) { return autoplay; } }, "nofullscreen": function (obj) { with (obj) { return nofullscreen; } }, "playertopmessage": function (obj) { with (obj) { return playertopmessage; } }, "allowtexttrackupload": function (obj) { with (obj) { return allowtexttrackupload; } }, "uploadtexttracksvisible": function (obj) { with (obj) { return uploadtexttracksvisible; } }, "tracktags": function (obj) { with (obj) { return tracktags; } }, "tracktagsstyled": function (obj) { with (obj) { return tracktagsstyled; } }, "trackcuetext": function (obj) { with (obj) { return trackcuetext; } }, "acceptedtracktexts": function (obj) { with (obj) { return acceptedtracktexts; } }, "tracksshowselection": function (obj) { with (obj) { return tracksshowselection; } }, "trackselectorhovered": function (obj) { with (obj) { return trackselectorhovered; } }, "uploadlocales": function (obj) { with (obj) { return uploadlocales; } }/**/
+            /**/"!player_active": function (obj) { with (obj) { return !player_active; } }, "css": function (obj) { with (obj) { return css; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "fullscreened ? 'fullscreen' : 'normal'": function (obj) { with (obj) { return fullscreened ? 'fullscreen' : 'normal'; } }, "cssrecorder": function (obj) { with (obj) { return cssrecorder; } }, "firefox ? 'firefox' : 'common'": function (obj) { with (obj) { return firefox ? 'firefox' : 'common'; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "hasrecorder ? 'hasrecorder' : 'norecorder'": function (obj) { with (obj) { return hasrecorder ? 'hasrecorder' : 'norecorder'; } }, "faceoutline && hasrecorder && isrecorderready": function (obj) { with (obj) { return faceoutline && hasrecorder && isrecorderready; } }, "!hideoverlay": function (obj) { with (obj) { return !hideoverlay; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "cssrecorder || css": function (obj) { with (obj) { return cssrecorder || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "loadertooltip": function (obj) { with (obj) { return loadertooltip; } }, "hovermessage": function (obj) { with (obj) { return hovermessage; } }, "loaderlabel": function (obj) { with (obj) { return loaderlabel; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "message_links": function (obj) { with (obj) { return message_links; } }, "dyntopmessage": function (obj) { with (obj) { return dyntopmessage; } }, "csstopmessage || css": function (obj) { with (obj) { return csstopmessage || css; } }, "tmpltopmessage": function (obj) { with (obj) { return tmpltopmessage; } }, "topmessage_active && (topmessage || hovermessage)": function (obj) { with (obj) { return topmessage_active && (topmessage || hovermessage); } }, "hovermessage || topmessage": function (obj) { with (obj) { return hovermessage || topmessage; } }, "dynchooser": function (obj) { with (obj) { return dynchooser; } }, "onlyaudio": function (obj) { with (obj) { return onlyaudio; } }, "facecamera": function (obj) { with (obj) { return facecamera; } }, "recordviafilecapture": function (obj) { with (obj) { return recordviafilecapture; } }, "csschooser || css": function (obj) { with (obj) { return csschooser || css; } }, "tmplchooser": function (obj) { with (obj) { return tmplchooser; } }, "allowscreen": function (obj) { with (obj) { return allowscreen; } }, "allowmultistreams": function (obj) { with (obj) { return allowmultistreams; } }, "popup": function (obj) { with (obj) { return popup; } }, "chooser_active && !is_initial_state": function (obj) { with (obj) { return chooser_active && !is_initial_state; } }, "allowrecord": function (obj) { with (obj) { return allowrecord; } }, "allowupload": function (obj) { with (obj) { return allowupload; } }, "allowcustomupload": function (obj) { with (obj) { return allowcustomupload; } }, "allowedextensions": function (obj) { with (obj) { return allowedextensions; } }, "primaryrecord": function (obj) { with (obj) { return primaryrecord; } }, "timelimit": function (obj) { with (obj) { return timelimit; } }, "dynimagegallery": function (obj) { with (obj) { return dynimagegallery; } }, "cssimagegallery || css": function (obj) { with (obj) { return cssimagegallery || css; } }, "tmplimagegallery": function (obj) { with (obj) { return tmplimagegallery; } }, "imagegallery_active": function (obj) { with (obj) { return imagegallery_active; } }, "gallerysnapshots": function (obj) { with (obj) { return gallerysnapshots; } }, "nativeRecordingWidth": function (obj) { with (obj) { return nativeRecordingWidth; } }, "nativeRecordingHeight": function (obj) { with (obj) { return nativeRecordingHeight; } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "cameras": function (obj) { with (obj) { return cameras; } }, "microphones": function (obj) { with (obj) { return microphones; } }, "noaudio": function (obj) { with (obj) { return noaudio; } }, "record_media==='screen' || record_media==='multistream'": function (obj) { with (obj) { return record_media==='screen' || record_media==='multistream'; } }, "selectedcamera || 0": function (obj) { with (obj) { return selectedcamera || 0; } }, "selectedmicrophone || 0": function (obj) { with (obj) { return selectedmicrophone || 0; } }, "showaddstreambutton": function (obj) { with (obj) { return showaddstreambutton; } }, "camerahealthy": function (obj) { with (obj) { return camerahealthy; } }, "microphonehealthy": function (obj) { with (obj) { return microphonehealthy; } }, "settingsvisible": function (obj) { with (obj) { return settingsvisible; } }, "recordvisible": function (obj) { with (obj) { return recordvisible; } }, "allowcancel && cancancel": function (obj) { with (obj) { return allowcancel && cancancel; } }, "uploadcovershotvisible": function (obj) { with (obj) { return uploadcovershotvisible; } }, "rerecordvisible": function (obj) { with (obj) { return rerecordvisible; } }, "stopvisible": function (obj) { with (obj) { return stopvisible; } }, "skipvisible": function (obj) { with (obj) { return skipvisible; } }, "controlbarlabel": function (obj) { with (obj) { return controlbarlabel; } }, "mintimeindicator": function (obj) { with (obj) { return mintimeindicator; } }, "timeminlimit": function (obj) { with (obj) { return timeminlimit; } }, "resumevisible": function (obj) { with (obj) { return resumevisible; } }, "pausable": function (obj) { with (obj) { return pausable; } }, "firefox": function (obj) { with (obj) { return firefox; } }, "dynhelperframe": function (obj) { with (obj) { return dynhelperframe; } }, "helperframe_active || framevisible": function (obj) { with (obj) { return helperframe_active || framevisible; } }, "tmphelperframe": function (obj) { with (obj) { return tmphelperframe; } }, "multistreamreversable": function (obj) { with (obj) { return multistreamreversable; } }, "multistreamdraggable": function (obj) { with (obj) { return multistreamdraggable; } }, "multistreamresizeable": function (obj) { with (obj) { return multistreamresizeable; } }, "addstreampositionx": function (obj) { with (obj) { return addstreampositionx; } }, "addstreampositiony": function (obj) { with (obj) { return addstreampositiony; } }, "addstreampositionwidth": function (obj) { with (obj) { return addstreampositionwidth; } }, "addstreampositionheight": function (obj) { with (obj) { return addstreampositionheight; } }, "addstreamproportional": function (obj) { with (obj) { return addstreamproportional; } }, "flip-camera": function (obj) { with (obj) { return flip-camera; } }, "player_active": function (obj) { with (obj) { return player_active; } }, "ie8": function (obj) { with (obj) { return ie8; } }, "dynvideoplayer": function (obj) { with (obj) { return dynvideoplayer; } }, "theme || 'default'": function (obj) { with (obj) { return theme || 'default'; } }, "localplayback ? playbacksource : ''": function (obj) { with (obj) { return localplayback ? playbacksource : ''; } }, "localplayback ? playbackposter : ''": function (obj) { with (obj) { return localplayback ? playbackposter : ''; } }, "false": function (obj) { with (obj) { return false; } }, "forceflash": function (obj) { with (obj) { return forceflash; } }, "noflash": function (obj) { with (obj) { return noflash; } }, "stretch": function (obj) { with (obj) { return stretch; } }, "stretchheight": function (obj) { with (obj) { return stretchheight; } }, "stretchwidth": function (obj) { with (obj) { return stretchwidth; } }, "playerattrs": function (obj) { with (obj) { return playerattrs; } }, "width || (onlyaudio ? 240 : undefined)": function (obj) { with (obj) { return width || (onlyaudio ? 240 : undefined); } }, "height": function (obj) { with (obj) { return height; } }, "duration / 1000": function (obj) { with (obj) { return duration / 1000; } }, "rerecordable && (recordings === null || recordings > 0)": function (obj) { with (obj) { return rerecordable && (recordings === null || recordings > 0); } }, "manualsubmit && verified": function (obj) { with (obj) { return manualsubmit && verified; } }, "true": function (obj) { with (obj) { return true; } }, "autoplay": function (obj) { with (obj) { return autoplay; } }, "nofullscreen": function (obj) { with (obj) { return nofullscreen; } }, "playertopmessage": function (obj) { with (obj) { return playertopmessage; } }, "allowtexttrackupload": function (obj) { with (obj) { return allowtexttrackupload; } }, "uploadtexttracksvisible": function (obj) { with (obj) { return uploadtexttracksvisible; } }, "tracktags": function (obj) { with (obj) { return tracktags; } }, "tracktagsstyled": function (obj) { with (obj) { return tracktagsstyled; } }, "trackcuetext": function (obj) { with (obj) { return trackcuetext; } }, "acceptedtracktexts": function (obj) { with (obj) { return acceptedtracktexts; } }, "tracksshowselection": function (obj) { with (obj) { return tracksshowselection; } }, "trackselectorhovered": function (obj) { with (obj) { return trackselectorhovered; } }, "uploadlocales": function (obj) { with (obj) { return uploadlocales; } }/**/
         })
         .attachStringTable(Assets.strings)
         .addStrings({
@@ -37680,13 +38340,13 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.Initial", ["module:Audio
     });
 });
 
-Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:Assets","module:AudioVisualisation","browser:Info","browser:Dom","media:AudioPlayer.AudioPlayerWrapper","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Async","module:AudioPlayer.Dynamics.PlayerStates.Initial","module:AudioPlayer.Dynamics.PlayerStates","browser:Events"], ["module:AudioPlayer.Dynamics.Message","module:AudioPlayer.Dynamics.Loader","module:AudioPlayer.Dynamics.Controlbar","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TogglePartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, AudioVisualisation, Info, Dom, AudioPlayerWrapper, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Async, InitialState, PlayerStates, DomEvents, scoped) {
+Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:Assets","module:AudioVisualisation","browser:Info","browser:Dom","media:AudioPlayer.AudioPlayerWrapper","base:Types","base:Objs","base:Strings","base:Time","base:Timers","base:States.Host","base:Classes.ClassRegistry","base:Async","module:AudioPlayer.Dynamics.PlayerStates.Initial","module:AudioPlayer.Dynamics.PlayerStates","browser:Events"], ["module:Common.Dynamics.Settingsmenu","module:AudioPlayer.Dynamics.Message","module:AudioPlayer.Dynamics.Loader","module:AudioPlayer.Dynamics.Controlbar","dynamics:Partials.EventPartial","dynamics:Partials.OnPartial","dynamics:Partials.TogglePartial","dynamics:Partials.StylesPartial","dynamics:Partials.TemplatePartial","dynamics:Partials.HotkeyPartial"], function(Class, Assets, AudioVisualisation, Info, Dom, AudioPlayerWrapper, Types, Objs, Strings, Time, Timers, Host, ClassRegistry, Async, InitialState, PlayerStates, DomEvents, scoped) {
     return Class.extend({
             scoped: scoped
         }, function(inherited) {
             return {
 
-                template: "<div itemscope itemtype=\"http://schema.org/AudioObject\"\n    class=\"{{css}}-container {{cssplayer}}-size-{{csssize}} {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{csstheme}}\n    {{cssplayer}}-normal-view {{cssplayer}}-common-browser {{cssplayer}}-{{themecolor}}-color {{stretch ? css + '-stretch' : ''}}\n    {{cssplayer}}-{{title ? 'has-title' : 'no-title'}} {{visualeffectvisible ? cssplayer + '-visual-effect-applied' : ''}}\"\n\tba-styles=\"{{widthHeightStyles}}\"\n>\n\t<canvas data-selector=\"audio-canvas\" class=\"{{csstheme}}-audio-canvas\"></canvas>\n    <audio tabindex=\"-1\" class=\"{{css}}-audio\" data-audio=\"audio\"></audio>\n    <div class=\"{{css}}-overlay\">\n\t\t<div tabindex=\"-1\" class=\"{{css}}-player-toggle-overlay\" data-selector=\"player-toggle-overlay\"\n\t\t\t ba-hotkey:right=\"{{seek(position + skipseconds)}}\" ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n\t\t\t ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\" ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n\t\t\t ba-hotkey:up=\"{{set_volume(volume + 0.1)}}\" ba-hotkey:down=\"{{set_volume(volume - 0.1)}}\"\n\t\t\t >\n\t\t</div>\n\t    <ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-cssplayer=\"{{cssplayer || css}}\"\n\t\t\tba-csscommon=\"{{csscommon || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-playing=\"{{playing}}\"\n\t\t\tba-playwhenvisible=\"{{playwhenvisible}}\"\n\t\t    ba-event:rerecord=\"rerecord\"\n\t\t    ba-event:submit=\"submit\"\n\t\t    ba-event:play=\"play\"\n\t\t    ba-event:pause=\"pause\"\n\t\t    ba-event:position=\"seek\"\n\t\t    ba-event:volume=\"set_volume\"\n\t\t\tba-event:tab_index_move=\"tab_index_move\"\n\t\t\tba-event:seek=\"seek\"\n\t\t\tba-event:set_volume=\"set_volume\"\n\t\t\tba-tabindex=\"{{tabindex}}\"\n\t\t    ba-volume=\"{{volume}}\"\n\t\t    ba-duration=\"{{duration}}\"\n\t\t    ba-cached=\"{{buffered}}\"\n\t\t    ba-title=\"{{title}}\"\n\t\t    ba-position=\"{{position}}\"\n\t\t    ba-rerecordable=\"{{rerecordable}}\"\n\t\t    ba-submittable=\"{{submittable}}\"\n            ba-source=\"{{source}}\"\n\t\t\tba-disablepause=\"{{disablepause}}\"\n\t\t\tba-disableseeking=\"{{disableseeking}}\"\n\t\t\tba-skipseconds=\"{{skipseconds}}\"\n\t\t></ba-{{dyncontrolbar}}>\n\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-cssplayer=\"{{cssplayer || css}}\"\n\t\t\tba-csscommon=\"{{csscommon || css}}\"\n\t\t\tba-theme-color=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t\tba-playwhenvisible=\"{{playwhenvisible}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-cssplayer=\"{{cssplayer || css}}\"\n\t\t\tba-csscommon=\"{{csscommon || css}}\"\n\t\t\tba-theme-color=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<meta itemprop=\"caption\" content=\"{{title}}\" />\n\t\t<meta itemprop=\"contentUrl\" content=\"{{source}}\"/>\n    </div>\n</div>\n",
+                template: "<div itemscope itemtype=\"http://schema.org/AudioObject\"\n    class=\"{{css}}-container {{cssplayer}}-size-{{csssize}} {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{csstheme}}\n    {{cssplayer}}-normal-view {{cssplayer}}-common-browser {{cssplayer}}-{{themecolor}}-color {{stretch ? css + '-stretch' : ''}}\n    {{cssplayer}}-{{title ? 'has-title' : 'no-title'}} {{visualeffectvisible ? cssplayer + '-visual-effect-applied' : ''}}\"\n\tba-styles=\"{{widthHeightStyles}}\"\n>\n\t<canvas data-selector=\"audio-canvas\" class=\"{{csstheme}}-audio-canvas\"></canvas>\n    <audio tabindex=\"-1\" class=\"{{css}}-audio\" data-audio=\"audio\"></audio>\n    <div class=\"{{css}}-overlay\">\n\t\t<div tabindex=\"-1\" class=\"{{css}}-player-toggle-overlay\" data-selector=\"player-toggle-overlay\"\n\t\t\t ba-hotkey:right=\"{{seek(position + skipseconds)}}\" ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n\t\t\t ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\" ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n\t\t\t ba-hotkey:up=\"{{set_volume(volume + 0.1)}}\" ba-hotkey:down=\"{{set_volume(volume - 0.1)}}\"\n\t\t></div>\n\t    <ba-{{dyncontrolbar}}\n\t\t    ba-css=\"{{csscontrolbar || css}}\"\n\t\t\tba-cssplayer=\"{{cssplayer || css}}\"\n\t\t\tba-csscommon=\"{{csscommon || css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-themecolor=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplcontrolbar}}\"\n\t\t    ba-show=\"{{controlbar_active}}\"\n\t\t    ba-playing=\"{{playing}}\"\n\t\t\tba-playwhenvisible=\"{{playwhenvisible}}\"\n\t\t    ba-event:rerecord=\"rerecord\"\n\t\t    ba-event:submit=\"submit\"\n\t\t    ba-event:play=\"play\"\n\t\t    ba-event:pause=\"pause\"\n\t\t    ba-event:position=\"seek\"\n\t\t    ba-event:volume=\"set_volume\"\n\t\t\tba-event:tab_index_move=\"tab_index_move\"\n\t\t\tba-event:seek=\"seek\"\n\t\t\tba-event:set_volume=\"set_volume\"\n\t\t\tba-event:settings_menu=\"toggle_settings_menu\"\n\t\t\tba-tabindex=\"{{tabindex}}\"\n\t\t    ba-volume=\"{{volume}}\"\n\t\t    ba-duration=\"{{duration}}\"\n\t\t    ba-cached=\"{{buffered}}\"\n\t\t    ba-title=\"{{title}}\"\n\t\t    ba-position=\"{{position}}\"\n\t\t    ba-rerecordable=\"{{rerecordable}}\"\n\t\t    ba-submittable=\"{{submittable}}\"\n            ba-source=\"{{source}}\"\n\t\t\tba-disablepause=\"{{disablepause}}\"\n\t\t\tba-disableseeking=\"{{disableseeking}}\"\n\t\t\tba-skipseconds=\"{{skipseconds}}\"\n\t\t\tba-settingsmenubutton=\"{{showsettingsmenu}}\"\n\t\t\tba-settingsmenuactive=\"{{settingsmenu_active}}\"\n\t\t></ba-{{dyncontrolbar}}>\n\n\t\t<ba-{{dynloader}}\n\t\t    ba-css=\"{{cssloader || css}}\"\n\t\t\tba-cssplayer=\"{{cssplayer || css}}\"\n\t\t\tba-csscommon=\"{{csscommon || css}}\"\n\t\t\tba-theme-color=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplloader}}\"\n\t\t\tba-playwhenvisible=\"{{playwhenvisible}}\"\n\t\t    ba-show=\"{{loader_active}}\"\n\t\t></ba-{{dynloader}}>\n\n\t\t<ba-{{dynmessage}}\n\t\t    ba-css=\"{{cssmessage || css}}\"\n\t\t\tba-cssplayer=\"{{cssplayer || css}}\"\n\t\t\tba-csscommon=\"{{csscommon || css}}\"\n\t\t\tba-theme-color=\"{{themecolor}}\"\n\t\t    ba-template=\"{{tmplmessage}}\"\n\t\t    ba-show=\"{{message_active}}\"\n\t\t    ba-message=\"{{message}}\"\n\t\t    ba-event:click=\"message_click\"\n\t\t></ba-{{dynmessage}}>\n\n\t\t<ba-{{dynsettingsmenu}}\n\t\t\tba-css=\"{{css}}\"\n\t\t\tba-csstheme=\"{{csstheme || css}}\"\n\t\t\tba-show=\"{{settingsmenu_active}}\"\n\t\t\tba-template=\"{{tmplsettingsmenu}}\"\n\t\t></ba-{{dynsettingsmenu}}>\n\n\t\t<meta itemprop=\"caption\" content=\"{{title}}\" />\n\t\t<meta itemprop=\"contentUrl\" content=\"{{source}}\"/>\n\t</div>\n</div>\n",
 
                 attrs: {
                     /* CSS */
@@ -37707,10 +38367,14 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "dynloader": "audioplayer-loader",
                     "dynmessage": "audioplayer-message",
                     "dyncontrolbar": "audioplayer-controlbar",
+                    "dynsettingsmenu": "common-settingsmenu",
+
                     /* Templates */
                     "tmplloader": "",
                     "tmplmessage": "",
                     "tmplcontrolbar": "",
+                    "tmplsettingsmenu": "",
+
                     /* Attributes */
                     "source": "",
                     "sources": [],
@@ -37742,6 +38406,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "disablepause": false,
                     "disableseeking": false,
                     "postervisible": false,
+                    "showsettingsmenu": true, // As a property show/hide from users
                     "visualeffectvisible": false,
                     "visualeffectsupported": false,
                     "visualeffectheight": null,
@@ -37779,6 +38444,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "disablepause": "boolean",
                     "disableseeking": "boolean",
                     "playonclick": "boolean",
+                    "showsettings": "boolean",
                     "skipseconds": "integer",
                     "visualeffectvisible": "boolean",
                     "visualeffectmode": "string",
@@ -37786,6 +38452,10 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                 },
 
                 extendables: ["states"],
+
+                scopes: {
+                    settingsmenu: ">[tagname='ba-common-settingsmenu']"
+                },
 
                 computed: {
                     "widthHeightStyles:width,height": function() {
@@ -38000,8 +38670,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         this.player.on("ended", function() {
                             this.set("playing", false);
                             this.set('playedonce', true);
-                            if (this.settings)
-                                this.settings.hide_settings();
+                            this.set("settingsmenu_active", false);
                             this.trigger("ended");
                         }, this);
                         this.trigger("attached", instance);
@@ -38038,6 +38707,10 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     this.__activated = true;
                     if (this.__attachRequested)
                         this._attachAudio();
+                    this.__settingsMenu = this.scopes.settingsmenu;
+                    if (this.__settingsMenu.get('settings'))
+                        this.set("hassettings", true);
+
                 },
 
                 _playWhenVisible: function(audio) {
@@ -38246,7 +38919,12 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                 }, this, 100);
 
                         }
+                    },
+
+                    toggle_settings_menu: function() {
+                        this.set("settingsmenu_active", !this.get("settingsmenu_active"));
                     }
+
                 },
 
                 destroy: function() {
@@ -38299,11 +38977,12 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
 
         }).register("ba-audioplayer")
         .registerFunctions({
-            /**/"css": function (obj) { with (obj) { return css; } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "stretch ? css + '-stretch' : ''": function (obj) { with (obj) { return stretch ? css + '-stretch' : ''; } }, "title ? 'has-title' : 'no-title'": function (obj) { with (obj) { return title ? 'has-title' : 'no-title'; } }, "visualeffectvisible ? cssplayer + '-visual-effect-applied' : ''": function (obj) { with (obj) { return visualeffectvisible ? cssplayer + '-visual-effect-applied' : ''; } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "cssplayer || css": function (obj) { with (obj) { return cssplayer || css; } }, "csscommon || css": function (obj) { with (obj) { return csscommon || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "playing": function (obj) { with (obj) { return playing; } }, "playwhenvisible": function (obj) { with (obj) { return playwhenvisible; } }, "tabindex": function (obj) { with (obj) { return tabindex; } }, "volume": function (obj) { with (obj) { return volume; } }, "duration": function (obj) { with (obj) { return duration; } }, "buffered": function (obj) { with (obj) { return buffered; } }, "title": function (obj) { with (obj) { return title; } }, "position": function (obj) { with (obj) { return position; } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "source": function (obj) { with (obj) { return source; } }, "disablepause": function (obj) { with (obj) { return disablepause; } }, "disableseeking": function (obj) { with (obj) { return disableseeking; } }, "skipseconds": function (obj) { with (obj) { return skipseconds; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }/**/
+            /**/"css": function (obj) { with (obj) { return css; } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "csssize": function (obj) { with (obj) { return csssize; } }, "iecss": function (obj) { with (obj) { return iecss; } }, "ie8 ? 'ie8' : 'noie8'": function (obj) { with (obj) { return ie8 ? 'ie8' : 'noie8'; } }, "csstheme": function (obj) { with (obj) { return csstheme; } }, "themecolor": function (obj) { with (obj) { return themecolor; } }, "stretch ? css + '-stretch' : ''": function (obj) { with (obj) { return stretch ? css + '-stretch' : ''; } }, "title ? 'has-title' : 'no-title'": function (obj) { with (obj) { return title ? 'has-title' : 'no-title'; } }, "visualeffectvisible ? cssplayer + '-visual-effect-applied' : ''": function (obj) { with (obj) { return visualeffectvisible ? cssplayer + '-visual-effect-applied' : ''; } }, "widthHeightStyles": function (obj) { with (obj) { return widthHeightStyles; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "dyncontrolbar": function (obj) { with (obj) { return dyncontrolbar; } }, "csscontrolbar || css": function (obj) { with (obj) { return csscontrolbar || css; } }, "cssplayer || css": function (obj) { with (obj) { return cssplayer || css; } }, "csscommon || css": function (obj) { with (obj) { return csscommon || css; } }, "csstheme || css": function (obj) { with (obj) { return csstheme || css; } }, "tmplcontrolbar": function (obj) { with (obj) { return tmplcontrolbar; } }, "controlbar_active": function (obj) { with (obj) { return controlbar_active; } }, "playing": function (obj) { with (obj) { return playing; } }, "playwhenvisible": function (obj) { with (obj) { return playwhenvisible; } }, "tabindex": function (obj) { with (obj) { return tabindex; } }, "volume": function (obj) { with (obj) { return volume; } }, "duration": function (obj) { with (obj) { return duration; } }, "buffered": function (obj) { with (obj) { return buffered; } }, "title": function (obj) { with (obj) { return title; } }, "position": function (obj) { with (obj) { return position; } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "source": function (obj) { with (obj) { return source; } }, "disablepause": function (obj) { with (obj) { return disablepause; } }, "disableseeking": function (obj) { with (obj) { return disableseeking; } }, "skipseconds": function (obj) { with (obj) { return skipseconds; } }, "showsettingsmenu": function (obj) { with (obj) { return showsettingsmenu; } }, "settingsmenu_active": function (obj) { with (obj) { return settingsmenu_active; } }, "dynloader": function (obj) { with (obj) { return dynloader; } }, "cssloader || css": function (obj) { with (obj) { return cssloader || css; } }, "tmplloader": function (obj) { with (obj) { return tmplloader; } }, "loader_active": function (obj) { with (obj) { return loader_active; } }, "dynmessage": function (obj) { with (obj) { return dynmessage; } }, "cssmessage || css": function (obj) { with (obj) { return cssmessage || css; } }, "tmplmessage": function (obj) { with (obj) { return tmplmessage; } }, "message_active": function (obj) { with (obj) { return message_active; } }, "message": function (obj) { with (obj) { return message; } }, "dynsettingsmenu": function (obj) { with (obj) { return dynsettingsmenu; } }, "tmplsettingsmenu": function (obj) { with (obj) { return tmplsettingsmenu; } }/**/
         })
         .attachStringTable(Assets.strings)
         .addStrings({
-            "audio-error": "An error occurred, please try again later. Click to retry."
+            "audio-error": "An error occurred, please try again later. Click to retry.",
+            "all-settings": "All settings"
         });
 });
 
@@ -40053,7 +40732,7 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_settings_menu()": function (obj) { with (obj) { return toggle_settings_menu(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsmenuactive ? 'active' : 'inactive'": function (obj) { with (obj) { return settingsmenuactive ? 'active' : 'inactive'; } }, "settingsmenubutton": function (obj) { with (obj) { return settingsmenubutton; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
     });
     Parser.registerFunctions({
         /**/"play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'player-toggle-overlay')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'player-toggle-overlay'); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "string('tooltip')": function (obj) { with (obj) { return string('tooltip'); } }, "showduration && (duration != 0 && duration != undefined)": function (obj) { with (obj) { return showduration && (duration != 0 && duration != undefined); } }, "css": function (obj) { with (obj) { return css; } }, "formatTime(duration)": function (obj) { with (obj) { return formatTime(duration); } }, "rerecordable || submittable": function (obj) { with (obj) { return rerecordable || submittable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }/**/
@@ -40063,7 +40742,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
             css: "ba-videoplayer",
             csstheme: "ba-player-theme-modern",
             cssplayer: "ba-player",
-            tmplcontrolbar: "<div data-selector=\"video-title-block\" class=\"{{csstheme}}-title-container {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\" ba-if=\"{{title}}\">\n\t<p class=\"{{csstheme}}-title\">\n\t\t{{title}}\n\t</p>\n</div>\n\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div tabindex=\"0\" data-selector=\"submit-video-button\"\n\t\t ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-leftbutton-container\"\n\t\t ba-if=\"{{submittable}}\" ba-click=\"{{submit()}}\"\n\t>\n        <div class=\"{{csstheme}}-button-inner\">\n        \t{{string('submit-video')}}\n        </div>\n    </div>\n\n    <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-leftbutton-container\"\n\t\t ba-if=\"{{rerecordable}}\" ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n\t>\n    \t<div class=\"{{csstheme}}-button-inner\">\n    \t\t<i class=\"{{csscommon}}-icon-ccw\"></i>\n    \t</div>\n    </div>\n\n\t<div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-play\"\n\t\t ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n\t\t onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n\t\t class=\"{{csstheme}}-leftbutton-container\"\n\t\t ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-play\"></i>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-pause\"\n\t\t ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n\t\t onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n\t\t class=\"{{csstheme}}-leftbutton-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n\t\t ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-pause\"></i>\n\t\t</div>\n\t</div>\n\t<div class=\"{{csstheme}}-time-container\">\n\t\t<div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">\n\t\t\t<span class=\"{{csstheme}}-time-position\">{{formatTime(position)}}/</span>{{formatTime(duration || position)}}\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"10\" data-selector=\"button-icon-settings\"\n\t\t ba-hotkey:space^enter=\"{{toggle_settings()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-rightbutton-container {{cssplayer}}-settings-{{settingsoptionsvisible ? 'visible' : 'hidden'}}\"\n\t\t ba-if=\"{{settings}}\" ba-click=\"{{toggle_settings()}}\"\n\t\t title=\"{{string('settings')}}\"\n\t\t onkeydown=\"{{tab_index_move(domEvent)}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner {{csstheme}}-settings-button\">\n\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"9\" data-selector=\"cc-button-container\"\n\t\t ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n\t\t ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n\t\t class=\"{{csstheme}}-rightbutton-container  {{cssplayer}}-cc-{{tracktextvisible ? 'active' : 'inactive'}}\"\n\t\t title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n\t\t ba-click=\"{{toggle_tracks()}}\"\n\t\t onmouseover=\"{{hover_cc(true)}}\"\n\t\t onmouseleave=\"{{hover_cc(false)}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-subtitle\"></i>\n\t\t</div>\n\t</div>\n\n\n\t<div tabindex=\"8\" data-selector=\"button-icon-resize-full\"\n\t\t ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n\t\t onkeydown=\"{{tab_index_move(domEvent)}}\"\n\t\t class=\"{{csstheme}}-rightbutton-container\"\n\t\tba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"7\" data-selector=\"button-airplay\"\n\t\t ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-rightbutton-container {{cssplayer}}-airplay-container\" ba-show=\"{{airplaybuttonvisible}}\"\n\t\t ba-click=\"{{show_airplay_devices()}}\"\n\t>\n\t\t<svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n\t\t\t\n\t\t\t<title>Airplay</title>\n\t\t\t<desc>Airplay icon.</desc>\n\t\t\t<defs></defs>\n\t\t\t<g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n\t\t\t\t<path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n\t\t\t</g>\n\t\t</svg>\n\t</div>\n\n\t<div data-selector=\"button-chromecast\" class=\"{{csstheme}}-rightbutton-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n\t\t<button tabindex=\"6\" class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n\t</div>\n\n\t<div tabindex=\"5\" data-selector=\"button-stream-label\"\n\t\t ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-rightbutton-container\" ba-if=\"{{streams.length > 1 && currentstream}}\"\n\t\t ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<span class=\"{{csstheme}}-button-text\">{{currentstream_label}}</span>\n\t\t</div>\n\t</div>\n\n\t<div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n\t\t<div tabindex=\"4\" data-selector=\"button-volume-bar\"\n\t\t\t ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n\t\t\t ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n\t\t\t onmouseout=\"this.blur()\"\n\t\t\t class=\"{{csstheme}}-volumebar-inner\"\n\t\t\t ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n\t\t\t ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n\t\t\t ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n\t\t\t onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n\t\t\t onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n\t\t\t onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n\t\t\t onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n\t\t>\n\t\t\t<div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"3\" data-selector=\"button-icon-volume\"\n\t\t ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-rightbutton-container {{csstheme}}-volume-button-container\"\n\t\t ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n\t\t</div>\n\t</div>\n\n\t<div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n\t\t<div tabindex=\"2\" data-selector=\"progress-bar-inner\"\n\t\t\t ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n\t\t\t ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n\t\t\t onmouseout=\"this.blur()\"\n\t\t\t class=\"{{csstheme}}-progressbar-inner\"\n\t\t\t ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n\t\t\t ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n\t\t\t ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n\t\t     onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n\t\t     onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n\t\t     onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n\t\t     onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n\t\t>\n\t\t<div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n\t\t<div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\"></div>\n\t</div>\n</div>\n",
+            tmplcontrolbar: "<div data-selector=\"video-title-block\" class=\"{{csstheme}}-title-container {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\" ba-if=\"{{title}}\">\n\t<p class=\"{{csstheme}}-title\">\n\t\t{{title}}\n\t</p>\n</div>\n\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n\t<div tabindex=\"0\" data-selector=\"submit-video-button\"\n\t\t ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-leftbutton-container\"\n\t\t ba-if=\"{{submittable}}\" ba-click=\"{{submit()}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t{{string('submit-video')}}\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n\t\t ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-leftbutton-container\"\n\t\t ba-if=\"{{rerecordable}}\" ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-ccw\"></i>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-play\"\n\t\t ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n\t\t onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n\t\t class=\"{{csstheme}}-leftbutton-container\"\n\t\t ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-play\"></i>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-pause\"\n\t\t ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n\t\t onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n\t\t class=\"{{csstheme}}-leftbutton-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n\t\t ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-pause\"></i>\n\t\t</div>\n\t</div>\n\t<div class=\"{{csstheme}}-time-container\">\n\t\t<div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">\n\t\t\t<span class=\"{{csstheme}}-time-position\">{{formatTime(position)}}/</span>{{formatTime(duration || position)}}\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"10\" data-selector=\"button-icon-settings\"\n\t\t ba-hotkey:space^enter=\"{{toggle_settings_menu()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-rightbutton-container {{cssplayer}}-button-{{settingsmenuactive ? 'active' : 'inactive'}}\"\n\t\t ba-if=\"{{settingsmenubutton}}\" ba-click=\"{{toggle_settings_menu()}}\"\n\t\t title=\"{{string('settings')}}\"\n\t\t onkeydown=\"{{tab_index_move(domEvent)}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner {{csstheme}}-settings-button\">\n\t\t\t<i class=\"{{csscommon}}-icon-cog\"></i>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"9\" data-selector=\"cc-button-container\"\n\t\t ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n\t\t ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n\t\t class=\"{{csstheme}}-rightbutton-container  {{cssplayer}}-button-{{tracktextvisible ? 'active' : 'inactive'}}\"\n\t\t title=\"{{tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n\t\t ba-click=\"{{toggle_tracks()}}\"\n\t\t onmouseover=\"{{hover_cc(true)}}\"\n\t\t onmouseleave=\"{{hover_cc(false)}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-subtitle\"></i>\n\t\t</div>\n\t</div>\n\n\n\t<div tabindex=\"8\" data-selector=\"button-icon-resize-full\"\n\t\t ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n\t\t onkeydown=\"{{tab_index_move(domEvent)}}\"\n\t\t class=\"{{csstheme}}-rightbutton-container\"\n\t\t ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n\t\t\t<i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"7\" data-selector=\"button-airplay\"\n\t\t ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-rightbutton-container {{cssplayer}}-airplay-container\" ba-show=\"{{airplaybuttonvisible}}\"\n\t\t ba-click=\"{{show_airplay_devices()}}\"\n\t>\n\t\t<svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n\t\t\t\n\t\t\t<title>Airplay</title>\n\t\t\t<desc>Airplay icon.</desc>\n\t\t\t<defs></defs>\n\t\t\t<g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n\t\t\t\t<path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n\t\t\t</g>\n\t\t</svg>\n\t</div>\n\n\t<div data-selector=\"button-chromecast\" class=\"{{csstheme}}-rightbutton-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n\t\t<button tabindex=\"6\" class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n\t</div>\n\n\t<div tabindex=\"5\" data-selector=\"button-stream-label\"\n\t\t ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-rightbutton-container\" ba-if=\"{{streams.length > 1 && currentstream}}\"\n\t\t ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<span class=\"{{csstheme}}-button-text\">{{currentstream_label}}</span>\n\t\t</div>\n\t</div>\n\n\t<div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n\t\t<div tabindex=\"4\" data-selector=\"button-volume-bar\"\n\t\t\t ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n\t\t\t ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n\t\t\t onmouseout=\"this.blur()\"\n\t\t\t class=\"{{csstheme}}-volumebar-inner\"\n\t\t\t ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n\t\t\t ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n\t\t\t ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n\t\t\t onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n\t\t\t onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n\t\t\t onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n\t\t\t onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n\t\t>\n\t\t\t<div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n\t\t</div>\n\t</div>\n\n\t<div tabindex=\"3\" data-selector=\"button-icon-volume\"\n\t\t ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n\t\t class=\"{{csstheme}}-rightbutton-container {{csstheme}}-volume-button-container\"\n\t\t ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n\t>\n\t\t<div class=\"{{csstheme}}-button-inner\">\n\t\t\t<i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n\t\t</div>\n\t</div>\n\n\t<div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n\t\t<div tabindex=\"2\" data-selector=\"progress-bar-inner\"\n\t\t\t ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n\t\t\t ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n\t\t\t onmouseout=\"this.blur()\"\n\t\t\t class=\"{{csstheme}}-progressbar-inner\"\n\t\t\t ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n\t\t\t ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n\t\t\t ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n\t\t\t onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n\t\t\t onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n\t\t\t onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n\t\t\t onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n\t\t>\n\t\t\t<div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n\t\t\t<div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\"></div>\n\t\t</div>\n\t</div>\n",
             tmplplaybutton: "\n<div tabindex=\"0\" data-selector=\"play-button\"\n     ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n     onkeydown=\"{{tab_index_move(domEvent, null, 'player-toggle-overlay')}}\"\n     class=\"{{cssplayer}}-playbutton-container\" ba-click=\"{{play()}}\" title=\"{{string('tooltip')}}\"\n>\n\t<div class=\"{{cssplayer}}-playbutton-button\"></div>\n</div>\n<div ba-show=\"{{showduration && (duration != 0 && duration != undefined)}}\" class=\"{{css}}-playbutton-duration\">\n    {{formatTime(duration)}}\n</div>\n\n<div class=\"{{cssplayer}}-rerecord-bar\" ba-if=\"{{rerecordable || submittable}}\">\n\t<div class=\"{{cssplayer}}-rerecord-backbar\"></div>\n\t<div class=\"{{cssplayer}}-rerecord-frontbar\">\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{submittable}}\">\n            <div tabindex=\"0\" data-selector=\"player-submit-button\"\n                 ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{submit()}}\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{rerecordable}}\">\n        \t<div tabindex=\"0\" data-selector=\"player-rerecord-button\"\n                 ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{rerecord()}}\">\n        \t\t{{string('rerecord')}}\n        \t</div>\n        </div>\n\t</div>\n</div>\n",
             cssloader: ie8 ? "ba-videoplayer" : "",
             cssmessage: "ba-videoplayer",
@@ -40146,7 +40825,7 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "settingsmenubutton": function (obj) { with (obj) { return settingsmenubutton; } }, "toggle_settings_menu()": function (obj) { with (obj) { return toggle_settings_menu(); } }, "settingsmenuactive ? 'active' : 'inactive'": function (obj) { with (obj) { return settingsmenuactive ? 'active' : 'inactive'; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "seek(position + skipseconds * 3)": function (obj) { with (obj) { return seek(position + skipseconds * 3); } }, "seek(position - skipseconds * 3)": function (obj) { with (obj) { return seek(position - skipseconds * 3); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
     });
     Parser.registerFunctions({
         /**/"play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'player-toggle-overlay')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'player-toggle-overlay'); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "string('tooltip')": function (obj) { with (obj) { return string('tooltip'); } }, "showduration && (duration != 0 && duration != undefined)": function (obj) { with (obj) { return showduration && (duration != 0 && duration != undefined); } }, "css": function (obj) { with (obj) { return css; } }, "formatTime(duration)": function (obj) { with (obj) { return formatTime(duration); } }, "rerecordable || submittable": function (obj) { with (obj) { return rerecordable || submittable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }/**/
@@ -40156,7 +40835,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
             css: "ba-videoplayer",
             csstheme: "ba-player-cube-theme",
             cssplayer: "ba-player",
-            tmplcontrolbar: "\n<div data-selector=\"video-title-block\" class=\"{{csstheme}}-title-block {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\" ba-if=\"{{title}}\">\n    <p class=\"{{csstheme}}-title\">\n        {{title}}\n    </p>\n</div>\n\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class=\"{{csstheme}}-left-block\">\n\n        <div tabindex=\"0\" data-selector=\"submit-video-button\"\n             ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\" ba-if=\"{{submittable}}\" ba-click=\"{{submit()}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n\n        <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n             ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\" ba-if=\"{{rerecordable}}\"\n             ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-ccw\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-play\"\n             ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\"\n             ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-play\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 1 }}\" data-selector=\"button-icon-pause\"\n             ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n             ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-pause\"></i>\n            </div>\n        </div>\n    </div>\n\n    <div class=\"{{csstheme}}-right-block\">\n        <div class=\"{{csstheme}}-button-container {{csstheme}}-timer-container\">\n            <div class=\"{{csstheme}}-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n            </div>\n            <p> / </p>\n            <div class=\"{{csstheme}}-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n            </div>\n        </div>\n\n        <div tabindex=\"3\" data-selector=\"button-icon-volume\"\n             ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\"\n             ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\">\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n            <div tabindex=\"4\" data-selector=\"button-volume-bar\"\n                 ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n                 ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n                 onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-volumebar-inner\"\n                 ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n                 ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n                 ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n                 onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n                 onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n                 onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n                 onmousemove=\"{{progressUpdateVolume(domEvent)}}\">\n                <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n            </div>\n        </div>\n\n        <div tabindex=\"5\" data-selector=\"button-stream-label\"\n             ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\" ba-if=\"{{streams.length > 1 && currentstream}}\"\n             ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                <div class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">\n                    <span>{{currentstream_label}}</span>\n                </div>\n            </div>\n        </div>\n\n        <div tabindex=\"6\" data-selector=\"button-airplay\"\n             ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{cssplayer}}-airplay-container\"\n             ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\">\n            <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                \n                <title>Airplay</title>\n                <desc>Airplay icon.</desc>\n                <defs></defs>\n                <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                    <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                </g>\n            </svg>\n        </div>\n\n        <div tabindex=\"7\" data-selector=\"button-chromecast\" onmouseout=\"this.blur()\" class=\"{{csstheme}}-button-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n            <button class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n        </div>\n\n        <div tabindex=\"8\" data-selector=\"button-icon-resize-full\"\n             ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\" ba-if={{fullscreen}}\n             ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"9\" data-selector=\"cc-button-container\"\n             ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n             ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n             class=\"{{csstheme}}-button-container  {{cssplayer}}-cc-{{tracktextvisible ? 'active' : 'inactive'}}\"\n             title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n             ba-click=\"{{toggle_tracks()}}\"\n             onmouseover=\"{{hover_cc(true)}}\"\n             onmouseleave=\"{{hover_cc(false)}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n                <i class=\"{{csscommon}}-icon-subtitle\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"10\" data-selector=\"button-icon-settings\"\n             ba-hotkey:space^enter=\"{{toggle_settings()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{cssplayer}}-settings-{{settingsoptionsvisible ? 'visible' : 'hidden'}}\"\n             ba-if=\"{{settings}}\" ba-click=\"{{toggle_settings()}}\"\n             title=\"{{string('settings')}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner  {{csstheme}}-settings-button\">\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n\n    </div>\n\n    <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n        <div tabindex=\"2\" data-selector=\"progress-bar-inner\"\n             ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n             ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n             ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\"\n             ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n             onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-progressbar-inner\"\n             ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n             ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n             ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n             onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n             onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n             onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n             onmousemove=\"{{progressUpdatePosition(domEvent)}}\">\n\n            <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n            <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\"></div>\n        </div>\n    </div>\n\n</div>\n",
+            tmplcontrolbar: "\n<div data-selector=\"video-title-block\" class=\"{{csstheme}}-title-block {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\" ba-if=\"{{title}}\">\n    <p class=\"{{csstheme}}-title\">\n        {{title}}\n    </p>\n</div>\n\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class=\"{{csstheme}}-left-block\">\n\n        <div tabindex=\"0\" data-selector=\"submit-video-button\"\n             ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\" ba-if=\"{{submittable}}\" ba-click=\"{{submit()}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n\n        <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n             ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\" ba-if=\"{{rerecordable}}\"\n             ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-ccw\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-play\"\n             ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\"\n             ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-play\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 1 }}\" data-selector=\"button-icon-pause\"\n             ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n             ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-pause\"></i>\n            </div>\n        </div>\n    </div>\n\n    <div class=\"{{csstheme}}-right-block\">\n        <div class=\"{{csstheme}}-button-container {{csstheme}}-timer-container\">\n            <div class=\"{{csstheme}}-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n            </div>\n            <p> / </p>\n            <div class=\"{{csstheme}}-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n            </div>\n        </div>\n\n        <div tabindex=\"3\" data-selector=\"button-icon-volume\"\n             ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\"\n             ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\">\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n            <div tabindex=\"4\" data-selector=\"button-volume-bar\"\n                 ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n                 ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n                 onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-volumebar-inner\"\n                 ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n                 ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n                 ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n                 onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n                 onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n                 onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n                 onmousemove=\"{{progressUpdateVolume(domEvent)}}\">\n                <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n            </div>\n        </div>\n\n        <div tabindex=\"5\" data-selector=\"button-stream-label\"\n             ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\" ba-if=\"{{streams.length > 1 && currentstream}}\"\n             ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                <div class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">\n                    <span>{{currentstream_label}}</span>\n                </div>\n            </div>\n        </div>\n\n        <div tabindex=\"6\" data-selector=\"button-airplay\"\n             ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{cssplayer}}-airplay-container\"\n             ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\">\n            <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                \n                <title>Airplay</title>\n                <desc>Airplay icon.</desc>\n                <defs></defs>\n                <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                    <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                </g>\n            </svg>\n        </div>\n\n        <div tabindex=\"7\" data-selector=\"button-chromecast\" onmouseout=\"this.blur()\" class=\"{{csstheme}}-button-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n            <button class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n        </div>\n\n        <div tabindex=\"8\" data-selector=\"button-icon-resize-full\"\n             ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container\" ba-if={{fullscreen}}\n             ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"9\" data-selector=\"cc-button-container\"\n             ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n             ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n             class=\"{{csstheme}}-button-container  {{cssplayer}}-button-{{tracktextvisible ? 'active' : 'inactive'}}\"\n             title=\"{{tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n             ba-click=\"{{toggle_tracks()}}\"\n             onmouseover=\"{{hover_cc(true)}}\"\n             onmouseleave=\"{{hover_cc(false)}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n                <i class=\"{{csscommon}}-icon-subtitle\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"10\" data-selector=\"button-icon-settings\" ba-if=\"{{settingsmenubutton}}\"\n             ba-hotkey:space^enter=\"{{toggle_settings_menu()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{cssplayer}}-button-{{settingsmenuactive ? 'active' : 'inactive'}}\"\n             ba-click=\"{{toggle_settings_menu()}}\"\n             title=\"{{string('settings')}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-settings-button\">\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n    </div>\n\n    <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n        <div tabindex=\"2\" data-selector=\"progress-bar-inner\"\n             ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n             ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n             ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\"\n             ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n             onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-progressbar-inner\"\n             ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n             ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n             ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n             onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n             onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n             onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n             onmousemove=\"{{progressUpdatePosition(domEvent)}}\">\n\n            <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n            <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\"></div>\n        </div>\n    </div>\n\n</div>\n",
             tmplplaybutton: "\n<div tabindex=\"0\" data-selector=\"play-button\"\n     ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n     onkeydown=\"{{tab_index_move(domEvent, null, 'player-toggle-overlay')}}\"\n     class=\"{{cssplayer}}-playbutton-container\" ba-click=\"{{play()}}\" title=\"{{string('tooltip')}}\"\n>\n\t<div class=\"{{cssplayer}}-playbutton-button\"></div>\n</div>\n<div ba-show=\"{{showduration && (duration != 0 && duration != undefined)}}\" class=\"{{css}}-playbutton-duration\">\n    {{formatTime(duration)}}\n</div>\n\n<div class=\"{{cssplayer}}-rerecord-bar\" ba-if=\"{{rerecordable || submittable}}\">\n\t<div class=\"{{cssplayer}}-rerecord-backbar\"></div>\n\t<div class=\"{{cssplayer}}-rerecord-frontbar\">\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{submittable}}\">\n            <div tabindex=\"0\" data-selector=\"player-submit-button\"\n                 ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{submit()}}\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{rerecordable}}\">\n        \t<div tabindex=\"0\" data-selector=\"player-rerecord-button\"\n                 ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{rerecord()}}\">\n        \t\t{{string('rerecord')}}\n        \t</div>\n        </div>\n\t</div>\n</div>\n",
             cssloader: ie8 ? "ba-videoplayer" : "",
             cssmessage: "ba-videoplayer",
@@ -40259,7 +40938,7 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 3": function (obj) { with (obj) { return skipinitial ? 0 : 3; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'resize-minimize' : 'resize-full'": function (obj) { with (obj) { return fullscreened ? 'resize-minimize' : 'resize-full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 3": function (obj) { with (obj) { return skipinitial ? 0 : 3; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "toggle_settings_menu()": function (obj) { with (obj) { return toggle_settings_menu(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsmenuactive ? 'active' : 'inactive'": function (obj) { with (obj) { return settingsmenuactive ? 'active' : 'inactive'; } }, "settingsmenubutton": function (obj) { with (obj) { return settingsmenubutton; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'resize-minimize' : 'resize-full'": function (obj) { with (obj) { return fullscreened ? 'resize-minimize' : 'resize-full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
     });
     Parser.registerFunctions({
         /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "click()": function (obj) { with (obj) { return click(); } }, "message || \"\"": function (obj) { with (obj) { return message || ""; } }/**/
@@ -40272,7 +40951,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
             css: "ba-videoplayer",
             csstheme: "ba-player-space-theme",
             cssplayer: "ba-player",
-            tmplcontrolbar: "<div class=\"{{csstheme}}-title-container {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n    <div class=\"{{csstheme}}-title\" ba-if=\"{{title}}\">\n        <p>{{title}}</p>\n    </div>\n\n    <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n        <div tabindex=\"2\" data-selector=\"button-volume-bar\"\n             ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n             ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n             onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-volumebar-inner\"\n             ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n             ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n             ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n             onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n             onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n             onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n             onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n        </div>\n    </div>\n\n    <div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-volume\"\n         ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n         class=\"{{csstheme}}-rightbutton-container\"\n         ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n    >\n        <div class=\"{{csstheme}}-button-inner\">\n            <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n        </div>\n    </div>\n</div>\n\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class=\"{{csstheme}}-controlbar-footer\">\n        <div tabindex=\"0\" data-selector=\"submit-video-button\"\n             ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-leftbutton-container\" ba-if=\"{{submittable}}\"  ba-click=\"{{submit()}}\"\n        >\n           <div class=\"{{csstheme}}-button-inner\">\n               {{string('submit-video')}}\n           </div>\n        </div>\n\n        <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n             ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-leftbutton-container\" ba-if=\"{{rerecordable}}\"\n             ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n        >\n           <div class=\"{{csstheme}}-button-inner\">\n               <i class=\"{{csscommon}}-icon-ccw\"></i>\n           </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 3}}\" data-selector=\"button-icon-play\"\n             ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n             class=\"{{csstheme}}-leftbutton-container\" ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n        >\n           <div class=\"{{csstheme}}-button-inner\">\n               <i class=\"{{csscommon}}-icon-play\"></i>\n           </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 3}}\" data-selector=\"button-icon-pause\"\n             ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n             class=\"{{csstheme}}-leftbutton-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n             ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n        >\n           <div class=\"{{csstheme}}-button-inner\">\n               <i class=\"{{csscommon}}-icon-pause\"></i>\n           </div>\n        </div>\n\n        <div class=\"{{csstheme}}-time-container\">\n           <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n        </div>\n\n        <div tabindex=\"10\" data-selector=\"button-icon-settings\"\n             ba-hotkey:space^enter=\"{{toggle_settings()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-rightbutton-container {{csstheme}}-settings-button-container {{cssplayer}}-settings-{{settingsoptionsvisible ? 'visible' : 'hidden'}}\"\n             ba-if=\"{{settings}}\" ba-click=\"{{toggle_settings()}}\"\n             title=\"{{string('settings')}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-settings-button\">\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"9\" data-selector=\"cc-button-container\"\n             ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n             ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n             class=\"{{csstheme}}-rightbutton-container {{csstheme}}-cc-button-container {{cssplayer}}-cc-{{tracktextvisible ? 'active' : 'inactive'}}\"\n             title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n             ba-click=\"{{toggle_tracks()}}\"\n             onmouseover=\"{{hover_cc(true)}}\"\n             onmouseleave=\"{{hover_cc(false)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n                <i class=\"{{csscommon}}-icon-subtitle\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"8\" data-selector=\"button-icon-resize-full\"\n             ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n             class=\"{{csstheme}}-rightbutton-container\"\n             ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                <i class=\"{{csscommon}}-icon-{{fullscreened ? 'resize-minimize' : 'resize-full'}}\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"7\" data-selector=\"button-airplay\"\n             ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-rightbutton-container {{cssplayer}}-airplay-container\"\n             ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\"\n        >\n            <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                \n                <title>Airplay</title>\n                <desc>Airplay icon.</desc>\n                <defs></defs>\n                <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                    <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                </g>\n            </svg>\n        </div>\n\n        <div data-selector=\"button-chromecast\" class=\"{{csstheme}}-rightbutton-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n            <button tabindex=\"6\" class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n        </div>\n\n        <div tabindex=\"5\" data-selector=\"button-stream-label\"\n             ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-rightbutton-container\"\n             ba-if=\"{{streams.length > 1 && currentstream}}\" ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n        >\n           <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n               <span class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">{{currentstream_label}}</span>\n           </div>\n        </div>\n\n        <div class=\"{{csstheme}}-time-container {{csstheme}}-rightbutton-container {{csstheme}}-right-time-container\">\n           <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n        </div>\n\n        <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n           <div tabindex=\"4\" data-selector=\"progress-bar-inner\"\n                ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n                ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n                onmouseout=\"this.blur()\"\n                class=\"{{csstheme}}-progressbar-inner\"\n                ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n                ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n                ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n                onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n                onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n                onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n                onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n           >\n\n               <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n               <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n                   <div class=\"{{csstheme}}-progressbar-button\"></div>\n               </div>\n           </div>\n        </div>\n\n    </div>\n\n</div>\n",
+            tmplcontrolbar: "<div class=\"{{csstheme}}-title-container {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n    <div class=\"{{csstheme}}-title\" ba-if=\"{{title}}\">\n        <p>{{title}}</p>\n    </div>\n\n    <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n        <div tabindex=\"2\" data-selector=\"button-volume-bar\"\n             ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n             ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n             onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-volumebar-inner\"\n             ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n             ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n             ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n             onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n             onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n             onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n             onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n        </div>\n    </div>\n\n    <div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-volume\"\n         ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n         class=\"{{csstheme}}-rightbutton-container\"\n         ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n    >\n        <div class=\"{{csstheme}}-button-inner\">\n            <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n        </div>\n    </div>\n</div>\n\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class=\"{{csstheme}}-controlbar-footer\">\n        <div tabindex=\"0\" data-selector=\"submit-video-button\"\n             ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-leftbutton-container\" ba-if=\"{{submittable}}\"  ba-click=\"{{submit()}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n\n        <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n             ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-leftbutton-container\" ba-if=\"{{rerecordable}}\"\n             ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-ccw\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 3}}\" data-selector=\"button-icon-play\"\n             ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n             class=\"{{csstheme}}-leftbutton-container\" ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-play\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 3}}\" data-selector=\"button-icon-pause\"\n             ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n             class=\"{{csstheme}}-leftbutton-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n             ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-pause\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-time-container\">\n            <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n        </div>\n\n        <div tabindex=\"10\" data-selector=\"button-icon-settings\"\n             ba-hotkey:space^enter=\"{{toggle_settings_menu()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-rightbutton-container {{csstheme}}-settings-button-container {{cssplayer}}-button-{{settingsmenuactive ? 'active' : 'inactive'}}\"\n             ba-if=\"{{settingsmenubutton}}\" ba-click=\"{{toggle_settings_menu()}}\"\n             title=\"{{string('settings')}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-settings-button\">\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"9\" data-selector=\"cc-button-container\"\n             ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n             ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n             class=\"{{csstheme}}-rightbutton-container {{csstheme}}-cc-button-container {{cssplayer}}-button-{{tracktextvisible ? 'active' : 'inactive'}}\"\n             title=\"{{tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n             ba-click=\"{{toggle_tracks()}}\"\n             onmouseover=\"{{hover_cc(true)}}\"\n             onmouseleave=\"{{hover_cc(false)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n                <i class=\"{{csscommon}}-icon-subtitle\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"8\" data-selector=\"button-icon-resize-full\"\n             ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n             class=\"{{csstheme}}-rightbutton-container\"\n             ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                <i class=\"{{csscommon}}-icon-{{fullscreened ? 'resize-minimize' : 'resize-full'}}\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"7\" data-selector=\"button-airplay\"\n             ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-rightbutton-container {{cssplayer}}-airplay-container\"\n             ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\"\n        >\n            <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                \n                <title>Airplay</title>\n                <desc>Airplay icon.</desc>\n                <defs></defs>\n                <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                    <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                </g>\n            </svg>\n        </div>\n\n        <div data-selector=\"button-chromecast\" class=\"{{csstheme}}-rightbutton-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n            <button tabindex=\"6\" class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n        </div>\n\n        <div tabindex=\"5\" data-selector=\"button-stream-label\"\n             ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-rightbutton-container\"\n             ba-if=\"{{streams.length > 1 && currentstream}}\" ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                <span class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">{{currentstream_label}}</span>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-time-container {{csstheme}}-rightbutton-container {{csstheme}}-right-time-container\">\n            <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n        </div>\n\n        <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n            <div tabindex=\"4\" data-selector=\"progress-bar-inner\"\n                 ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n                 ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n                 onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-progressbar-inner\"\n                 ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n                 ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n                 ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n                 onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n                 onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n                 onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n                 onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n            >\n\n                <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n                <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n                    <div class=\"{{csstheme}}-progressbar-button\"></div>\n                </div>\n            </div>\n        </div>\n\n    </div>\n\n</div>\n",
             tmplmessage: "<div class=\"{{csstheme}}-message-container\" ba-click=\"{{click()}}\">\n    <div data-selector=\"message-block\" class=\"{{csstheme}}-first-inner-message-container\">\n        <div class=\"{{csstheme}}-second-inner-message-container\">\n            <div class=\"{{csstheme}}-third-inner-message-container\">\n                <div class=\"{{csstheme}}-fourth-inner-message-container\">\n                    <div class='{{csstheme}}-message-message'>\n                        {{message || \"\"}}\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n",
             tmplplaybutton: "\n<div tabindex=\"0\" data-selector=\"play-button\"\n     ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n     onkeydown=\"{{tab_index_move(domEvent, null, 'player-toggle-overlay')}}\"\n     class=\"{{cssplayer}}-playbutton-container\" ba-click=\"{{play()}}\" title=\"{{string('tooltip')}}\"\n>\n\t<div class=\"{{cssplayer}}-playbutton-button\"></div>\n</div>\n<div ba-show=\"{{showduration && (duration != 0 && duration != undefined)}}\" class=\"{{css}}-playbutton-duration\">\n    {{formatTime(duration)}}\n</div>\n\n<div class=\"{{cssplayer}}-rerecord-bar\" ba-if=\"{{rerecordable || submittable}}\">\n\t<div class=\"{{cssplayer}}-rerecord-backbar\"></div>\n\t<div class=\"{{cssplayer}}-rerecord-frontbar\">\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{submittable}}\">\n            <div tabindex=\"0\" data-selector=\"player-submit-button\"\n                 ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{submit()}}\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{rerecordable}}\">\n        \t<div tabindex=\"0\" data-selector=\"player-rerecord-button\"\n                 ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{rerecord()}}\">\n        \t\t{{string('rerecord')}}\n        \t</div>\n        </div>\n\t</div>\n</div>\n",
             cssloader: ie8 ? "ba-videoplayer" : "",
@@ -40392,7 +41071,7 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "skipinitial ? 0 : -1": function (obj) { with (obj) { return skipinitial ? 0 : -1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "skipinitial ? 0 : -1": function (obj) { with (obj) { return skipinitial ? 0 : -1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_settings_menu()": function (obj) { with (obj) { return toggle_settings_menu(); } }, "settingsmenuactive ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsmenuactive ? 'visible' : 'hidden'; } }, "settingsmenubutton": function (obj) { with (obj) { return settingsmenubutton; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }/**/
     });
     Parser.registerFunctions({
         /**/"play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'player-toggle-overlay')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'player-toggle-overlay'); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "string('tooltip')": function (obj) { with (obj) { return string('tooltip'); } }, "showduration && (duration != 0 && duration != undefined)": function (obj) { with (obj) { return showduration && (duration != 0 && duration != undefined); } }, "css": function (obj) { with (obj) { return css; } }, "formatTime(duration)": function (obj) { with (obj) { return formatTime(duration); } }, "rerecordable || submittable": function (obj) { with (obj) { return rerecordable || submittable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }/**/
@@ -40402,7 +41081,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
             css: "ba-videoplayer",
             csstheme: "ba-player-minimalist-theme",
             cssplayer: "ba-player",
-            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class='{{csstheme}}-controlbar-header'>\n        <div class=\"{{csstheme}}-controlbar-header-icons-block\">\n\n            <div class=\"{{csstheme}}-right-block\">\n\n                <div tabindex=\"1\" data-selector=\"button-icon-resize-full\"\n                     ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n                     onkeydown=\"{{tab_index_move(domEvent)}}\"\n                     class=\"{{csstheme}}-button-container\"\n                     ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n                >\n                    <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                        <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n                    </div>\n                </div>\n\n                <div tabindex=\"2\" data-selector=\"button-icon-volume\"\n                     ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n                     class=\"{{csstheme}}-button-container\" ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n                >\n                    <div class=\"{{csstheme}}-button-inner\">\n                        <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n                    </div>\n                </div>\n\n                <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n                    <div tabindex=\"3\" data-selector=\"button-volume-bar\"\n                         ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n                         ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n                         onmouseout=\"this.blur()\"\n                         class=\"{{csstheme}}-volumebar-inner\"\n                         ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n                         ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n                         ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n                         onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n                         onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n                         onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n                         onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n                    >\n                        <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n                    </div>\n                </div>\n\n            </div>\n\n        </div>\n\n\n        <div class=\"{{csstheme}}-controlbar-header-title-block\" ba-if=\"{{title}}\">\n            <div class=\"{{csstheme}}-title\"><p>{{title}}</p></div>\n        </div>\n    </div>\n\n    <div class=\"{{csstheme}}-controlbar-footer\">\n\n        <div class=\"{{csstheme}}-controlbar-top-block\">\n\n            <div tabindex=\"0\" data-selector=\"submit-video-button\"\n                 ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container\" ba-if=\"{{submittable}}\"  ba-click=\"{{submit()}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    {{string('submit-video')}}\n                </div>\n            </div>\n\n            <div tabindex=\"{{skipinitial ? 0 : -1}}\" data-selector=\"button-icon-play\"\n                 ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n                 onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n                 class=\"{{csstheme}}-button-container\" ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-play\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"{{skipinitial ? 0 : -1}}\" data-selector=\"button-icon-pause\"\n                 ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n                 onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n                 class=\"{{csstheme}}-button-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n                 ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i tabindex=\"0\" class=\"{{csscommon}}-icon-pause\"></i>\n                </div>\n            </div>\n\n        </div>\n        <div class=\"{{csstheme}}-controlbar-middle-block\">\n\n            <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n                <div tabindex=\"4\" data-selector=\"progress-bar-inner\"\n                     ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n                     ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n                     onmouseout=\"this.blur()\"\n                     class=\"{{csstheme}}-progressbar-inner\"\n                     ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n                     ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n                     ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n                     onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n                     onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n                     onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n                     onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n                >\n\n                    <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n                    <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n                        <div class=\"{{csstheme}}-progressbar-button\"></div>\n                    </div>\n                </div>\n            </div>\n\n        </div>\n        <div class=\"{{csstheme}}-controlbar-bottom-block\">\n            <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n                 ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container {{csstheme}}-player-rerecord\"\n                 ba-if=\"{{rerecordable}}\" ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-ccw\"></i>\n                </div>\n            </div>\n\n            <div class=\"{{csstheme}}-button-container {{csstheme}}-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n                <p> / </p>\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n            </div>\n\n            <div tabindex=\"5\" data-selector=\"button-stream-label\"\n                 ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container\" ba-if=\"{{streams.length > 1 && currentstream}}\"\n                 ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                    <span class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">{{currentstream_label}}</span>\n                </div>\n            </div>\n            <div tabindex=\"6\" data-selector=\"button-airplay\"\n                 ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container {{cssplayer}}-airplay-container\"\n                 ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\"\n            >\n                <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                    \n                    <title>Airplay</title>\n                    <desc>Airplay icon.</desc>\n                    <defs></defs>\n                    <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                        <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                    </g>\n                </svg>\n            </div>\n\n            <div tabindex=\"7\" data-selector=\"button-chromecast\" onmouseout=\"this.blur()\" class=\"{{csstheme}}-button-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n                <button class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n            </div>\n\n            <div tabindex=\"9\" data-selector=\"button-icon-settings\"\n                 ba-hotkey:space^enter=\"{{toggle_settings()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-right-button-container {{cssplayer}}-settings-{{settingsoptionsvisible ? 'visible' : 'hidden'}}\"\n                 ba-if=\"{{settings}}\" ba-click=\"{{toggle_settings()}}\"\n                 title=\"{{string('settings')}}\"\n                 onkeydown=\"{{tab_index_move(domEvent)}}\"\n            >\n                <div class=\"{{csstheme}}-settings-button\">\n                    <i class=\"{{csscommon}}-icon-cog\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"8\" data-selector=\"cc-button-container\"\n                 ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n                 ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n                 ba-click=\"{{toggle_tracks()}}\"\n                 class=\"{{csstheme}}-right-button-container {{cssplayer}}-cc-{{tracktextvisible ? 'active' : 'inactive'}}\"\n                 title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n                 onmouseover=\"{{hover_cc(true)}}\" onmouseleave=\"{{hover_cc(false)}}\"\n            >\n                <div class=\"{{csstheme}}-subtitle-button-inner\">\n                    <i class=\"{{csscommon}}-icon-subtitle\"></i>\n                </div>\n            </div>\n\n\n        </div>\n    </div>\n\n</div>\n",
+            tmplcontrolbar: "<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class='{{csstheme}}-controlbar-header'>\n        <div class=\"{{csstheme}}-controlbar-header-icons-block\">\n\n            <div class=\"{{csstheme}}-right-block\">\n\n                <div tabindex=\"1\" data-selector=\"button-icon-resize-full\"\n                     ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n                     onkeydown=\"{{tab_index_move(domEvent)}}\"\n                     class=\"{{csstheme}}-button-container\"\n                     ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n                >\n                    <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                        <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n                    </div>\n                </div>\n\n                <div tabindex=\"2\" data-selector=\"button-icon-volume\"\n                     ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n                     class=\"{{csstheme}}-button-container\" ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n                >\n                    <div class=\"{{csstheme}}-button-inner\">\n                        <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n                    </div>\n                </div>\n\n                <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n                    <div tabindex=\"3\" data-selector=\"button-volume-bar\"\n                         ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n                         ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n                         onmouseout=\"this.blur()\"\n                         class=\"{{csstheme}}-volumebar-inner\"\n                         ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n                         ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n                         ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n                         onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n                         onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n                         onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n                         onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n                    >\n                        <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n                    </div>\n                </div>\n\n            </div>\n\n        </div>\n\n\n        <div class=\"{{csstheme}}-controlbar-header-title-block\" ba-if=\"{{title}}\">\n            <div class=\"{{csstheme}}-title\"><p>{{title}}</p></div>\n        </div>\n    </div>\n\n    <div class=\"{{csstheme}}-controlbar-footer\">\n\n        <div class=\"{{csstheme}}-controlbar-top-block\">\n\n            <div tabindex=\"0\" data-selector=\"submit-video-button\"\n                 ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container\" ba-if=\"{{submittable}}\"  ba-click=\"{{submit()}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    {{string('submit-video')}}\n                </div>\n            </div>\n\n            <div tabindex=\"{{skipinitial ? 0 : -1}}\" data-selector=\"button-icon-play\"\n                 ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n                 onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n                 class=\"{{csstheme}}-button-container\" ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-play\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"{{skipinitial ? 0 : -1}}\" data-selector=\"button-icon-pause\"\n                 ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n                 onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n                 class=\"{{csstheme}}-button-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n                 ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i tabindex=\"0\" class=\"{{csscommon}}-icon-pause\"></i>\n                </div>\n            </div>\n\n        </div>\n        <div class=\"{{csstheme}}-controlbar-middle-block\">\n\n            <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n                <div tabindex=\"4\" data-selector=\"progress-bar-inner\"\n                     ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n                     ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n                     onmouseout=\"this.blur()\"\n                     class=\"{{csstheme}}-progressbar-inner\"\n                     ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n                     ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n                     ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n                     onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n                     onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n                     onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n                     onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n                >\n\n                    <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n                    <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n                        <div class=\"{{csstheme}}-progressbar-button\"></div>\n                    </div>\n                </div>\n            </div>\n\n        </div>\n        <div class=\"{{csstheme}}-controlbar-bottom-block\">\n            <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n                 ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container {{csstheme}}-player-rerecord\"\n                 ba-if=\"{{rerecordable}}\" ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-ccw\"></i>\n                </div>\n            </div>\n\n            <div class=\"{{csstheme}}-button-container {{csstheme}}-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n                <p> / </p>\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n            </div>\n\n            <div tabindex=\"5\" data-selector=\"button-stream-label\"\n                 ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container\" ba-if=\"{{streams.length > 1 && currentstream}}\"\n                 ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                    <span class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">{{currentstream_label}}</span>\n                </div>\n            </div>\n            <div tabindex=\"6\" data-selector=\"button-airplay\"\n                 ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container {{cssplayer}}-airplay-container\"\n                 ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\"\n            >\n                <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                    \n                    <title>Airplay</title>\n                    <desc>Airplay icon.</desc>\n                    <defs></defs>\n                    <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                        <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                    </g>\n                </svg>\n            </div>\n\n            <div tabindex=\"7\" data-selector=\"button-chromecast\" onmouseout=\"this.blur()\" class=\"{{csstheme}}-button-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n                <button class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n            </div>\n\n            <div tabindex=\"9\" data-selector=\"button-icon-settings\"\n                 ba-hotkey:space^enter=\"{{toggle_settings_menu()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-right-button-container {{cssplayer}}-settings-{{settingsmenuactive ? 'visible' : 'hidden'}}\"\n                 ba-if=\"{{settingsmenubutton}}\" ba-click=\"{{toggle_settings_menu()}}\"\n                 title=\"{{string('settings')}}\"\n                 onkeydown=\"{{tab_index_move(domEvent)}}\"\n            >\n                <div class=\"{{csstheme}}-settings-button\">\n                    <i class=\"{{csscommon}}-icon-cog\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"8\" data-selector=\"cc-button-container\"\n                 ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n                 ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n                 ba-click=\"{{toggle_tracks()}}\"\n                 class=\"{{csstheme}}-right-button-container {{cssplayer}}-button-{{tracktextvisible ? 'active' : 'inactive'}}\"\n                 title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n                 onmouseover=\"{{hover_cc(true)}}\" onmouseleave=\"{{hover_cc(false)}}\"\n            >\n                <div class=\"{{csstheme}}-subtitle-button-inner\">\n                    <i class=\"{{csscommon}}-icon-subtitle\"></i>\n                </div>\n            </div>\n\n\n        </div>\n    </div>\n\n</div>\n",
             tmplplaybutton: "\n<div tabindex=\"0\" data-selector=\"play-button\"\n     ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n     onkeydown=\"{{tab_index_move(domEvent, null, 'player-toggle-overlay')}}\"\n     class=\"{{cssplayer}}-playbutton-container\" ba-click=\"{{play()}}\" title=\"{{string('tooltip')}}\"\n>\n\t<div class=\"{{cssplayer}}-playbutton-button\"></div>\n</div>\n<div ba-show=\"{{showduration && (duration != 0 && duration != undefined)}}\" class=\"{{css}}-playbutton-duration\">\n    {{formatTime(duration)}}\n</div>\n\n<div class=\"{{cssplayer}}-rerecord-bar\" ba-if=\"{{rerecordable || submittable}}\">\n\t<div class=\"{{cssplayer}}-rerecord-backbar\"></div>\n\t<div class=\"{{cssplayer}}-rerecord-frontbar\">\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{submittable}}\">\n            <div tabindex=\"0\" data-selector=\"player-submit-button\"\n                 ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{submit()}}\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{rerecordable}}\">\n        \t<div tabindex=\"0\" data-selector=\"player-rerecord-button\"\n                 ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{rerecord()}}\">\n        \t\t{{string('rerecord')}}\n        \t</div>\n        </div>\n\t</div>\n</div>\n",
             cssloader: ie8 ? "ba-videoplayer" : "",
             cssmessage: "ba-videoplayer",
@@ -40514,7 +41193,7 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return startVerticallyUpdateVolume(domEvent); } }, "progressVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return progressVerticallyUpdateVolume(domEvent); } }, "stopVerticallyUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopVerticallyUpdateVolume(domEvent); this.blur(); } }, "stopVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return stopVerticallyUpdateVolume(domEvent); } }, "{height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "title": function (obj) { with (obj) { return title; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 1": function (obj) { with (obj) { return skipinitial ? 0 : 1; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return startVerticallyUpdateVolume(domEvent); } }, "progressVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return progressVerticallyUpdateVolume(domEvent); } }, "stopVerticallyUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopVerticallyUpdateVolume(domEvent); this.blur(); } }, "stopVerticallyUpdateVolume(domEvent)": function (obj) { with (obj) { return stopVerticallyUpdateVolume(domEvent); } }, "{height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "toggle_settings_menu()": function (obj) { with (obj) { return toggle_settings_menu(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "settingsmenuactive ? 'active' : 'inactive'": function (obj) { with (obj) { return settingsmenuactive ? 'active' : 'inactive'; } }, "settingsmenubutton": function (obj) { with (obj) { return settingsmenubutton; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }/**/
     });
     Parser.registerFunctions({
         /**/"play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'player-toggle-overlay')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'player-toggle-overlay'); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "string('tooltip')": function (obj) { with (obj) { return string('tooltip'); } }, "showduration && (duration != 0 && duration != undefined)": function (obj) { with (obj) { return showduration && (duration != 0 && duration != undefined); } }, "css": function (obj) { with (obj) { return css; } }, "formatTime(duration)": function (obj) { with (obj) { return formatTime(duration); } }, "rerecordable || submittable": function (obj) { with (obj) { return rerecordable || submittable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }/**/
@@ -40525,7 +41204,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
             csstheme: "ba-player-theatre-theme",
             csscommon: "ba-commoncss",
             cssplayer: "ba-player",
-            tmplcontrolbar: "<div data-selector=\"video-title-block\" class=\"{{csstheme}}-title-container {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\"  ba-if=\"{{title}}\">\n    <p class=\"{{csstheme}}-title\">\n        {{title}}\n    </p>\n</div>\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class=\"{{csstheme}}-left-block\">\n\n        <div tabindex=\"0\" data-selector=\"submit-video-button\"\n             ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-leftbutton-container\"\n             ba-if=\"{{submittable}}\"  ba-click=\"{{submit()}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n\n        <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n             ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-leftbutton-container\"\n             ba-if=\"{{rerecordable}}\" ba-click=\"{{rerecord()}}\"\n             title=\"{{string('rerecord-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-ccw\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-play\"\n             ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n             class=\"{{csstheme}}-button-container\"\n             ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-play\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-pause\"\n             ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n             class=\"{{csstheme}}-button-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n             ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-pause\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-volume-icon-container\">\n\n            <div tabindex=\"2\" data-selector=\"button-icon-volume\"\n                 ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container\"\n                 ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n                </div>\n            </div>\n\n            <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n                <div tabindex=\"-1\" data-selector=\"button-volume-bar\"\n                     ba-hotkey:up=\"{{set_volume(volume + 0.1)}}\"\n                     ba-hotkey:down=\"{{set_volume(volume - 0.1)}}\"\n                     onmouseout=\"this.blur()\"\n                     class=\"{{csstheme}}-volumebar-inner\"\n                     ontouchstart=\"{{startVerticallyUpdateVolume(domEvent)}}\"\n                     ontouchmove=\"{{progressVerticallyUpdateVolume(domEvent)}}\"\n                     ontouchend=\"{{stopVerticallyUpdateVolume(domEvent); this.blur()}};\"\n                     onmousedown=\"{{startVerticallyUpdateVolume(domEvent)}}\"\n                     onmouseup=\"{{stopVerticallyUpdateVolume(domEvent)}}\"\n                     onmouseleave=\"{{stopVerticallyUpdateVolume(domEvent)}}\"\n                     onmousemove=\"{{progressVerticallyUpdateVolume(domEvent)}}\"\n                >\n                    <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n                </div>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-time-container\">\n            <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n        </div>\n    </div>\n\n    <div class=\"{{csstheme}}-right-block\">\n\n        <div tabindex=\"9\" data-selector=\"button-icon-settings\"\n             ba-hotkey:space^enter=\"{{toggle_settings()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-rightbutton-container {{csstheme}}-settings-button-container {{cssplayer}}-settings-{{settingsoptionsvisible ? 'visible' : 'hidden'}}\"\n             ba-if=\"{{settings}}\" ba-click=\"{{toggle_settings()}}\"\n             title=\"{{string('settings')}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-settings-button-inner\">\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"8\" data-selector=\"cc-button-container\"\n             ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n             ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n             class=\"{{csstheme}}-rightbutton-container {{csstheme}}-cc-button-container {{cssplayer}}-cc-{{tracktextvisible ? 'active' : 'inactive'}}\"\n             title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n             ba-click=\"{{toggle_tracks()}}\"\n             onmouseover=\"{{hover_cc(true)}}\"\n             onmouseleave=\"{{hover_cc(false)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n                <i class=\"{{csscommon}}-icon-subtitle\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"7\" data-selector=\"button-icon-resize-full\"\n             ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n             class=\"{{csstheme}}-button-container {{csstheme}}-fullscreen-icon-container\"\n             ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"6\" data-selector=\"button-airplay\"\n             ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{cssplayer}}-airplay-container\"\n             ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\"\n        >\n            <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                \n                <title>Airplay</title>\n                <desc>Airplay icon.</desc>\n                <defs></defs>\n                <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                    <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                </g>\n            </svg>\n        </div>\n\n        <div data-selector=\"button-chromecast\" class=\"{{csstheme}}-button-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n            <button tabindex=\"0\" class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n        </div>\n\n        <div tabindex=\"5\" data-selector=\"button-stream-label\"\n             ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{csstheme}}-stream-label-container\"\n             ba-if=\"{{streams.length > 1 && currentstream}}\" ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                <span class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">{{currentstream_label}}</span>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-time-container {{csstheme}}-right-time-container\">\n            <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n        </div>\n\n    </div>\n\n    <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n        <div tabindex=\"4\" data-selector=\"progress-bar-inner\"\n             ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n             ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n             onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-progressbar-inner\"\n             ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n             ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n             ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n             onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n             onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n             onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n             onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n        >\n\n            <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n            <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n                <div class=\"{{csstheme}}-progressbar-button\"></div>\n            </div>\n        </div>\n    </div>\n\n</div>\n",
+            tmplcontrolbar: "<div data-selector=\"video-title-block\" class=\"{{csstheme}}-title-container {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\"  ba-if=\"{{title}}\">\n    <p class=\"{{csstheme}}-title\">\n        {{title}}\n    </p>\n</div>\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class=\"{{csstheme}}-left-block\">\n\n        <div tabindex=\"0\" data-selector=\"submit-video-button\"\n             ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-leftbutton-container\"\n             ba-if=\"{{submittable}}\"  ba-click=\"{{submit()}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n\n        <div tabindex=\"0\" data-selector=\"button-icon-ccw\"\n             ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-leftbutton-container\"\n             ba-if=\"{{rerecordable}}\" ba-click=\"{{rerecord()}}\"\n             title=\"{{string('rerecord-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-ccw\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-play\"\n             ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n             class=\"{{csstheme}}-button-container\"\n             ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-play\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"{{skipinitial ? 0 : 1}}\" data-selector=\"button-icon-pause\"\n             ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n             class=\"{{csstheme}}-button-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n             ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner\">\n                <i class=\"{{csscommon}}-icon-pause\"></i>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-volume-icon-container\">\n\n            <div tabindex=\"2\" data-selector=\"button-icon-volume\"\n                 ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container\"\n                 ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n                </div>\n            </div>\n\n            <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n                <div tabindex=\"-1\" data-selector=\"button-volume-bar\"\n                     ba-hotkey:up=\"{{set_volume(volume + 0.1)}}\"\n                     ba-hotkey:down=\"{{set_volume(volume - 0.1)}}\"\n                     onmouseout=\"this.blur()\"\n                     class=\"{{csstheme}}-volumebar-inner\"\n                     ontouchstart=\"{{startVerticallyUpdateVolume(domEvent)}}\"\n                     ontouchmove=\"{{progressVerticallyUpdateVolume(domEvent)}}\"\n                     ontouchend=\"{{stopVerticallyUpdateVolume(domEvent); this.blur()}};\"\n                     onmousedown=\"{{startVerticallyUpdateVolume(domEvent)}}\"\n                     onmouseup=\"{{stopVerticallyUpdateVolume(domEvent)}}\"\n                     onmouseleave=\"{{stopVerticallyUpdateVolume(domEvent)}}\"\n                     onmousemove=\"{{progressVerticallyUpdateVolume(domEvent)}}\"\n                >\n                    <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{height: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n                </div>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-time-container\">\n            <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n        </div>\n    </div>\n\n    <div class=\"{{csstheme}}-right-block\">\n\n        <div tabindex=\"9\" data-selector=\"button-icon-settings\"\n             ba-hotkey:space^enter=\"{{toggle_settings_menu()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-rightbutton-container {{csstheme}}-settings-button-container {{cssplayer}}-button-{{settingsmenuactive ? 'active' : 'inactive'}}\"\n             ba-if=\"{{settingsmenubutton}}\" ba-click=\"{{toggle_settings_menu()}}\"\n             title=\"{{string('settings')}}\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-settings-button-inner\">\n                <i class=\"{{csscommon}}-icon-cog\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"8\" data-selector=\"cc-button-container\"\n             ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n             ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n             class=\"{{csstheme}}-rightbutton-container {{csstheme}}-cc-button-container {{cssplayer}}-button-{{tracktextvisible ? 'active' : 'inactive'}}\"\n             title=\"{{ tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n             ba-click=\"{{toggle_tracks()}}\"\n             onmouseover=\"{{hover_cc(true)}}\"\n             onmouseleave=\"{{hover_cc(false)}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n                <i class=\"{{csscommon}}-icon-subtitle\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"7\" data-selector=\"button-icon-resize-full\"\n             ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n             onkeydown=\"{{tab_index_move(domEvent)}}\"\n             class=\"{{csstheme}}-button-container {{csstheme}}-fullscreen-icon-container\"\n             ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n            </div>\n        </div>\n\n        <div tabindex=\"6\" data-selector=\"button-airplay\"\n             ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{cssplayer}}-airplay-container\"\n             ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\"\n        >\n            <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                \n                <title>Airplay</title>\n                <desc>Airplay icon.</desc>\n                <defs></defs>\n                <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                    <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                </g>\n            </svg>\n        </div>\n\n        <div data-selector=\"button-chromecast\" class=\"{{csstheme}}-button-container {{csstheme}}-cast-button-container\" ba-show=\"{{castbuttonvisble}}\">\n            <button tabindex=\"0\" class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n        </div>\n\n        <div tabindex=\"5\" data-selector=\"button-stream-label\"\n             ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-button-container {{csstheme}}-stream-label-container\"\n             ba-if=\"{{streams.length > 1 && currentstream}}\" ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n        >\n            <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                <span class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">{{currentstream_label}}</span>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-time-container {{csstheme}}-right-time-container\">\n            <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n        </div>\n\n    </div>\n\n    <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n        <div tabindex=\"4\" data-selector=\"progress-bar-inner\"\n             ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n             ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n             onmouseout=\"this.blur()\"\n             class=\"{{csstheme}}-progressbar-inner\"\n             ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n             ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n             ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n             onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n             onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n             onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n             onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n        >\n\n            <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n            <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n                <div class=\"{{csstheme}}-progressbar-button\"></div>\n            </div>\n        </div>\n    </div>\n\n</div>\n",
             tmplplaybutton: "\n<div tabindex=\"0\" data-selector=\"play-button\"\n     ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n     onkeydown=\"{{tab_index_move(domEvent, null, 'player-toggle-overlay')}}\"\n     class=\"{{cssplayer}}-playbutton-container\" ba-click=\"{{play()}}\" title=\"{{string('tooltip')}}\"\n>\n\t<div class=\"{{cssplayer}}-playbutton-button\"></div>\n</div>\n<div ba-show=\"{{showduration && (duration != 0 && duration != undefined)}}\" class=\"{{css}}-playbutton-duration\">\n    {{formatTime(duration)}}\n</div>\n\n<div class=\"{{cssplayer}}-rerecord-bar\" ba-if=\"{{rerecordable || submittable}}\">\n\t<div class=\"{{cssplayer}}-rerecord-backbar\"></div>\n\t<div class=\"{{cssplayer}}-rerecord-frontbar\">\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{submittable}}\">\n            <div tabindex=\"0\" data-selector=\"player-submit-button\"\n                 ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{submit()}}\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{rerecordable}}\">\n        \t<div tabindex=\"0\" data-selector=\"player-rerecord-button\"\n                 ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{rerecord()}}\">\n        \t\t{{string('rerecord')}}\n        \t</div>\n        </div>\n\t</div>\n</div>\n",
             cssloader: ie8 ? "ba-videoplayer" : "",
             cssmessage: "ba-videoplayer",
@@ -40629,7 +41308,7 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], function(Info, Parser) {
     var ie8 = Info.isInternetExplorer() && Info.internetExplorerVersion() <= 8;
     Parser.registerFunctions({
-        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "skipinitial ? 2 : 1": function (obj) { with (obj) { return skipinitial ? 2 : 1; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 2": function (obj) { with (obj) { return skipinitial ? 0 : 2; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "title": function (obj) { with (obj) { return title; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_settings()": function (obj) { with (obj) { return toggle_settings(); } }, "settingsoptionsvisible ? 'visible' : 'hidden'": function (obj) { with (obj) { return settingsoptionsvisible ? 'visible' : 'hidden'; } }, "settings": function (obj) { with (obj) { return settings; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }/**/
+        /**/"csstheme": function (obj) { with (obj) { return csstheme; } }, "activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''": function (obj) { with (obj) { return activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''; } }, "string('elapsed-time')": function (obj) { with (obj) { return string('elapsed-time'); } }, "formatTime(position)": function (obj) { with (obj) { return formatTime(position); } }, "string('total-time')": function (obj) { with (obj) { return string('total-time'); } }, "formatTime(duration || position)": function (obj) { with (obj) { return formatTime(duration || position); } }, "disableseeking ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disableseeking ? cssplayer + '-disabled' : ''; } }, "skipinitial ? 2 : 1": function (obj) { with (obj) { return skipinitial ? 2 : 1; } }, "seek(position + skipseconds)": function (obj) { with (obj) { return seek(position + skipseconds); } }, "seek(position - skipseconds)": function (obj) { with (obj) { return seek(position - skipseconds); } }, "startUpdatePosition(domEvent)": function (obj) { with (obj) { return startUpdatePosition(domEvent); } }, "progressUpdatePosition(domEvent)": function (obj) { with (obj) { return progressUpdatePosition(domEvent); } }, "stopUpdatePosition(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdatePosition(domEvent); this.blur(); } }, "stopUpdatePosition(domEvent)": function (obj) { with (obj) { return stopUpdatePosition(domEvent); } }, "{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? cached / duration * 100 : 0) + '%'}; } }, "{width: Math.round(duration ? position / duration * 100 : 0) + '%'}": function (obj) { with (obj) { return {width: Math.round(duration ? position / duration * 100 : 0) + '%'}; } }, "string('video-progress')": function (obj) { with (obj) { return string('video-progress'); } }, "submit()": function (obj) { with (obj) { return submit(); } }, "submittable": function (obj) { with (obj) { return submittable; } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "string('rerecord-video')": function (obj) { with (obj) { return string('rerecord-video'); } }, "csscommon": function (obj) { with (obj) { return csscommon; } }, "skipinitial ? 0 : 2": function (obj) { with (obj) { return skipinitial ? 0 : 2; } }, "play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'button-icon-pause')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-pause'); } }, "!playing": function (obj) { with (obj) { return !playing; } }, "string('play-video')": function (obj) { with (obj) { return string('play-video'); } }, "pause()": function (obj) { with (obj) { return pause(); } }, "tab_index_move(domEvent, null, 'button-icon-play')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'button-icon-play'); } }, "disablepause ? cssplayer + '-disabled' : ''": function (obj) { with (obj) { return disablepause ? cssplayer + '-disabled' : ''; } }, "playing": function (obj) { with (obj) { return playing; } }, "disablepause ? string('pause-video-disabled') : string('pause-video')": function (obj) { with (obj) { return disablepause ? string('pause-video-disabled') : string('pause-video'); } }, "toggle_volume()": function (obj) { with (obj) { return toggle_volume(); } }, "string(volume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { with (obj) { return string(volume > 0 ? 'volume-mute' : 'volume-unmute'); } }, "csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off'))": function (obj) { with (obj) { return csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')); } }, "!hidevolumebar": function (obj) { with (obj) { return !hidevolumebar; } }, "set_volume(volume + 0.1)": function (obj) { with (obj) { return set_volume(volume + 0.1); } }, "set_volume(volume - 0.1)": function (obj) { with (obj) { return set_volume(volume - 0.1); } }, "startUpdateVolume(domEvent)": function (obj) { with (obj) { return startUpdateVolume(domEvent); } }, "progressUpdateVolume(domEvent)": function (obj) { with (obj) { return progressUpdateVolume(domEvent); } }, "stopUpdateVolume(domEvent); this.blur()": function (obj) { with (obj) { return stopUpdateVolume(domEvent); this.blur(); } }, "stopUpdateVolume(domEvent)": function (obj) { with (obj) { return stopUpdateVolume(domEvent); } }, "{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}": function (obj) { with (obj) { return {width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}; } }, "string('volume-button')": function (obj) { with (obj) { return string('volume-button'); } }, "title": function (obj) { with (obj) { return title; } }, "toggle_stream()": function (obj) { with (obj) { return toggle_stream(); } }, "streams.length > 1 && currentstream": function (obj) { with (obj) { return streams.length > 1 && currentstream; } }, "string('change-resolution')": function (obj) { with (obj) { return string('change-resolution'); } }, "currentstream_label": function (obj) { with (obj) { return currentstream_label; } }, "show_airplay_devices()": function (obj) { with (obj) { return show_airplay_devices(); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "airplaybuttonvisible": function (obj) { with (obj) { return airplaybuttonvisible; } }, "castbuttonvisble": function (obj) { with (obj) { return castbuttonvisble; } }, "toggle_settings_menu()": function (obj) { with (obj) { return toggle_settings_menu(); } }, "settingsmenuactive ? 'active' : 'inactive'": function (obj) { with (obj) { return settingsmenuactive ? 'active' : 'inactive'; } }, "settingsmenubutton": function (obj) { with (obj) { return settingsmenubutton; } }, "string('settings')": function (obj) { with (obj) { return string('settings'); } }, "tab_index_move(domEvent)": function (obj) { with (obj) { return tab_index_move(domEvent); } }, "toggle_fullscreen()": function (obj) { with (obj) { return toggle_fullscreen(); } }, "fullscreened ? 'active' : 'inactive'": function (obj) { with (obj) { return fullscreened ? 'active' : 'inactive'; } }, "fullscreen": function (obj) { with (obj) { return fullscreen; } }, "fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video')": function (obj) { with (obj) { return fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video'); } }, "fullscreened ? 'small' : 'full'": function (obj) { with (obj) { return fullscreened ? 'small' : 'full'; } }, "toggle_tracks()": function (obj) { with (obj) { return toggle_tracks(); } }, "(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload": function (obj) { with (obj) { return (tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload; } }, "tracktextvisible ? 'active' : 'inactive'": function (obj) { with (obj) { return tracktextvisible ? 'active' : 'inactive'; } }, "tracktextvisible ? string('close-tracks') : string('show-tracks')": function (obj) { with (obj) { return tracktextvisible ? string('close-tracks') : string('show-tracks'); } }, "hover_cc(true)": function (obj) { with (obj) { return hover_cc(true); } }, "hover_cc(false)": function (obj) { with (obj) { return hover_cc(false); } }/**/
     });
     Parser.registerFunctions({
         /**/"play()": function (obj) { with (obj) { return play(); } }, "tab_index_move(domEvent, null, 'player-toggle-overlay')": function (obj) { with (obj) { return tab_index_move(domEvent, null, 'player-toggle-overlay'); } }, "cssplayer": function (obj) { with (obj) { return cssplayer; } }, "string('tooltip')": function (obj) { with (obj) { return string('tooltip'); } }, "showduration && (duration != 0 && duration != undefined)": function (obj) { with (obj) { return showduration && (duration != 0 && duration != undefined); } }, "css": function (obj) { with (obj) { return css; } }, "formatTime(duration)": function (obj) { with (obj) { return formatTime(duration); } }, "rerecordable || submittable": function (obj) { with (obj) { return rerecordable || submittable; } }, "submittable": function (obj) { with (obj) { return submittable; } }, "submit()": function (obj) { with (obj) { return submit(); } }, "string('submit-video')": function (obj) { with (obj) { return string('submit-video'); } }, "rerecordable": function (obj) { with (obj) { return rerecordable; } }, "rerecord()": function (obj) { with (obj) { return rerecord(); } }, "string('rerecord')": function (obj) { with (obj) { return string('rerecord'); } }/**/
@@ -40639,7 +41318,7 @@ Scoped.extend("module:Assets.playerthemes", ["browser:Info","dynamics:Parser"], 
             css: "ba-videoplayer",
             csstheme: "ba-player-elevate-theme",
             cssplayer: "ba-player",
-            tmplcontrolbar: "\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class=\"{{csstheme}}-top-block\">\n\n        <div class=\"{{csstheme}}-top-left-block\">\n            <div class=\"{{csstheme}}-time-container {{csstheme}}-left-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-top-right-block\">\n\n            <div class=\"{{csstheme}}-time-container {{csstheme}}-right-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n            </div>\n\n        </div>\n\n        <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n            <div tabindex=\"{{skipinitial ? 2 : 1}}\"\n                 ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n                 ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n                 onmouseout=\"this.blur()\"\n                 data-selector=\"progress-bar-inner\" class=\"{{csstheme}}-progressbar-inner\"\n                 ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n                 ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n                 ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n                 onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n                 onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n                 onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n                 onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n            >\n\n                <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n                <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n                    <div class=\"{{csstheme}}-progressbar-button-description\" style=\"display: none\">\n                        <div class=\"{{csstheme}}-current-stream-screen-shot\">\n                            <img src=\"\"/>\n                        </div>\n                        <div class=\"{{csstheme}}-time-container\">\n                            <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n                        </div>\n                    </div>\n                    <div class=\"{{csstheme}}-progressbar-button\"></div>\n                </div>\n            </div>\n        </div>\n\n    </div>\n\n    <div class=\"{{csstheme}}-bottom-block\">\n\n        <div class=\"{{csstheme}}-left-block\">\n\n            <div tabindex=\"0\" ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"submit-video-button\" class=\"{{csstheme}}-leftbutton-container\"\n                 ba-if=\"{{submittable}}\"  ba-click=\"{{submit()}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    {{string('submit-video')}}\n                </div>\n            </div>\n\n            <div tabindex=\"0\" ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"button-icon-ccw\" class=\"{{csstheme}}-leftbutton-container\"\n                 ba-if=\"{{rerecordable}}\" ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-ccw\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"{{skipinitial ? 0 : 2}}\" ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n                 onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n                 data-selector=\"button-icon-play\" class=\"{{csstheme}}-button-container\"\n                 ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-play\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"{{skipinitial ? 0 : 2}}\" ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n                 onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n                 data-selector=\"button-icon-pause\" class=\"{{csstheme}}-button-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n                 ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-pause\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"3\" ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"button-icon-volume\" class=\"{{csstheme}}-button-container\"\n                 ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n                </div>\n            </div>\n\n            <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n                <div tabindex=\"4\"\n                     ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n                     ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n                     onmouseout=\"this.blur()\"\n                     data-selector=\"button-volume-bar\" class=\"{{csstheme}}-volumebar-inner\"\n                     ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n                     ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n                     ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n                     onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n                     onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n                     onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n                     onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n                >\n                    <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n                </div>\n            </div>\n\n        </div>\n\n        <div class=\"{{csstheme}}-center-block\">\n            <div data-selector=\"video-title-block\" class=\"{{csstheme}}-title-block\" ba-if=\"{{title}}\">\n                <p class=\"{{csstheme}}-title\">\n                    {{title}}\n                </p>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-right-block\">\n\n            <div tabindex=\"5\" ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"button-stream-label\" class=\"{{csstheme}}-button-container\"\n                 ba-if=\"{{streams.length > 1 && currentstream}}\" ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                    <span class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">{{currentstream_label}}</span>\n                </div>\n            </div>\n\n            <div tabindex=\"6\" ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"button-airplay\" class=\"{{csstheme}}-button-container {{cssplayer}}-airplay-container\"\n                 ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\"\n            >\n                <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                    \n                    <title>Airplay</title>\n                    <desc>Airplay icon.</desc>\n                    <defs></defs>\n                    <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                        <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                    </g>\n                </svg>\n            </div>\n\n            <div data-selector=\"button-chromecast\" class=\"{{csstheme}}-button-container {{csstheme}}-cast-button-container\"\n                 ba-show=\"{{castbuttonvisble}}\">\n                <button tabindex=\"7\" class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n            </div>\n\n            <div tabindex=\"10\" data-selector=\"button-icon-settings\"\n                 ba-hotkey:space^enter=\"{{toggle_settings()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container {{cssplayer}}-settings-{{settingsoptionsvisible ? 'visible' : 'hidden'}}\"\n                 ba-if=\"{{settings}}\" ba-click=\"{{toggle_settings()}}\"\n                 title=\"{{string('settings')}}\"\n                 onkeydown=\"{{tab_index_move(domEvent)}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner  {{csstheme}}-settings-button\">\n                    <i class=\"{{csscommon}}-icon-cog\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"8\" data-selector=\"button-icon-resize-full\"\n                 ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container\"\n                 ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n            >\n                <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                    <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"9\" data-selector=\"cc-button-container\"\n                 ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n                 ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n                 class=\"{{csstheme}}-button-container  {{cssplayer}}-cc-{{tracktextvisible ? 'active' : 'inactive'}}\"\n                 title=\"{{tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n                 ba-click=\"{{toggle_tracks()}}\"\n                 onmouseover=\"{{hover_cc(true)}}\"\n                 onmouseleave=\"{{hover_cc(false)}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n                    <i class=\"{{csscommon}}-icon-subtitle\"></i>\n                </div>\n            </div>\n\n        </div>\n\n    </div>\n</div>\n",
+            tmplcontrolbar: "\n<div class=\"{{csstheme}}-dashboard {{activitydelta > hidebarafter && hideoninactivity ? (cssplayer + '-dashboard-hidden') : ''}}\">\n\n    <div class=\"{{csstheme}}-top-block\">\n\n        <div class=\"{{csstheme}}-top-left-block\">\n            <div class=\"{{csstheme}}-time-container {{csstheme}}-left-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-top-right-block\">\n\n            <div class=\"{{csstheme}}-time-container {{csstheme}}-right-time-container\">\n                <div class=\"{{csstheme}}-time-value\" title=\"{{string('total-time')}}\">{{formatTime(duration || position)}}</div>\n            </div>\n\n        </div>\n\n        <div class=\"{{csstheme}}-progressbar {{disableseeking ? cssplayer + '-disabled' : ''}}\">\n            <div tabindex=\"{{skipinitial ? 2 : 1}}\"\n                 ba-hotkey:right=\"{{seek(position + skipseconds)}}\"\n                 ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n                 onmouseout=\"this.blur()\"\n                 data-selector=\"progress-bar-inner\" class=\"{{csstheme}}-progressbar-inner\"\n                 ontouchstart=\"{{startUpdatePosition(domEvent)}}\"\n                 ontouchmove=\"{{progressUpdatePosition(domEvent)}}\"\n                 ontouchend=\"{{stopUpdatePosition(domEvent); this.blur()}}\"\n                 onmousedown=\"{{startUpdatePosition(domEvent)}}\"\n                 onmouseup=\"{{stopUpdatePosition(domEvent)}}\"\n                 onmouseleave=\"{{stopUpdatePosition(domEvent)}}\"\n                 onmousemove=\"{{progressUpdatePosition(domEvent)}}\"\n            >\n\n                <div class=\"{{csstheme}}-progressbar-cache\" ba-styles=\"{{{width: Math.round(duration ? cached / duration * 100 : 0) + '%'}}}\"></div>\n                <div class=\"{{csstheme}}-progressbar-position\" ba-styles=\"{{{width: Math.round(duration ? position / duration * 100 : 0) + '%'}}}\" title=\"{{string('video-progress')}}\">\n                    <div class=\"{{csstheme}}-progressbar-button-description\" style=\"display: none\">\n                        <div class=\"{{csstheme}}-current-stream-screen-shot\">\n                            <img src=\"\"/>\n                        </div>\n                        <div class=\"{{csstheme}}-time-container\">\n                            <div class=\"{{csstheme}}-time-value\" title=\"{{string('elapsed-time')}}\">{{formatTime(position)}}</div>\n                        </div>\n                    </div>\n                    <div class=\"{{csstheme}}-progressbar-button\"></div>\n                </div>\n            </div>\n        </div>\n\n    </div>\n\n    <div class=\"{{csstheme}}-bottom-block\">\n\n        <div class=\"{{csstheme}}-left-block\">\n\n            <div tabindex=\"0\" ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"submit-video-button\" class=\"{{csstheme}}-leftbutton-container\"\n                 ba-if=\"{{submittable}}\"  ba-click=\"{{submit()}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    {{string('submit-video')}}\n                </div>\n            </div>\n\n            <div tabindex=\"0\" ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"button-icon-ccw\" class=\"{{csstheme}}-leftbutton-container\"\n                 ba-if=\"{{rerecordable}}\" ba-click=\"{{rerecord()}}\" title=\"{{string('rerecord-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-ccw\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"{{skipinitial ? 0 : 2}}\" ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n                 onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-pause')}}\"\n                 data-selector=\"button-icon-play\" class=\"{{csstheme}}-button-container\"\n                 ba-if=\"{{!playing}}\" ba-click=\"{{play()}}\" title=\"{{string('play-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-play\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"{{skipinitial ? 0 : 2}}\" ba-hotkey:space^enter=\"{{pause()}}\" onmouseout=\"this.blur()\"\n                 onkeydown=\"{{tab_index_move(domEvent, null, 'button-icon-play')}}\"\n                 data-selector=\"button-icon-pause\" class=\"{{csstheme}}-button-container {{disablepause ? cssplayer + '-disabled' : ''}}\"\n                 ba-if=\"{{playing}}\" ba-click=\"{{pause()}}\" title=\"{{disablepause ? string('pause-video-disabled') : string('pause-video')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon}}-icon-pause\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"3\" ba-hotkey:space^enter=\"{{toggle_volume()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"button-icon-volume\" class=\"{{csstheme}}-button-container\"\n                 ba-click=\"{{toggle_volume()}}\" title=\"{{string(volume > 0 ? 'volume-mute' : 'volume-unmute')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner\">\n                    <i class=\"{{csscommon + '-icon-volume-' + (volume >= 0.5 ? 'up' : (volume > 0 ? 'down' : 'off')) }}\"></i>\n                </div>\n            </div>\n\n            <div class=\"{{csstheme}}-volumebar\" ba-show=\"{{!hidevolumebar}}\">\n                <div tabindex=\"4\"\n                     ba-hotkey:right=\"{{set_volume(volume + 0.1)}}\"\n                     ba-hotkey:left=\"{{set_volume(volume - 0.1)}}\"\n                     onmouseout=\"this.blur()\"\n                     data-selector=\"button-volume-bar\" class=\"{{csstheme}}-volumebar-inner\"\n                     ontouchstart=\"{{startUpdateVolume(domEvent)}}\"\n                     ontouchmove=\"{{progressUpdateVolume(domEvent)}}\"\n                     ontouchend=\"{{stopUpdateVolume(domEvent); this.blur()}};\"\n                     onmousedown=\"{{startUpdateVolume(domEvent)}}\"\n                     onmouseup=\"{{stopUpdateVolume(domEvent)}}\"\n                     onmouseleave=\"{{stopUpdateVolume(domEvent)}}\"\n                     onmousemove=\"{{progressUpdateVolume(domEvent)}}\"\n                >\n                    <div class=\"{{csstheme}}-volumebar-position\" ba-styles=\"{{{width: Math.ceil(1+Math.min(99, Math.round(volume * 100))) + '%'}}}\" title=\"{{string('volume-button')}}\"></div>\n                </div>\n            </div>\n\n        </div>\n\n        <div class=\"{{csstheme}}-center-block\">\n            <div data-selector=\"video-title-block\" class=\"{{csstheme}}-title-block\" ba-if=\"{{title}}\">\n                <p class=\"{{csstheme}}-title\">\n                    {{title}}\n                </p>\n            </div>\n        </div>\n\n        <div class=\"{{csstheme}}-right-block\">\n\n            <div tabindex=\"5\" ba-hotkey:space^enter=\"{{toggle_stream()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"button-stream-label\" class=\"{{csstheme}}-button-container\"\n                 ba-if=\"{{streams.length > 1 && currentstream}}\" ba-click=\"{{toggle_stream()}}\" title=\"{{string('change-resolution')}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner {{csstheme}}-stream-label-container\">\n                    <span class=\"{{csstheme}}-button-text {{csstheme}}-stream-label\">{{currentstream_label}}</span>\n                </div>\n            </div>\n\n            <div tabindex=\"6\" ba-hotkey:space^enter=\"{{show_airplay_devices()}}\" onmouseout=\"this.blur()\"\n                 data-selector=\"button-airplay\" class=\"{{csstheme}}-button-container {{cssplayer}}-airplay-container\"\n                 ba-show=\"{{airplaybuttonvisible}}\" ba-click=\"{{show_airplay_devices()}}\"\n            >\n                <svg width=\"16px\" height=\"11px\" viewBox=\"0 0 16 11\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n                    \n                    <title>Airplay</title>\n                    <desc>Airplay icon.</desc>\n                    <defs></defs>\n                    <g stroke=\"none\" stroke-width=\"1\" fill-rule=\"evenodd\" sketch:type=\"MSPage\">\n                        <path d=\"M4,11 L12,11 L8,7 L4,11 Z M14.5454545,0 L1.45454545,0 C0.654545455,0 0,0.5625 0,1.25 L0,8.75 C0,9.4375 0.654545455,10 1.45454545,10 L4.36363636,10 L4.36363636,8.75 L1.45454545,8.75 L1.45454545,1.25 L14.5454545,1.25 L14.5454545,8.75 L11.6363636,8.75 L11.6363636,10 L14.5454545,10 C15.3454545,10 16,9.4375 16,8.75 L16,1.25 C16,0.5625 15.3454545,0 14.5454545,0 L14.5454545,0 Z\" sketch:type=\"MSShapeGroup\"></path>\n                    </g>\n                </svg>\n            </div>\n\n            <div data-selector=\"button-chromecast\" class=\"{{csstheme}}-button-container {{csstheme}}-cast-button-container\"\n                 ba-show=\"{{castbuttonvisble}}\">\n                <button tabindex=\"7\" class=\"{{csstheme}}-gcast-button\" is=\"google-cast-button\"></button>\n            </div>\n\n            <div tabindex=\"8\" data-selector=\"button-icon-settings\"\n                 ba-hotkey:space^enter=\"{{toggle_settings_menu()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container {{cssplayer}}-button-{{settingsmenuactive ? 'active' : 'inactive'}}\"\n                 ba-if=\"{{settingsmenubutton}}\" ba-click=\"{{toggle_settings_menu()}}\"\n                 title=\"{{string('settings')}}\"\n                 onkeydown=\"{{tab_index_move(domEvent)}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner  {{csstheme}}-settings-button\">\n                    <i class=\"{{csscommon}}-icon-cog\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"9\" data-selector=\"button-icon-resize-full\"\n                 ba-hotkey:space^enter=\"{{toggle_fullscreen()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{csstheme}}-button-container  {{cssplayer}}-button-{{fullscreened ? 'active' : 'inactive'}}\"\n                 ba-if=\"{{fullscreen}}\" ba-click=\"{{toggle_fullscreen()}}\" title=\"{{ fullscreened ? string('exit-fullscreen-video') : string('fullscreen-video') }}\"\n            >\n                <div class=\"{{csstheme}}-button-inner {{csstheme}}-full-screen-btn-inner\">\n                    <i class=\"{{csscommon}}-icon-resize-{{fullscreened ? 'small' : 'full'}}\"></i>\n                </div>\n            </div>\n\n            <div tabindex=\"10\" data-selector=\"cc-button-container\"\n                 ba-hotkey:space^enter=\"{{toggle_tracks()}}\" onmouseout=\"this.blur()\"\n                 ba-if=\"{{(tracktags.length > 0 && showsubtitlebutton) || allowtexttrackupload}}\"\n                 class=\"{{csstheme}}-button-container  {{cssplayer}}-button-{{tracktextvisible ? 'active' : 'inactive'}}\"\n                 title=\"{{tracktextvisible ? string('close-tracks') : string('show-tracks')}}\"\n                 ba-click=\"{{toggle_tracks()}}\"\n                 onmouseover=\"{{hover_cc(true)}}\"\n                 onmouseleave=\"{{hover_cc(false)}}\"\n            >\n                <div class=\"{{csstheme}}-button-inner {{csstheme}}-subtitle-button-inner\">\n                    <i class=\"{{csscommon}}-icon-subtitle\"></i>\n                </div>\n            </div>\n\n        </div>\n\n    </div>\n</div>\n",
             tmplplaybutton: "\n<div tabindex=\"0\" data-selector=\"play-button\"\n     ba-hotkey:space^enter=\"{{play()}}\" onmouseout=\"this.blur()\"\n     onkeydown=\"{{tab_index_move(domEvent, null, 'player-toggle-overlay')}}\"\n     class=\"{{cssplayer}}-playbutton-container\" ba-click=\"{{play()}}\" title=\"{{string('tooltip')}}\"\n>\n\t<div class=\"{{cssplayer}}-playbutton-button\"></div>\n</div>\n<div ba-show=\"{{showduration && (duration != 0 && duration != undefined)}}\" class=\"{{css}}-playbutton-duration\">\n    {{formatTime(duration)}}\n</div>\n\n<div class=\"{{cssplayer}}-rerecord-bar\" ba-if=\"{{rerecordable || submittable}}\">\n\t<div class=\"{{cssplayer}}-rerecord-backbar\"></div>\n\t<div class=\"{{cssplayer}}-rerecord-frontbar\">\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{submittable}}\">\n            <div tabindex=\"0\" data-selector=\"player-submit-button\"\n                 ba-hotkey:space^enter=\"{{submit()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{submit()}}\">\n                {{string('submit-video')}}\n            </div>\n        </div>\n        <div class=\"{{cssplayer}}-rerecord-button-container\" ba-if=\"{{rerecordable}}\">\n        \t<div tabindex=\"0\" data-selector=\"player-rerecord-button\"\n                 ba-hotkey:space^enter=\"{{rerecord()}}\" onmouseout=\"this.blur()\"\n                 class=\"{{cssplayer}}-rerecord-button\" onclick=\"{{rerecord()}}\">\n        \t\t{{string('rerecord')}}\n        \t</div>\n        </div>\n\t</div>\n</div>\n",
             cssloader: ie8 ? "ba-videoplayer" : "",
             cssmessage: "ba-videoplayer",
