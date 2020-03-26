@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.35.7 - 2020-03-08
+ziggeo-client-sdk - v2.35.8 - 2020-03-26
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2373,8 +2373,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.204",
-    "datetime": 1583520127669
+    "version": "1.0.205",
+    "datetime": 1584760438226
 };
 });
 
@@ -3700,6 +3700,14 @@ Scoped.define("module:Objs", ["module:Types","module:Functions"], function(Types
             for (var key2 in obj2)
                 if (!(key2 in obj1))
                     result[key2] = obj2[key2];
+            return result;
+        },
+
+        indexizeArray: function(arr, keyName) {
+            var result = {};
+            arr.forEach(function(value) {
+                result[value[keyName]] = value;
+            });
             return result;
         }
 
@@ -16546,8 +16554,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.150",
-    "datetime": 1581719589515
+    "version": "0.0.152",
+    "datetime": 1584463153684
 };
 });
 
@@ -21590,9 +21598,11 @@ Scoped.define("module:Recorder.Support", ["module:WebRTC.Support","browser:Uploa
 
             if (_rotationRequired && this.__detectVerticalSquash(video, canvas.width, canvas.height) !== 1) {
                 this.__rotateToPortrait(video, canvas, context);
-            } else if (_isWebKit && orientation === 'portrait') {
-                context.drawImage(video, 0, -canvas.width, canvas.height, canvas.width);
-            } else {
+            }
+            // Seems Safari Was fixed Canvas draw related bug which were existed before
+            // else if (_isWebKit && orientation === 'portrait') {
+            //     context.drawImage(video, 0, -canvas.width, canvas.height, canvas.width); }
+            else {
                 context.drawImage(video, x, y, canvas.width, canvas.height);
             }
 
@@ -24764,7 +24774,12 @@ Scoped.define("module:Parser", ["base:Types","base:Objs","base:JavaScript"], fun
                 var bidirectional = false;
                 var html = false;
                 var noentities = false;
+                var hidden = false;
                 var c = code;
+                if (c.charAt(0) === "?") {
+                    hidden = true;
+                    c = c.substring(1);
+                }
                 if (c.charAt(0) === "=") {
                     bidirectional = true;
                     c = c.substring(1);
@@ -24783,6 +24798,7 @@ Scoped.define("module:Parser", ["base:Types","base:Objs","base:JavaScript"], fun
                 }
                 result = {
                     bidirectional: bidirectional,
+                    hidden: hidden,
                     html: html,
                     noentities: noentities,
                     args: args,
@@ -25302,8 +25318,8 @@ Scoped.define("module:Handlers.Attr", ["base:Class","module:Exceptions.TagHandle
                         if (result === null && this._attrName === "class")
                             result = "";
 
-
-                        this._attribute.value = result;
+                        if (!this._dyn.hidden)
+                            this._attribute.value = result;
                     }
 
                     if (this._partial)
@@ -27134,8 +27150,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.215",
-    "datetime": 1583628493267
+    "version": "0.0.216",
+    "datetime": 1584463466886
 };
 });
 
@@ -32119,7 +32135,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         }
                     }
 
-                    // If both set to true, then normal stretch is enought
+                    // If both set to true, then normal stretch is enough
                     if (this.get("stretchwidth") && this.get("stretchheight")) {
                         this.set("stretch", true);
                         this.set("stretchheight", false);
@@ -33053,6 +33069,14 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     return width / height;
                 },
 
+                isPortrait: function() {
+                    return this.aspectRatio() < 1.00;
+                },
+
+                isLandscape: function() {
+                    return !this.isPortrait();
+                },
+
                 parentWidth: function() {
                     return Dom.elementDimensions(this.activeElement().parentElement).width;
                 },
@@ -33565,24 +33589,40 @@ Scoped.define("module:VideoRecorder.Dynamics.Imagegallery", ["dynamics:Dynamic",
                     if (!this.parent().recorder && this.parent().snapshots.length < 1)
                         return;
                     // Will fix portrait covershot bug, will not show stretched box
-                    var _maxHeight;
-                    if (this.parent().get('videometadata').ratio) {
-                        _maxHeight = Math.floor(this.get("imagewidth") / this.parent().get('videometadata').ratio);
+                    var _maxHeight,
+                        _reduceWidth = false,
+                        _reduceInPercentage = 0.75,
+                        _ratio = this.parent().get('videometadata').ratio;
+
+                    if (!_ratio && typeof this.parent().recorder._recorder !== "undefined") {
+                        if (typeof this.parent().recorder._recorder._videoTrackSettings !== "undefined") {
+                            _ratio = this.parent().recorder._recorder._videoTrackSettings.aspectRatio;
+                        }
+                    }
+                    if (_ratio) {
+                        _maxHeight = Math.floor(this.get("imagewidth") / _ratio);
                         if (this.get("containerheight") < _maxHeight && _maxHeight > 0.00) {
-                            _maxHeight = Math.floor(this.get("containerheight") * 0.9);
+                            _reduceWidth = true;
+                            _maxHeight = Math.floor(this.get("containerheight") * _reduceInPercentage);
                         }
                     }
                     var i = image.get("index");
                     var ih = _maxHeight || this.get("imageheight");
-                    var iw = this.get("imagewidth");
+                    var iw = _reduceWidth ? this.get("imagewidth") * _reduceInPercentage : this.get("imagewidth");
                     var id = this.get("imagedelta");
                     var h = this.get("containerheight");
                     if (ih > 1.00) {
                         // If images count is 1
                         if (this.get("images").count() === 1) {
-                            iw *= 0.45;
-                            ih *= 0.45;
+                            if (_ratio > 1.00) {
+                                iw *= 0.45;
+                                ih *= 0.45;
+                            } else
+                                iw *= 0.45;
                         }
+                        if (this.get("images").count() === 2 && _ratio < 1.00)
+                            iw *= 0.70;
+
                         image.set("left", 1 + Math.round(i * (iw + id)));
                         image.set("top", 1 + Math.round((h - ih) / 2));
                         image.set("width", 1 + Math.round(iw));
@@ -35301,7 +35341,6 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     this._initSettings();
 
                     if (this.get("onlyaudio")) {
-                        this.set("picksnapshots", false);
                         this.set("allowupload", false);
                         this.set("orientation", false);
                     }
@@ -36007,6 +36046,12 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                 },
 
                 isPortrait: function() {
+                    if (typeof this.recorder !== "undefined") {
+                        if (typeof this.recorder._recorder._videoTrackSettings !== "undefined") {
+                            return this.recorder._recorder._videoTrackSettings.aspectRatio < 1.0;
+                        }
+                    }
+
                     return this.aspectRatio() < 1.00;
                 },
 
