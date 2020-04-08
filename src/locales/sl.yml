@@ -1,0 +1,26 @@
+'language:sl':
+  application.error_503: Naša storitev je v vzdrževanju. Kmalu se vrnemo.
+  application.error_404: >-
+    Ne moremo prepoznati vašega API ključa. Prosimo, navedite ga v glavi vašega spletnega mesta.
+  application.error_401: Do te aplikacije ne morete dostopati s te spletne strani.
+  application.error_412: Račun morate potrditi / nadgraditi.
+  application.error_unknown: >-
+    Prišlo je do neznane napake. Naš tim je o težavi obveščen in jo bo odpravil.
+  ziggeoaudioplayer.audio-not-found: Navedene zvočne datotete nismo našli.
+  ziggeoaudioplayer.audio-access-forbidden: Do te zvočne datoteke nimate dostopa.
+  ziggeoaudioplayer.audio-unknown-error: Trenutno ne moremo dostopati do zvočne datoteke. Prosimo, poskusite kasneje.
+  ziggeoaudioplayer.audio-rejected: Zvok je bil zavrnjen.
+  ziggeoaudioplayer.audio-processing: Zvok je v obdelavi - ostanite z nami.
+  ziggeoaudioplayer.audio-access-error: Zvok je v obdelavi. Klikni za ponovni poskus.
+  ziggeoimageviewer.image-not-found: Navedene slikovne datoteke nismo našli.
+  ziggeoimageviewer.image-access-forbidden: Do te slikovne datoteke nimate dostopa.
+  ziggeoimageviewer.image-unknown-error: Trenutno ne moremo dostopati do slikovne datoteke. Prosimo, poskusite kasneje.
+  ziggeoimageviewer.image-rejected: Slika je bila zavrnjena.
+  ziggeoimageviewer.image-processing: Slika je v obdelavi - ostanite z nami.
+  ziggeoimageviewer.image-access-error: Slika je v obdelavi. Klikni za ponovni poskus.
+  ziggeoplayer.video-not-found: Navedene video datoteke nismo našli.
+  ziggeoplayer.video-access-forbidden: Do te video datoteke nimate dostopa.
+  ziggeoplayer.video-unknown-error: Trenutno ne moremo dostopati do video datoteke. Prosimo, poskusite kasneje.
+  ziggeoplayer.video-rejected: Video je bil zavrnjen.
+  ziggeoplayer.video-processing: Video je v obdelavi - ostanite z nami.
+  ziggeoplayer.video-access-error: Video je v obdelavi - ostanite z nami.
