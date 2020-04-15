@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.35.10 - 2020-04-14
+ziggeo-client-sdk - v2.35.11 - 2020-04-15
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -16569,7 +16569,7 @@ Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
     "version": "0.0.152",
-    "datetime": 1584463153684
+    "datetime": 1586967904511
 };
 });
 
@@ -21263,12 +21263,22 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                  */
                 promise = Promise.create();
                 var _self = this;
+                if (typeof options.video.resizeMode === 'undefined')
+                    options.video.resizeMode = 'none';
+                var videoOptions = {
+                    cursor: 'motion',
+                    resizeMode: options.video.resizeMode,
+                    displaySurface: 'application',
+                    logicalSurface: false
+                };
+                if (options.video.width > 0 && typeof options.video.width === 'number') {
+                    videoOptions.width = options.video.width;
+                }
+                if (options.video.height > 0 && typeof options.video.height === 'number') {
+                    videoOptions.height = options.video.height;
+                }
                 var displayMediaPromise = navigator.mediaDevices.getDisplayMedia({
-                    video: {
-                        cursor: 'motion',
-                        resizeMode: 'none',
-                        displaySurface: 'application'
-                    },
+                    video: videoOptions,
                     audio: true
                 });
                 displayMediaPromise.then(function(videoStream) {
@@ -22437,6 +22447,7 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 this._hasAudio = false;
                 this._hasVideo = false;
                 this._screen = options.screen;
+                this._resizeMode = options.resizeMode;
                 this._flip = !!options.flip;
                 if (this._screen && !options.flipscreen)
                     this._flip = false;
@@ -22458,7 +22469,8 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                         sourceId: this._options.videoId,
                         width: this._options.recordResolution.width,
                         height: this._options.recordResolution.height,
-                        cameraFaceFront: this._options.cameraFaceFront
+                        cameraFaceFront: this._options.cameraFaceFront,
+                        resizeMode: this._resizeMode
                     } : false,
                     screen: this._screen
                 };
@@ -22711,8 +22723,10 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                         this._videoTrack = stream.getVideoTracks()[0];
                         // Will fix older version Chrome Cropping
                         if (!this._options.getDisplayMediaSupported) {
+                            if (typeof this._resizeMode === 'undefined')
+                                this._resizeMode = 'none';
                             this._videoTrack.applyConstraints({
-                                resizeMode: 'none'
+                                resizeMode: this._resizeMode
                             }).then(function() {
                                 if (typeof self._videoTrack.getSettings !== 'undefined')
                                     self._videoTrackSettings = Objs.extend(sourceVideoSettings, self._videoTrackSettings);
@@ -23284,6 +23298,7 @@ Scoped.define("module:Recorder.WebRTCVideoRecorderWrapper", ["module:Recorder.Vi
                         width: this._options.recordingWidth,
                         height: this._options.recordingHeight
                     },
+                    resizeMode: this._options.resizeMode,
                     videoBitrate: this._options.videoBitrate,
                     audioBitrate: this._options.audioBitrate,
                     webrtcStreaming: this._options.webrtcStreaming,
@@ -27164,8 +27179,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.220",
-    "datetime": 1586877842815
+    "version": "0.0.221",
+    "datetime": 1586967912820
 };
 });
 
@@ -35079,6 +35094,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "allowcustomupload": true,
                     "manual-upload": false,
                     "camerafacefront": false,
+                    "resizemode": null, // enum option to scale screen recorder, has 2 options: 'crop-and-scale',  'none'
                     "createthumbnails": false,
                     "primaryrecord": true,
                     "allowscreen": false,
@@ -35411,11 +35427,21 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                 },
 
                 _videoRecorderWrapperOptions: function() {
+                    var _screen = null;
+                    var _resizeMode = this.get("resizemode");
+                    if ((this.get("allowscreen") && this.get("record_media") === "screen") || (this.get("allowmultistreams") && this.get("record_media") === "multistream")) {
+                        _screen = this.get("screen");
+                        if (!_resizeMode) {
+                            _resizeMode = 'none';
+
+                        }
+                    }
                     return {
                         simulate: this.get("simulate"),
                         forceflash: this.get("forceflash"),
                         noflash: this.get("noflash"),
                         recordVideo: !this.get("onlyaudio"),
+                        screenResizeMode: this.get("screenresizemode"),
                         recordAudio: !this.get("noaudio"),
                         recordingWidth: this.get("nativeRecordingWidth"),
                         recordingHeight: this.get("nativeRecordingHeight"),
@@ -35428,7 +35454,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                         webrtcStreamingIfNecessary: !!this.get("webrtcstreamingifnecessary"),
                         // webrtcOnMobile: !!this.get("webrtconmobile"),
                         localPlaybackRequested: this.get("localplayback"),
-                        screen: (this.get("allowscreen") && this.get("record_media") === "screen") || (this.get("allowmultistreams") && this.get("record_media") === "multistream") ? this.get("screen") : null,
+                        screen: _screen,
+                        resizeMode: _resizeMode,
                         framerate: this.get("framerate"),
                         flip: this.get("flip-camera"),
                         flipscreen: this.get("flipscreen")
@@ -41719,7 +41746,7 @@ Scoped.define("module:Config", ["private:Environment","base:Properties.Propertie
 
 Scoped.define("module:Ads", ["mediacomponents:Ads.AdSenseVideoAdProvider","mediacomponents:Ads.VastVideoAdProvider"], function(e,t){return{AdSenseVideoAdProvider:e,VastVideoAdProvider:t}});
 
-Scoped.define("module:Supplementary", ["base:Async"], function(s){return{eventInvokeCallback:function(e,t,i){try{e.apply(t,i)}catch(a){s.eventually(function(){throw a})}}}});
+Scoped.define("module:Supplementary", ["base:Async"], function(s){return{eventInvokeCallback:function(e,t,i){try{e.apply(t,i)}catch(a){s.eventually(function(){throw console.warn(a,e,t,i),a})}}}});
 
 Scoped.define("module:AudioPlayerStates.AudioProcessing", ["mediacomponents:AudioPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function(e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("audio-processing")),this.__audio=this.dyn.get("audio"),this.dyn.application.audios.watch(this.__audio,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__audioUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("audio_processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}}))},_end:function(){this.dyn.application.audios.unwatch(this.__audio,this),this.dyn.set("end-processing-time",a.now()),this.dyn._track("audio_processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
 
@@ -41801,7 +41828,7 @@ Scoped.define("module:ImageViewer", ["mediacomponents:ImageViewer.Dynamics.Image
 
 Scoped.define("module:PopupImageViewer", ["module:ImageViewer","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:Player", ["mediacomponents:VideoPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function(e,t,i,a,s,o,r,n,u,c,d,l,p,h){return e.extend({scoped:h},[p,function(e){return{attrs:{"stream-width":null,"stream-height":null,"effect-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,video:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1,"audio-transcription-as-subtitles":!1},types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool","audio-transcription-as-subtitles":"bool"},create:function(){if(this._invokeCallback=n.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),this.get("effect-profile")&&a.is_array(this.get("effect-profile"))&&this.set("effect-profile",this.get("effect-profile")[0]),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("video_status",null)},_notifications:{_activate:"_createWithApplication"},_createWithApplication:function(){if(this._obtainApplication(),this.application)if(this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")){if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(e){return this.__sourceByVideo(e)},this));var e=this.get("playlist")[0];this.set("poster",e.poster),this.set("source",e.source),this.set("video",e.token),this.on("playlist-next",function(e){this.set("video",e.token)},this)}this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setVideoSources(),this.set("ready",!0),this._track("embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this),this.set("tracktags",this.application.data.get("track_tags"))}else t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");else t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:video":function(){if(this.host){this.set("stream",null);var e=0<=this.host.state().state_name().indexOf("Error");this.__setVideoSources(),e&&this.host.next("Initial")}},paused:function(){this._track("play_pause",{media_time:this.get("position")})},playing:function(){this._track("play_playing",{media_time:this.get("position")})},ended:function(){this._track("play_end",{media_time:this.get("duration")})},seek:function(e){this._track("play_seek",{media_time:e})}},__setVideoSources:function(){this.get("video")&&this.get("application_status")&&(this.set("sharevideourl",this.application.videos.publicVideoUrl(this.get("video")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),this.application.videos.cache(this.get("video"),{auth:this.get("auth")}).callback(this.__videoUpdate,this),this.get("ready")&&this.reattachVideo())},__sourceByVideo:function(t,e){var i=this.get("video_data");i&&null!==i.title&&this.set("posteralt",i.title),i&&i.duration&&i.duration&&this.set("duration",i.duration);var a=this.get("effect-profile");i&&i.default_stream&&i.default_stream.effect_profile&&!this.get("effect-profile")&&(a=i.default_stream.effect_profile);var s=u.filter(i&&i.streams?i.streams:[],function(e){return!(e.token!==i.original_stream.token&&e.parent_stream!==i.original_stream.token||5!==e.state||3!==e.streamable||(a||e.effect_profile)&&e.effect_profile!==a)},this);if(this.get("playlist")&&(s=[],e=null),e||this.get("stream-width")||this.get("stream-height")||s.length<2){var r=e?this.application.streams:this.application.videos,n=[t];return e&&n.push(e),n.push({auth:this.get("auth"),params:{stream_width:this.get("stream-width"),stream_height:this.get("stream-height"),effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{poster:r.imageUrl.apply(r,n),source:r.videoUrl.apply(r,n),token:t}}var o=[],c=[],d={effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh"),auth:this.get("auth")};u.iter(s,function(e){o.push({src:this.application.streams.videoUrl(t,e.token,d),poster:this.application.streams.imageUrl(t,e.token,d),token:e.token}),c.push({width:e.video_width,height:e.video_height,filter:{token:e.token}})},this);var l=c[0];return{poster:null,source:null,sources:o,streams:c,currentstream:l,token:t}},__setSources:function(){this.set("uploadoptions",{textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream")||this.properties().getProp("video_data.original_stream.token"),this.get("auth"))}),this.setAll(this.__sourceByVideo(this.get("video"),this.get("stream")))},__audioTranscriptionToVTT:function(e,t,i){i=i||5;for(var a=e.length,s=0,r=["WEBVTT"];s<a;){var n=t[s].start,o=t[s].end,c=[e[s]];for(s++,j=i-1;0<j&&s<a;)o=t[s].end,c.push(e[s]),s++,j--;r.push(""),r.push(l.format("HH:MM:ss.l",n)+" --\x3e "+l.format("HH:MM:ss.l",o)),r.push(c.join(" "))}return r.join("\n")},__videoUpdate:function(e,t){if(!this.destroyed())if(e)this.set("video_status",!1),e.status_code()===o.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("video-not-found")}):e.status_code()===o.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("video-access-forbidden")}):this.state().next("FatalError",{message:this.string("video-unknown-error")});else{this.set("video_data",t);var i=[];try{var a=t.default_stream.audio_transcription||t.original_stream.audio_transcription;a&&this.get("audio-transcription-as-subtitles")&&i.push({lang:"en",kind:"subtitles",label:"Transcription",content:this.__audioTranscriptionToVTT(a.words,a.times)});var s=t.default_stream.subtitles||t.original_stream.subtitles;s&&u.iter(s,function(e,t){i.push({lang:t,kind:"subtitles",label:e.label,content:e.data})})}catch(n){}if(this.set("tracktags",i),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("video-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("video-unknown-error")});if(this.set("video_status",!0),4===t.state)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if(this.get("effect-profile")){var r=!1;if(u.iter(t.streams,function(e){e.effect_profile===this.get("effect-profile")&&4<e.state&&(r=!0)},this),!r)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if("VideoProcessing"===this.state().state_name())return this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer")}if("VideoProcessing"===this.state().state_name())return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.videos.refreshToken(this.get("video")))return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=c.now(),s=d.create();s.success(function(){this.application.analytics.track("2",e,{video_token:this.get("video_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},u.extend({embed_type:"player"},t),u.extend({duration:this.get("video_data").duration||this.get("duration"),width:this.get("stream")?this.get("stream").width:this.videoWidth(),height:this.get("stream")?this.get("stream").height:this.videoHeight(),tags:this.get("video_data").tags},i),a)},this),this.get("video_data")?s.asyncSuccess():this.once("change:video_data",function(){s.asyncSuccess()},this)}}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoplayer").register("ziggeoplayer").attachStringTable(r.mainLocale).addStrings({"video-not-found":"We could not find the specified video file.","video-access-forbidden":"You are not permitted to access this video file.","video-unknown-error":"We cannot access this video at the moment. Please try again later.","video-rejected":"The video has been rejected.","video-processing":"The video is processing - stay tuned.","video-access-error":"The video is currently under moderation. You may click to retry."})});
+Scoped.define("module:Player", ["mediacomponents:VideoPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function(e,t,i,a,s,o,r,n,u,c,d,l,p,h){return e.extend({scoped:h},[p,function(e){return{attrs:{"stream-width":null,"stream-height":null,"effect-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,video:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1,"audio-transcription-as-subtitles":!1},types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool","audio-transcription-as-subtitles":"bool"},create:function(){if(this._invokeCallback=n.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),this.get("effect-profile")&&a.is_array(this.get("effect-profile"))&&this.set("effect-profile",this.get("effect-profile")[0]),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("video_status",null)},_notifications:{_activate:"_createWithApplication"},_createWithApplication:function(){if(this._obtainApplication(),this.application)if(this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")){if(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist){this.set("playlist",this.__playlist.map(function(e){return this.__sourceByVideo(e)},this));var e=this.get("playlist")[0];this.set("poster",e.poster),this.set("source",e.source),this.set("video",e.token),this.on("playlist-next",function(e){this.set("video",e.token)},this)}this.listenOn(this.application,"ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setVideoSources(),this.set("ready",!0),this._track("embedding_loaded")},this).listenOn(this.application,"error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this),this.set("tracktags",this.application.data.get("track_tags"))}else t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false.");else t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:video":function(){if(this.host){this.set("stream",null);var e=0<=this.host.state().state_name().indexOf("Error");this.__setVideoSources(),e&&this.host.next("Initial")}},paused:function(){this._track("play_pause",{media_time:this.get("position")})},playing:function(){this._track("play_playing",{media_time:this.get("position")})},ended:function(){this._track("play_end",{media_time:this.get("duration")})},seek:function(e){this._track("play_seek",{media_time:e})}},__setVideoSources:function(){this.get("video")&&this.get("application_status")&&(this.set("sharevideourl",this.application.videos.publicVideoUrl(this.get("video")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),this.application.videos.cache(this.get("video"),{auth:this.get("auth")}).callback(this.__videoUpdate,this),this.get("ready")&&this.reattachVideo())},__sourceByVideo:function(t,e){var i=this.get("video_data");i&&null!==i.title&&this.set("posteralt",i.title),i&&i.duration&&i.duration&&this.set("duration",i.duration);var a=this.get("effect-profile");i&&i.default_stream&&i.default_stream.effect_profile&&!this.get("effect-profile")&&(a=i.default_stream.effect_profile);var s=u.filter(i&&i.streams?i.streams:[],function(e){return!(e.token!==i.original_stream.token&&e.parent_stream!==i.original_stream.token||5!==e.state||3!==e.streamable||(a||e.effect_profile)&&e.effect_profile!==a)},this);if(this.get("playlist")&&(s=[],e=null),e||this.get("stream-width")||this.get("stream-height")||s.length<2){var r=e?this.application.streams:this.application.videos,n=[t];return e&&n.push(e),n.push({auth:this.get("auth"),params:{stream_width:this.get("stream-width"),stream_height:this.get("stream-height"),effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{poster:r.imageUrl.apply(r,n),source:r.videoUrl.apply(r,n),token:t}}var o=[],c=[],d={effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh"),auth:this.get("auth")};u.iter(s,function(e){o.push({src:this.application.streams.videoUrl(t,e.token,d),poster:this.application.streams.imageUrl(t,e.token,d),token:e.token}),c.push({width:e.video_width,height:e.video_height,filter:{token:e.token}})},this);var l=c[0];return{poster:null,source:null,sources:o,streams:c,currentstream:l,token:t}},__setSources:function(){this.set("uploadoptions",{textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream")||this.properties().getProp("video_data.original_stream.token"),this.get("auth"))}),this.setAll(this.__sourceByVideo(this.get("video"),this.get("stream")))},__audioTranscriptionToVTT:function(e,t,i){i=i||5;for(var a=e.length,s=0,r=["WEBVTT"];s<a;){var n=t[s].start,o=t[s].end,c=[e[s]];for(s++,j=i-1;0<j&&s<a;)o=t[s].end,c.push(e[s]),s++,j--;r.push(""),r.push(l.format("HH:MM:ss.l",n)+" --\x3e "+l.format("HH:MM:ss.l",o)),r.push(c.join(" "))}return r.join("\n")},__videoUpdate:function(e,t){if(!this.destroyed())if(e)this.set("video_status",!1),e.status_code()===o.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("video-not-found")}):e.status_code()===o.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("video-access-forbidden")}):this.state().next("FatalError",{message:this.string("video-unknown-error")});else{this.set("video_data",t);var i=[];try{var a=t.default_stream.audio_transcription||t.original_stream.audio_transcription;a&&this.get("audio-transcription-as-subtitles")&&i.push({lang:"en",kind:"subtitles",label:"Transcription",content:this.__audioTranscriptionToVTT(a.words,a.times)});var s=t.default_stream.subtitles||t.original_stream.subtitles;s&&u.iter(s,function(e,t){i.push({lang:t,kind:"subtitles",label:e.label,content:e.data})})}catch(n){}if(this.set("tracktags",i),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("video-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("video-unknown-error")});if(this.set("video_status",!0),4===t.state)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if(this.get("effect-profile")){var r=!1;if(u.iter(t.streams,function(e){e.effect_profile===this.get("effect-profile")&&4<e.state&&(r=!0)},this),!r)return void("VideoProcessing"!==this.state().state_name()&&this.state().next("VideoProcessing"));if("VideoProcessing"===this.state().state_name())return this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer")}if("VideoProcessing"===this.state().state_name())return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.videos.refreshToken(this.get("video")))return this.set("refresh_token",this.application.videos.refreshToken(this.get("video"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){if(this.application){var a=c.now(),s=d.create();s.success(function(){this.application.analytics.track("2",e,{video_token:this.get("video_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},u.extend({embed_type:"player"},t),u.extend({duration:this.get("video_data").duration||this.get("duration"),width:this.get("stream")?this.get("stream").width:this.videoWidth(),height:this.get("stream")?this.get("stream").height:this.videoHeight(),tags:this.get("video_data").tags},i),a)},this),this.get("video_data")?s.asyncSuccess():this.once("change:video_data",function(){s.asyncSuccess()},this)}}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoplayer").register("ziggeoplayer").attachStringTable(r.mainLocale).addStrings({"video-not-found":"We could not find the specified video file.","video-access-forbidden":"You are not permitted to access this video file.","video-unknown-error":"We cannot access this video at the moment. Please try again later.","video-rejected":"The video has been rejected.","video-processing":"The video is processing - stay tuned.","video-access-error":"The video is currently under moderation. You may click to retry."})});
 
 Scoped.define("module:PopupPlayer", ["module:Player","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
