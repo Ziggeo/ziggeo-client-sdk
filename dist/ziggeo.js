@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.35.11 - 2020-04-15
+ziggeo-client-sdk - v2.35.12 - 2020-04-19
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -16568,8 +16568,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.152",
-    "datetime": 1586967904511
+    "version": "0.0.155",
+    "datetime": 1587311838735
 };
 });
 
@@ -21268,14 +21268,13 @@ Scoped.define("module:WebRTC.Support", ["base:Promise","base:Objs","browser:Info
                 var videoOptions = {
                     cursor: 'motion',
                     resizeMode: options.video.resizeMode,
-                    displaySurface: 'application',
-                    logicalSurface: false
+                    displaySurface: 'application'
                 };
-                if (options.video.width > 0 && typeof options.video.width === 'number') {
-                    videoOptions.width = options.video.width;
+                if (parseInt(options.video.width, 10) > 0) {
+                    videoOptions.width = parseInt(options.video.width, 10);
                 }
-                if (options.video.height > 0 && typeof options.video.height === 'number') {
-                    videoOptions.height = options.video.height;
+                if (parseInt(options.video.height, 10) > 0) {
+                    videoOptions.height = parseInt(options.video.height, 10);
                 }
                 var displayMediaPromise = navigator.mediaDevices.getDisplayMedia({
                     video: videoOptions,
@@ -22737,35 +22736,8 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                                 if (typeof this._videoTrackSettings.videoInnerFrame === 'undefined')
                                     this._videoTrackSettings = Objs.extend(sourceVideoSettings, this._videoTrackSettings);
 
-                                this._video.onloadedmetadata = function(v) {
-                                    var _videoElement = v.target;
-                                    var _lookedWidth, _lookedHeight, _slippedWidth, _slippedHeight;
-                                    var _asR = sourceVideoSettings.aspectRatio || (sourceVideoSettings.width / sourceVideoSettings.height);
-                                    if (!isNaN(_asR)) {
-                                        var _maxWidth = _videoElement.offsetWidth;
-                                        var _maxHeight = _videoElement.offsetHeight;
-                                        // FireFox don't calculates aspectRatio like Chrome does
-                                        _lookedWidth = _maxWidth <= _maxHeight * _asR ? _maxWidth : Math.round(_maxHeight * _asR);
-                                        _lookedHeight = _maxWidth > _maxHeight * _asR ? _maxHeight : Math.round(_maxWidth / _asR);
-
-                                        _slippedWidth = sourceVideoSettings.width > _lookedWidth ? sourceVideoSettings.width / _lookedWidth : _lookedWidth / sourceVideoSettings.width;
-                                        _slippedHeight = sourceVideoSettings.height > _lookedHeight ? sourceVideoSettings.height / _lookedHeight : _lookedHeight / sourceVideoSettings.height;
-
-                                        self._videoTrackSettings = Objs.extend(sourceVideoSettings, {
-                                            videoElement: {
-                                                width: _maxWidth,
-                                                height: _maxHeight
-                                            },
-                                            videoInnerFrame: {
-                                                width: _lookedWidth,
-                                                height: _lookedHeight
-                                            },
-                                            slippedFromOrigin: {
-                                                width: _slippedWidth,
-                                                height: _slippedHeight
-                                            }
-                                        });
-                                    }
+                                this._video.onloadedmetadata = function(ev) {
+                                    self.__calculateVideoTrackSettings(sourceVideoSettings, ev.target);
                                 };
                             }
                         }
@@ -22777,6 +22749,44 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                         if (typeof this._audioTrack.getSettings() !== 'undefined')
                             this._audioTrackSettings = this._audioTrack.getSettings();
                     }
+                }
+            },
+
+
+            /**
+             * Calculate Video Element Settings Settings
+             * @param {MediaTrackSettings} sourceVideoSettings
+             * @param {HTMLVideoElement=} videoElement
+             * @private
+             */
+            __calculateVideoTrackSettings: function(sourceVideoSettings, videoElement) {
+                videoElement = videoElement || this._video;
+                var _lookedWidth, _lookedHeight, _slippedWidth, _slippedHeight;
+                var _asR = sourceVideoSettings.aspectRatio || (sourceVideoSettings.width / sourceVideoSettings.height);
+                if (!isNaN(_asR)) {
+                    var _maxWidth = videoElement.offsetWidth;
+                    var _maxHeight = videoElement.offsetHeight;
+                    // FireFox don't calculates aspectRatio like Chrome does
+                    _lookedWidth = _maxWidth <= _maxHeight * _asR ? _maxWidth : Math.round(_maxHeight * _asR);
+                    _lookedHeight = _maxWidth > _maxHeight * _asR ? _maxHeight : Math.round(_maxWidth / _asR);
+
+                    _slippedWidth = sourceVideoSettings.width > _lookedWidth ? sourceVideoSettings.width / _lookedWidth : _lookedWidth / sourceVideoSettings.width;
+                    _slippedHeight = sourceVideoSettings.height > _lookedHeight ? sourceVideoSettings.height / _lookedHeight : _lookedHeight / sourceVideoSettings.height;
+
+                    this._videoTrackSettings = Objs.extend(sourceVideoSettings, {
+                        videoElement: {
+                            width: _maxWidth,
+                            height: _maxHeight
+                        },
+                        videoInnerFrame: {
+                            width: _lookedWidth,
+                            height: _lookedHeight
+                        },
+                        slippedFromOrigin: {
+                            width: _slippedWidth,
+                            height: _slippedHeight
+                        }
+                    });
                 }
             },
 
@@ -22803,6 +22813,15 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                     }, this);
                     if ((this._videoElements.length + this._audioInputs.length) === _tracks.length) {
                         try {
+                            var streamSettings = stream.getVideoTracks()[0].getSettings();
+                            if (streamSettings.aspectRatio) {
+                                if (Math.abs(streamSettings.aspectRatio - this._videoTrackSettings.aspectRatio) > 0.1) {
+                                    this._videoTrackSettings.aspectRato = streamSettings.aspectRatio;
+                                    this.__calculateVideoTrackSettings(streamSettings);
+                                    this.__multiStreamCanvas.setAttribute('width', streamSettings.width);
+                                    this.__multiStreamCanvas.setAttribute('height', streamSettings.height);
+                                }
+                            }
                             this._drawingStream = true;
                             this._drawTracksToCanvas();
                             this._startMultiStreaming();
@@ -26454,7 +26473,9 @@ Scoped.define("module:Partials.RepeatPartial", ["module:Handlers.Partial","base:
                     this.__dynOpts = Parser.parseCode(args[0].trim());
                 args = args[args.length - 1];
                 args = args.split("~");
-                this.__repeatArg = args[0].trim();
+                var repArgs = args[0].trim().split(".");
+                this.__repeatArg = repArgs[0];
+                this.__indexArg = repArgs[1];
                 this._destroyCollection = false;
                 this._releaseValueCollection = false;
                 if (args.length > 1) {
@@ -26504,6 +26525,8 @@ Scoped.define("module:Partials.RepeatPartial", ["module:Handlers.Partial","base:
                 var self = this;
                 return this._node.mesh().execute(filter.dependencies, function(obj) {
                     obj[self.__repeatArg] = self._isArray ? prop.get("value") : prop.data();
+                    if (self.__indexArg)
+                        obj[self.__indexArg] = self._collection.getIndex(prop);
                     return filter.func.call(this, obj);
                 }, true);
             },
@@ -26575,6 +26598,8 @@ Scoped.define("module:Partials.RepeatPartial", ["module:Handlers.Partial","base:
                 var locals = {};
                 if (this.__repeatArg)
                     locals[this.__repeatArg] = this._isArray ? item.get("value") : item;
+                if (this.__indexArg)
+                    locals[this.__indexArg] = this._collection.getIndex(item);
                 var result = [];
                 var elements = this._newItemElements();
                 elements.forEach(function(element) {
