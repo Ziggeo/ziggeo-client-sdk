@@ -1,12 +1,12 @@
 'language:fi':
-  application.error_503: Pidämme palvelumme. Videoita pian takaisin.
-  application.error_404: Emme voi tunnista api avain. Muista määrittää sen sivuston otsikon.
-  application.error_401: Sinulla ei ole oikeutta käyttää sovelluksen tästä sivustosta.
-  application.error_412: Sinun täytyy vahvistaa / päivittää tilin.
-  application.error_unknown: Tuntematon virhe. Tiimimme on tehty ilmoitus ja ratkaisee ongelman.
-  ziggeoplayer.video-not-found: Emme löytäneet määritetyn videotiedoston.
-  ziggeoplayer.video-access-forbidden: Sinulla ei ole oikeutta käyttää tätä videotiedoston.
+  application.error_503: Huoltokatkos. Yritä kohta uudestaan.
+  application.error_404: Emme tunnista API-avainta. Muista lisätä se sivuston otsikkoscriptiin.
+  application.error_401: Sinulla ei ole oikeutta käyttää sovellusta tältä sivustolta.
+  application.error_412: Sinun täytyy vahvistaa / päivittää tili.
+  application.error_unknown: Tuntematon virhe. Tiimillemme on tehty ilmoitus ja he aloittavat ratkaisemaan ongelmaa.
+  ziggeoplayer.video-not-found: Emme löytäneet määritettyä videotiedostoa.
+  ziggeoplayer.video-access-forbidden: Sinulla ei ole oikeutta käyttää tätä videotiedostoa.
   ziggeoplayer.video-unknown-error: Emme voi käyttää tätä videota tällä hetkellä. Yritä uudelleen myöhemmin.
   ziggeoplayer.video-rejected: Video on hylätty.
-  ziggeoplayer.video-processing: Videota käsitellään - pysy kuulolla.
-  ziggeoplayer.video-access-error: Video on parhaillaan maltillisesti. Voit yritä uudelleen klikkaamalla.
+  ziggeoplayer.video-processing: Videota käsitellään - odota sulkematta.
+  ziggeoplayer.video-access-error: Video on moderoitavana. Voit yrittää uudelleen klikkaamalla.
