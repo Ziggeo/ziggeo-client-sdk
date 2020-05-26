@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.35.16 - 2020-05-25
+ziggeo-client-sdk - v2.35.17 - 2020-05-26
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -27537,8 +27537,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.226",
-    "datetime": 1590423749402
+    "version": "0.0.227",
+    "datetime": 1590516702714
 };
 });
 
@@ -32511,6 +32511,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     if (this.get("fullscreenmandatory")) {
                         if (!(document.fullscreenEnabled || document.mozFullscreenEnabled ||
                                 document.webkitFullscreenEnabled || document.msFullscreenEnabled)) {
+                            this.set("skipinitial", true);
                             this.set("showbuiltincontroller", true);
                         }
                     }
@@ -34727,6 +34728,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareChec
             this.dyn.set("rerecordvisible", false);
             this.dyn.set("stopvisible", false);
             this.dyn.set("skipvisible", false);
+            this.dyn.set("uploadcovershotvisible", false);
             this.dyn.set("controlbarlabel", "");
             this.dyn.set("loaderlabel", "");
             this.listenOn(this.dyn, "error", function(s) {
@@ -34768,6 +34770,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareWait
             this.dyn.set("rerecordvisible", false);
             this.dyn.set("stopvisible", false);
             this.dyn.set("skipvisible", false);
+            this.dyn.set("uploadcovershotvisible", false);
             this.dyn.set("controlbarlabel", "");
             this.dyn.set("loaderlabel", "");
             this.dyn.set("message", this.dyn.string("software-waiting"));
@@ -34801,6 +34804,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraAccess", ["mod
             this.dyn.set("rerecordvisible", false);
             this.dyn.set("stopvisible", false);
             this.dyn.set("skipvisible", false);
+            this.dyn.set("uploadcovershotvisible", false);
             this.dyn.set("controlbarlabel", "");
             this.dyn.set("loaderlabel", "");
             this.listenOn(this.dyn, "bound", function() {
@@ -34878,6 +34882,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraHasAccess", ["
             this.dyn.set("rerecordvisible", false);
             this.dyn.set("stopvisible", false);
             this.dyn.set("skipvisible", false);
+            this.dyn.set("uploadcovershotvisible", false);
             this.dyn.set("controlbarlabel", "");
             this.dyn.set("isrecorderready", true);
             if (this.dyn.get("autorecord"))
@@ -34991,6 +34996,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module
             this.dyn.set("recordvisible", false);
             this.dyn.set("stopvisible", true);
             this.dyn.set("skipvisible", false);
+            this.dyn.set("uploadcovershotvisible", false);
             this._startTime = Time.now();
             this._stopping = false;
             this._timer = this.auto_destroy(new Timer({
