@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.35.17 - 2020-05-26
+ziggeo-client-sdk - v2.35.18 - 2020-05-28
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2374,7 +2374,7 @@ Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
     "version": "1.0.207",
-    "datetime": 1586787089039
+    "datetime": 1590636108208
 };
 });
 
@@ -5073,6 +5073,16 @@ Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async
             this.__hasError = !!error;
             this.__resultPromise = null;
             this.__callbacks = [];
+        },
+
+        fromNativePromise: function(nativePromise) {
+            var promise = this.create();
+            nativePromise.then(function(value) {
+                promise.asyncSuccess(value);
+            }).catch(function(error) {
+                promise.asyncError(error);
+            });
+            return promise;
         },
 
         /**
@@ -27538,7 +27548,7 @@ Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
     "version": "0.0.227",
-    "datetime": 1590516702714
+    "datetime": 1590721305550
 };
 });
 
@@ -35126,6 +35136,10 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CovershotSelection",
         },
 
         uploadCovershot: function(file) {
+            // If passed file in HTMLInputElement get file
+            if (typeof file.files !== 'undefined')
+                if (file.files[0])
+                    file = file.files[0];
             this.dyn._uploadCovershotFile(file);
             this._nextUploading(false);
         },
