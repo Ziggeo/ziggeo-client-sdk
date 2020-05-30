@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.35.18 - 2020-05-28
+ziggeo-client-sdk - v2.35.19 - 2020-05-29
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2373,8 +2373,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.207",
-    "datetime": 1590636108208
+    "version": "1.0.208",
+    "datetime": 1590791116836
 };
 });
 
@@ -3340,7 +3340,7 @@ Scoped.define("module:Objs", ["module:Types","module:Functions"], function(Types
         splitObject: function(obj, f, ctx) {
             var x = {};
             var y = {};
-            Objs.iter(obj, function(value, key) {
+            this.iter(obj, function(value, key) {
                 if (f.apply(this, arguments))
                     x[key] = value;
                 else
@@ -5079,7 +5079,7 @@ Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async
             var promise = this.create();
             nativePromise.then(function(value) {
                 promise.asyncSuccess(value);
-            }).catch(function(error) {
+            })['catch'](function(error) {
                 promise.asyncError(error);
             });
             return promise;
@@ -16579,7 +16579,7 @@ Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
     "version": "0.0.157",
-    "datetime": 1590255906409
+    "datetime": 1590790927114
 };
 });
 
@@ -21867,7 +21867,9 @@ Scoped.define("module:WebRTC.AudioAnalyser", ["base:Class","browser:Info","modul
                 var mx = 0.0;
                 for (var i = 0; i < bufferLength; i++)
                     mx = Math.max(mx, Math.abs(dataArray[i] / 128.0));
-                return mx;
+                // Seems Firefox in Mobile not supports this testing way
+                // getByteFrequencyData && getFloatTimeDomainData also tested with no success
+                return !(Info.isMobile() && Info.isFirefox()) ? mx : mx + 0.1;
             }
 
         };

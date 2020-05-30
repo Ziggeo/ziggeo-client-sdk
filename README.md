@@ -1,4 +1,4 @@
-# Ziggeo Client SDK 2.35.18
+# Ziggeo Client SDK 2.35.19
 
 
 Ziggeo API (https://ziggeo.com) allows you to integrate video recording and playback with only
