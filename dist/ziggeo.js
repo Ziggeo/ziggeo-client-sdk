@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.35.19 - 2020-05-29
+ziggeo-client-sdk - v2.35.20 - 2020-06-11
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2374,7 +2374,7 @@ Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
     "version": "1.0.208",
-    "datetime": 1590791116836
+    "datetime": 1591146329170
 };
 });
 
@@ -16578,8 +16578,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.157",
-    "datetime": 1590790927114
+    "version": "0.0.159",
+    "datetime": 1591494698312
 };
 });
 
@@ -22519,13 +22519,16 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
             addNewSingleStream: function(device, options) {
                 this._initCanvasStreamSettings();
                 var _options, _positionX, _positionY, _height, _width, _aspectRatio, _constraints;
+                var _isTrueHeight = true;
                 _aspectRatio = this._options.video.aspectRatio;
                 _positionX = options.positionX || 0;
                 _positionY = options.positionY || 0;
                 _width = options.width || (this._options.recordResolution.width * 0.20) || 120;
                 _height = options.height;
-                if (!_height)
+                if (!_height) {
                     _height = _aspectRatio ? Math.floor(_width * _aspectRatio) : Math.floor(_width / 1.33);
+                    _isTrueHeight = false;
+                }
                 _options = {
                     frameRate: this._options.framerate,
                     sourceId: device.id,
@@ -22540,7 +22543,8 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                     positionX: _positionX,
                     positionY: _positionY,
                     width: _width,
-                    height: _height
+                    height: _height,
+                    isTrueHeight: _isTrueHeight
                 });
                 return this.addNewMediaStream();
             },
@@ -23251,26 +23255,37 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 video.volume = 0;
                 video.oncanplay = function() {
                     var s = videoTrack.getSettings();
+                    var width = this.width;
+                    var height = this.height;
+                    var aspectRatio = additionalStream ? (s.aspectRatio || (s.width / s.height)) : aspectRatio;
+                    if (typeof self.__addedStreamOptions !== 'undefined') {
+                        if (!self.__addedStreamOptions._isTrueHeight && additionalStream && aspectRatio) {
+                            height = aspectRatio > 1.00 ?
+                                (width / aspectRatio).toFixed(2) :
+                                (width * aspectRatio).toFixed(2);
+                            self.__addedStreamOptions.height = height;
+                            self.updateMultiStreamPosition();
+                        }
+                    }
                     var values = {
                         track: videoTrack,
                         isMainScreen: additionalStream,
                         settings: {
-                            videoWidth: additionalStream ? this.width : self._videoTrackSettings.videoElement.width,
-                            videoHeight: additionalStream ? this.height : self._videoTrackSettings.videoElement.height,
+                            videoWidth: additionalStream ? width : self._videoTrackSettings.videoElement.width,
+                            videoHeight: additionalStream ? height : self._videoTrackSettings.videoElement.height,
                             streamWidth: additionalStream ? s.width : self._videoTrackSettings.width,
                             streamHeight: additionalStream ? s.height : self._videoTrackSettings.height,
-                            visibleWidth: additionalStream ? (this.width / slippedFromOrigin.width) : visibleDimensions.width,
-                            visibleHeight: additionalStream ? (this.height / slippedFromOrigin.height) : visibleDimensions.height,
+                            visibleWidth: additionalStream ? (width / slippedFromOrigin.width) : visibleDimensions.width,
+                            visibleHeight: additionalStream ? (height / slippedFromOrigin.height) : visibleDimensions.height,
                             deviceId: s.deviceId,
-                            aspectRatio: additionalStream ? (s.aspectRatio || (s.width / s.height)) : aspectRatio
+                            aspectRatio: aspectRatio
                         }
                     };
 
                     if (additionalStream)
                         self.__multiStreamVideoSettings.smallStream = values;
-                    else {
+                    else
                         self.__multiStreamVideoSettings.mainStream = values;
-                    }
                     this.play();
                 };
                 return video;
@@ -27549,8 +27564,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.227",
-    "datetime": 1590721305550
+    "version": "0.0.229",
+    "datetime": 1591758409717
 };
 });
 
@@ -35073,7 +35088,8 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module
             Async.eventually(function() {
                 this.dyn._stopRecording().success(function() {
                     this._hasStopped();
-                    if (this.dyn.get("picksnapshots") && this.dyn.snapshots.length >= this.dyn.get("gallerysnapshots"))
+                    var snapshotsCount = this.dyn.snapshots.length;
+                    if (this.dyn.get("picksnapshots") && snapshotsCount >= Math.min(this.dyn.get("gallerysnapshots"), snapshotsCount))
                         this.next("CovershotSelection");
                     else if (this.dyn.get("videometadata").thumbnails.images.length > 3 && this.dyn.get("createthumbnails"))
                         this.next("UploadThumbnails");
@@ -35147,7 +35163,10 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CovershotSelection",
         },
 
         _nextUploading: function(skippedCovershot) {
-            if (this.dyn.get("videometadata").thumbnails.images.length > 3 && this.dyn.get("createthumbnails"))
+            if (skippedCovershot && this.dyn.get("selectfirstcovershotonskip") && this.dyn.snapshots)
+                if (this.dyn.snapshots[0])
+                    this.dyn._uploadCovershot(this.dyn.snapshots[0]);
+            if (!skippedCovershot && this.dyn.get("videometadata").thumbnails.images.length > 3 && this.dyn.get("createthumbnails"))
                 this.next("UploadThumbnails");
             else
                 this.next("Uploading");
@@ -35536,6 +35555,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "flipscreen": false, // Will affect as true, if flip-camera also set as true
                     "early-rerecord": false,
                     "custom-covershots": false,
+                    "selectfirstcovershotonskip": false,
                     "manualsubmit": false,
                     "allowedextensions": null,
                     "filesizelimit": null,
@@ -35685,6 +35705,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "faceoutline": "boolean",
                     "early-rerecord": "boolean",
                     "custom-covershots": "boolean",
+                    "selectfirstcovershotonskip": "boolean",
                     "manualsubmit": "boolean",
                     "simulate": "boolean",
                     "allowedextensions": "array",
@@ -36111,6 +36132,12 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     if (this.get("onlyaudio"))
                         return;
                     this._hideBackgroundSnapshot();
+                    if (this.snapshots && this.get("selectfirstcovershotonskip")) {
+                        if (this.snapshots[0])
+                            this.__backgroundSnapshot = this.snapshots[0];
+                    } else {
+                        this.__backgroundSnapshot = this.recorder.createSnapshot(this.get("snapshottype"));
+                    }
                     this.__backgroundSnapshot = this.recorder.createSnapshot(this.get("snapshottype"));
                     var el = this.activeElement().querySelector("[data-video]");
                     var dimensions = Dom.elementDimensions(el);
@@ -36144,12 +36171,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                 },
 
                 toggleFaceOutline: function(new_status) {
-                    if (new_status == undefined) {
-                        if (this.get("faceoutline") == true) {
-                            this.set("faceoutline", false);
-                        } else {
-                            this.set("faceoutline", true);
-                        }
+                    if (typeof new_status === 'undefined') {
+                        this.set("faceoutline", !this.get("faceoutline"));
                     } else {
                         this.set("faceoutline", new_status);
                     }
@@ -42241,7 +42264,7 @@ Scoped.define("module:Player", ["mediacomponents:VideoPlayer.Dynamics.Player","p
 
 Scoped.define("module:PopupPlayer", ["module:Player","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:Recorder", ["mediacomponents:VideoRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:RecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function(Recorder,Application,Device,Logger,Environment,RecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return Recorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynvideoplayer:"ziggeoplayer","effect-profile":null,"preview-effect-profile":null,"video-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,video:null,description:null,title:null,tags:null,"custom-data":null,key:null,"auto-crop":null,"auto-pad":null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"transcript-language":"en-US","input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1,chrome_extension_id:null,opera_extension_id:null,chrome_extension_install_link:null,opera_extension_install_link:null},types:{tags:"array","custom-data":"object","auto-crop":"bool","auto-pad":"bool","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","effect-profile":"array","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"mp4"),t.create.call(this),this.get("video")&&!this.get("key")&&Strings.starts_with(this.get("video"),"_")&&this.set("key",Strings.strip_start(this.get("video"),"_")),this.get("simulate")&&this.set("localplayback",!0),Types.is_string(this.get("effect-profile"))&&this.set("effect-profile",Types.parseArray(this.get("effect-profile"))),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialVideo=!!this.get("video"),this.get("video")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(t){return this.application.videos.get(this.get("video"),{auth:this.get("auth")}).mapSuccess(function(e){return e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1)),this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),t},this)},this).mapError(function(){return this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),Promise.value(!0)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.get("chrome_extension_id")&&!this.get("chrome_extension_install_link")&&this.set("chrome_extension_install_link","https://chrome.google.com/webstore/detail/"+this.get("chrome_extension_id")),this.set("screen",{chromeExtensionId:this.get("chrome_extension_id")||this.application.data.get("chrome_extension_id"),operaExtensionId:this.get("opera_extension_id")||this.application.data.get("opera_extension_id"),chromeExtensionInstallLink:this.get("chrome_extension_install_link")||this.application.data.get("chrome_extension_install_link"),operaExtensionInstallLink:this.get("opera_extension_install_link")||this.application.data.get("opera_extension_install_link")}),this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"effect-profile":this.get("preview-effect-profile"),"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),video:this.get("video"),"force-refresh":Time.now()}),this._track("embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(e,t){this.application.urls.registerRtmpConnectivityResult(e.serverUrl,t)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{video_token:this.get("video"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialVideo?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),width:this.get("recordingwidth"),height:this.get("recordingheight"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("video")&&!this.__hadInitialVideo&&this.set("video",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.video",this.get("video"));var t=this.application.streams.rtmpStreamName(this.get("video"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpRecordingUrls().map(function(e){return{serverUrl:e,streamName:t}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():undefined,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("video"),this.get("stream"),this.get("auth"))}:undefined,delay:4750,stopDelay:2750},image:this.application.streams.imageAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),video:Objs.extend({resilienceCheck:function(e){return!e||!e.duration}},this.application.streams.videoAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth"))),audio:this.application.streams.audioAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream"),this.get("auth"))})},_readDeviceOrientation:function(){return window.orientation+90||undefined},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),auto_crop:this.get("auto-crop"),auto_pad:this.get("auto-pad"),only_audio:this.get("onlyaudio"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),effect_profile:this.get("effect-profile")?this.get("effect-profile").join(","):undefined,force_overwrite:this.get("force-overwrite"),video_profile:this.get("video-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,video_file_name:this._videoFileName,transcript_language:"auto"==this.get("transcript-language").toLowerCase()?navigator.language||navigator.userLanguage:this.get("transcript-language"),device_info:Objs.extend({api_version:2,embed_code:e,media_source:this.__getMediaSource(),capture_type:this.__getCaptureType()},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},__getMediaSource:function(){var e=this.__recordingTypeParams();return"screen"==this.get("record_media")?"screen":!0===e.flash_recording||!0===e.webrtc_recording?"record":"upload"},__getCaptureType:function(){var e=this.__recordingTypeParams();return!0===e.flash_recording?"flash":!0===e.webrtc_streaming?"webrtc_streaming":!0===e.webrtc_recording?"webrtc":"file_capture"},_prepareRecording:function(){return this._requiresDeviceOrientation=Info.isMobile()&&Info.isiOS()&&window.orientation!==undefined&&this.recorder,this.get("video")?this.application.streams.create(this.get("video"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.videos.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(e){this.set("video",e.video.token),this.set("video_data",e.video),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("video")&&(this.get("simulate")?Promise.value(!0):this.application.streams._recorder_submit(this.get("video"),this.get("stream"),{rotation:this._requiresDeviceOrientation?this._readDeviceOrientation():undefined},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("video")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.videos.cacheInvalidate(this.get("video"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("video")&&(this.__inputBindElement.value=this.get("video")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([RecorderStates])}}}).register("ba-ziggeorecorder").register("ziggeorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
+Scoped.define("module:Recorder", ["mediacomponents:VideoRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:RecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function(Recorder,Application,Device,Logger,Environment,RecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return Recorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynvideoplayer:"ziggeoplayer","effect-profile":null,"preview-effect-profile":null,"video-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,video:null,description:null,title:null,tags:null,"custom-data":null,key:null,"auto-crop":null,"default-image-selector":.1,"auto-pad":null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"transcript-language":"en-US","input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1,chrome_extension_id:null,opera_extension_id:null,chrome_extension_install_link:null,opera_extension_install_link:null},types:{tags:"array","custom-data":"object","auto-crop":"bool","auto-pad":"bool","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","default-image-selector":"float","effect-profile":"array","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"mp4"),t.create.call(this),this.get("video")&&!this.get("key")&&Strings.starts_with(this.get("video"),"_")&&this.set("key",Strings.strip_start(this.get("video"),"_")),this.get("simulate")&&this.set("localplayback",!0),Types.is_string(this.get("effect-profile"))&&this.set("effect-profile",Types.parseArray(this.get("effect-profile"))),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialVideo=!!this.get("video"),this.get("video")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(t){return this.application.videos.get(this.get("video"),{auth:this.get("auth")}).mapSuccess(function(e){return e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1)),this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),t},this)},this).mapError(function(){return this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),Promise.value(!0)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.get("chrome_extension_id")&&!this.get("chrome_extension_install_link")&&this.set("chrome_extension_install_link","https://chrome.google.com/webstore/detail/"+this.get("chrome_extension_id")),this.set("screen",{chromeExtensionId:this.get("chrome_extension_id")||this.application.data.get("chrome_extension_id"),operaExtensionId:this.get("opera_extension_id")||this.application.data.get("opera_extension_id"),chromeExtensionInstallLink:this.get("chrome_extension_install_link")||this.application.data.get("chrome_extension_install_link"),operaExtensionInstallLink:this.get("opera_extension_install_link")||this.application.data.get("opera_extension_install_link")}),this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"effect-profile":this.get("preview-effect-profile"),"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),video:this.get("video"),"force-refresh":Time.now()}),this._track("embedding_loaded"),this.on("attached",function(){this.recorder.isFlash()&&this.recorder.on("endpoint_connectivity",function(e,t){this.application.urls.registerRtmpConnectivityResult(e.serverUrl,t)},this)},this),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{video_token:this.get("video"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialVideo?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),width:this.get("recordingwidth"),height:this.get("recordingheight"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("video")&&!this.__hadInitialVideo&&this.set("video",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.video",this.get("video"));var t=this.application.streams.rtmpStreamName(this.get("video"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpRecordingUrls().map(function(e){return{serverUrl:e,streamName:t}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():undefined,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("video"),this.get("stream"),this.get("auth"))}:undefined,delay:4750,stopDelay:2750},image:this.application.streams.imageAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),video:Objs.extend({resilienceCheck:function(e){return!e||!e.duration}},this.application.streams.videoAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth"))),audio:this.application.streams.audioAttachUploaderConfig(this.get("video"),this.get("stream"),this.get("auth")),textTracks:this.application.streams.subtitleAttachUploaderUrl(this.get("video"),this.get("stream"),this.get("auth"))})},_readDeviceOrientation:function(){return window.orientation+90||undefined},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),auto_crop:this.get("auto-crop"),auto_pad:this.get("auto-pad"),only_audio:this.get("onlyaudio"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),effect_profile:this.get("effect-profile")?this.get("effect-profile").join(","):undefined,force_overwrite:this.get("force-overwrite"),video_profile:this.get("video-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,video_file_name:this._videoFileName,transcript_language:"auto"==this.get("transcript-language").toLowerCase()?navigator.language||navigator.userLanguage:this.get("transcript-language"),default_image_selector:this.get("default-image-selector"),device_info:Objs.extend({api_version:2,embed_code:e,media_source:this.__getMediaSource(),capture_type:this.__getCaptureType()},Device.info)}},__recordingTypeParams:function(){return this.isFlash()?{flash_recording:!0}:this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},__getMediaSource:function(){var e=this.__recordingTypeParams();return"screen"==this.get("record_media")?"screen":!0===e.flash_recording||!0===e.webrtc_recording?"record":"upload"},__getCaptureType:function(){var e=this.__recordingTypeParams();return!0===e.flash_recording?"flash":!0===e.webrtc_streaming?"webrtc_streaming":!0===e.webrtc_recording?"webrtc":"file_capture"},_prepareRecording:function(){return this._requiresDeviceOrientation=Info.isMobile()&&Info.isiOS()&&window.orientation!==undefined&&this.recorder,this.get("video")?this.application.streams.create(this.get("video"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.videos.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(e){this.set("video",e.video.token),this.set("video_data",e.video),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("video")&&(this.get("simulate")?Promise.value(!0):this.application.streams._recorder_submit(this.get("video"),this.get("stream"),{rotation:this._requiresDeviceOrientation?this._readDeviceOrientation():undefined},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("video")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.videos.cacheInvalidate(this.get("video"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("video")&&(this.__inputBindElement.value=this.get("video")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([RecorderStates])}}}).register("ba-ziggeorecorder").register("ziggeorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
 
 Scoped.define("module:PopupRecorder", ["module:Recorder","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
