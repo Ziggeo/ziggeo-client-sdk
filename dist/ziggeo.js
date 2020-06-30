@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.36.1 - 2020-06-18
+ziggeo-client-sdk - v2.36.2 - 2020-06-29
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2373,8 +2373,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.209",
-    "datetime": 1592366859664
+    "version": "1.0.210",
+    "datetime": 1593229159743
 };
 });
 
@@ -3717,6 +3717,28 @@ Scoped.define("module:Objs", ["module:Types","module:Functions"], function(Types
             return this.filter(obj, function(value) {
                 return !values.includes(value);
             });
+        },
+
+        mergeSortedArrays: function(arr1, arr2, compare) {
+            compare = compare || function(a, b) {
+                return a > b ? 1 : (a < b ? -1 : 0);
+            };
+            var result = [];
+            var i = 0;
+            arr1.forEach(function(el1) {
+                while (i < arr2.length && compare(el1, arr2[i]) > 0) {
+                    result.push(arr2[i]);
+                    i++;
+                }
+                result.push(el1);
+                while (i < arr2.length && compare(el1, arr2[i]) === 0)
+                    i++;
+            });
+            while (i < arr2.length) {
+                result.push(arr2[i]);
+                i++;
+            }
+            return result;
         }
 
     };
@@ -16594,8 +16616,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.159",
-    "datetime": 1591494698312
+    "version": "0.0.160",
+    "datetime": 1593203085266
 };
 });
 
@@ -22056,7 +22078,7 @@ Scoped.define("module:WebRTC.AudioRecorder", ["base:Class","base:Events.EventsMi
     });
 });
 
-Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMixin","base:Functions","base:Promise","browser:Info","module:WebRTC.Support"], function(Class, EventsMixin, Functions, Promise, Info, Support, scoped) {
+Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMixin","base:Functions","base:Promise","browser:Info","module:WebRTC.Support","base:Async"], function(Class, EventsMixin, Functions, Promise, Info, Support, Async, scoped) {
     return Class.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -22089,7 +22111,11 @@ Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMi
                             };
                         }
                     } else {
-                        if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                        if (!MediaRecorder.isTypeSupported) {
+                            mediaRecorderOptions = {
+                                mimeType: 'video/webm;codecs=vp9'
+                            };
+                        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
                             mediaRecorderOptions = {
                                 mimeType: 'video/webm;codecs=vp9'
                             };
@@ -22145,7 +22171,22 @@ Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMi
                     return Promise.value(true);
                 this._startRecPromise = Promise.create();
                 this._chunks = [];
+                // Safari Release 73 implemented non-timeslice mode encoding for MediaRecorder
+                // https://developer.apple.com/safari/technology-preview/release-notes/
                 this._mediaRecorder.start(10);
+                // TODO: it's still experimental feature in Safari, in the feature if onstart will be applied
+                // need change this part of code
+                if (Info.isSafari()) {
+                    this._started = true;
+                    this.trigger("started");
+                    Async.eventually(function() {
+                        if (this._mediaRecorder.state === 'recording') {
+                            this._startRecPromise.asyncSuccess();
+                        } else {
+                            this._startRecPromise.asyncError('Could not start recording');
+                        }
+                    }, this, 1000);
+                }
                 return this._startRecPromise;
             },
 
@@ -27580,8 +27621,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.232",
-    "datetime": 1592505235401
+    "version": "0.0.234",
+    "datetime": 1593400426600
 };
 });
 
@@ -34581,11 +34622,14 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:V
                 this.dyn._uploadVideoFile(file);
                 this._setValueToEmpty(file);
                 this.__blocked = false;
-                if (((Info.isMobile && this.dyn.get("recordviafilecapture") && this.dyn.get("snapshotfrommobilecapture")) || this.dyn.get("snapshotfromuploader")) && !this.dyn.get("onlyaudio") && this.dyn.get("picksnapshots")) {
+                if (((Info.isMobile && this.dyn.get("recordviafilecapture") && this.dyn.get("snapshotfrommobilecapture")) || this.dyn.get("snapshotfromuploader")) && !this.dyn.get("onlyaudio") && (this.dyn.get("picksnapshots") || this.dyn.get("selectfirstcovershotonskip"))) {
+                    if (!this.dyn.get("picksnapshots") && this.dyn.get("selectfirstcovershotonskip"))
+                        this.dyn.set("snapshotmax", 1);
                     this.dyn.snapshots = [];
                     this.next("CreateUploadCovershot");
-                } else
+                } else {
                     this.next("Uploading");
+                }
             }, this).error(function(s) {
                 this._setValueToEmpty(file);
                 this.__blocked = false;
@@ -34697,34 +34741,45 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCoversho
                     }
                 }, this);
 
-                _playerLoadedData.on(_video, "seeked", function(ev) {
-                    var __snap = RecorderSupport.createSnapshot(this.dyn.get("snapshottype"), _video, true);
-                    if (__snap) {
-                        // Will add snap images as thumbnails
-                        if (this.dyn.get("createthumbnails")) {
-                            this.dyn.get("videometadata").thumbnails.images.push({
-                                time: _video.currentTime,
-                                snap: __snap
-                            });
-                        }
-                        if (this.dyn.snapshots.length < this.dyn.get("snapshotmax")) {
-                            this.dyn.snapshots.push(__snap);
-                        } else {
-                            var i = Math.floor(Math.random() * this.dyn.get("snapshotmax"));
-                            RecorderSupport.removeSnapshot(this.dyn.snapshots[i]);
-                            this.dyn.snapshots[i] = __snap;
-                        }
-                    }
-
-                    // Should trigger ended event
-                    if ((_video.currentTime + _seekPeriod) >= _totalDuration) {
-                        _video.currentTime = _video.currentTime + _seekPeriod;
-                        // Will fire ended event if not fired already, fixes IE/Edge related bug
-                        if (!_video.ended) {
+                if (this.dyn.get("selectfirstcovershotonskip") && !this.dyn.get("picksnapshots")) {
+                    _playerLoadedData.on(_video, "canplay", function(ev) {
+                        _video.currentTime = 0;
+                        var __snap = RecorderSupport.createSnapshot(this.dyn.get("snapshottype"), _video, true);
+                        if (__snap) {
+                            this.dyn.snapshots[0] = __snap;
                             Dom.triggerDomEvent(_video, "ended");
                         }
-                    }
-                }, this);
+                    }, this);
+                } else {
+                    _playerLoadedData.on(_video, "seeked", function(ev) {
+                        var __snap = RecorderSupport.createSnapshot(this.dyn.get("snapshottype"), _video, true);
+                        if (__snap) {
+                            // Will add snap images as thumbnails
+                            if (this.dyn.get("createthumbnails")) {
+                                this.dyn.get("videometadata").thumbnails.images.push({
+                                    time: _video.currentTime,
+                                    snap: __snap
+                                });
+                            }
+                            if (this.dyn.snapshots.length < this.dyn.get("snapshotmax")) {
+                                this.dyn.snapshots.push(__snap);
+                            } else {
+                                var i = Math.floor(Math.random() * this.dyn.get("snapshotmax"));
+                                RecorderSupport.removeSnapshot(this.dyn.snapshots[i]);
+                                this.dyn.snapshots[i] = __snap;
+                            }
+                        }
+
+                        // Should trigger ended event
+                        if ((_video.currentTime + _seekPeriod) >= _totalDuration) {
+                            _video.currentTime = _video.currentTime + _seekPeriod;
+                            // Will fire ended event if not fired already, fixes IE/Edge related bug
+                            if (!_video.ended) {
+                                Dom.triggerDomEvent(_video, "ended");
+                            }
+                        }
+                    }, this);
+                }
 
                 _playerLoadedData.on(_video, "ended", function(ev) {
                     this.__videoSeekTimer.stop();
@@ -34732,10 +34787,13 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CreateUploadCoversho
                         _video.remove();
                     else
                         _video.style.display = 'none';
-                    if (this.dyn.snapshots.length >= this.dyn.get("gallerysnapshots"))
+                    if (this.dyn.snapshots.length >= this.dyn.get("gallerysnapshots")) {
                         this.next("CovershotSelection");
-                    else
+                    } else {
+                        if (this.dyn.get("selectfirstcovershotonskip") && this.dyn.snapshots.length > 0)
+                            this.dyn._uploadCovershot(this.dyn.snapshots[0]);
                         this.next("Uploading");
+                    }
                 }, this);
 
             } catch (exe) {
@@ -35189,7 +35247,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CovershotSelection",
             if (skippedCovershot && this.dyn.get("selectfirstcovershotonskip") && this.dyn.snapshots)
                 if (this.dyn.snapshots[0])
                     this.dyn._uploadCovershot(this.dyn.snapshots[0]);
-            if (!skippedCovershot && this.dyn.get("videometadata").thumbnails.images.length > 3 && this.dyn.get("createthumbnails"))
+            if (this.dyn.get("videometadata").thumbnails.images.length > 3 && this.dyn.get("createthumbnails"))
                 this.next("UploadThumbnails");
             else
                 this.next("Uploading");
@@ -35888,6 +35946,12 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                         if (!_resizeMode) {
                             _resizeMode = 'none';
 
+                        }
+                    }
+                    if (!this.get("allowrecord") && (this.get("autorecord") || this.get("skipinitial"))) {
+                        if (this.get("allowscreen") || this.get("allowmultistreams")) {
+                            this.set("record_media", this.get("allowscreen") ? "screen" : "multistream");
+                            _screen = {};
                         }
                     }
                     return {
@@ -42179,7 +42243,7 @@ Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
 Scoped.binding('flash', 'root:BetaJS.Flash');
 Scoped.define("module:", function(){return{guid:"6c65838a-53fd-4fd1-8d48-e571a0500135"}});
 
-Scoped.define("private:Core", function(){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:93","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. / International",regions:{"eu-west-1":{prefix:"r1",location:"Ireland / EU","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:36,latest:!0,prerelease:!0},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
+Scoped.define("private:Core", function(){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:7342","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","cdn-api-server.public.domain":"localhost:2396","cdn-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:11193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","cdn-api-server.public.domain":"localhost:23196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"embed-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","cdn-api-server.public.domain":"cdnapi.ziggeo.com","cdn-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. / International",regions:{"eu-west-1":{prefix:"r1",location:"Ireland / EU","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"embed-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","cdn-api-server.public.domain":"cdnapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"video-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","cdn-api-server.public.domain":"cdnapi-dev.ziggeo.com","cdn-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"video-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","cdn-api-server.public.domain":"cdnapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:36,latest:!0,prerelease:!0},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
 
 Scoped.define("private:Application.Connect", ["base:Class","base:Objs","base:Ajax.AjaxWrapper"], ["browser:Ajax.IframePostmessageAjax","browser:Ajax.JsonpScriptAjax","browser:Ajax.XDomainRequestAjax","browser:Ajax.XmlHttpRequestAjax"], function(e,i,a,t){return e.extend({scoped:t},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.ajax=new a({sendContentType:!1,contentType:"urlencoded",wrapStatus:!0,wrapStatusParam:"_wrapstatus",noCache:!0,noCacheParam:"_nocache"})},destroy:function(){this.ajax.destroy(),t.destroy.call(this)},rawRequest:function(e,t){return this.ajax.execute({method:t.method,data:t.data,uri:e,resilience:t.resilience,sendContentType:t.sendContentType})},request:function(e,t){return this.rawRequest(this.application.urls.httpApiResourceUrl(e,t),t)},apiRequest:function(e,t){return this.rawRequest(this.application.urls.apiResourceUrl(e,t),i.extend({sendContentType:!0},t))}}})});
 
