@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.36.2 - 2020-06-29
+ziggeo-client-sdk - v2.36.3 - 2020-07-01
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -42289,7 +42289,7 @@ Scoped.define("module:PlayerStates.PosterError", ["mediacomponents:VideoPlayer.D
 
 Scoped.define("module:PlayerStates.VideoProcessing", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function(e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("video-processing")),this.__video=this.dyn.get("video"),this.__sharevideo=this.dyn.get("sharevideo"),this.dyn.set("sharevideo",[]),this.dyn.application.videos.watch(this.__video,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__videoUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}})),this.dyn.reattachImage()},_end:function(){this.dyn.set("sharevideo",this.__sharevideo),this.dyn.application.videos.unwatch(this.__video,this.dyn),this.dyn.set("end-processing-time",a.now()),this.dyn._track("processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
 
-Scoped.define("module:PlayerStates.PlayVideo", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.PlayVideo"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn.application&&this.dyn.application.videos._playback(this.dyn.get("video"),null,this.dyn.get("auth")),this.dyn._track("play_start")}}})});
+Scoped.define("module:PlayerStates.PlayVideo", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.PlayVideo"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),!this.dyn.application||"ZiggeoDev"in window||this.dyn.application.videos._playback(this.dyn.get("video"),null,this.dyn.get("auth")),this.dyn._track("play_start")}}})});
 
 Scoped.define("module:RecorderStates.Recording", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.Recording"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("record_start")},_hasStopped:function(){e._hasStopped.call(this),this.dyn._track("record_end",{media_time:this.dyn.get("duration")})}}})});
 
