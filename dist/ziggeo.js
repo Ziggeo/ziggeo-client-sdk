@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.36.7 - 2020-08-30
+ziggeo-client-sdk - v2.36.8 - 2020-09-01
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -27671,8 +27671,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.240",
-    "datetime": 1598817359150
+    "version": "0.0.241",
+    "datetime": 1599011140504
 };
 });
 
@@ -31419,6 +31419,8 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
 
                         if (!this.get("_updatePosition") && !_dyn.__trackTags.hasThumbs)
                             return;
+
+                        var player = _dyn.player;
 
                         if (this.__parent.__trackTags.hasThumbs) {
                             if (this.get("visibleindex") > -1 && this.get("showchaptertext"))
@@ -36407,7 +36409,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     return Info.isMobile();
                 },
 
-                object_functions: ["record", "rerecord", "record_screen", "stop", "play", "pause", "reset", "cancel"],
+                object_functions: ["record", "rerecord", "record_screen", "stop", "play", "pause", "reset", "cancel", "pause_recorder", "resume"],
 
                 functions: {
 
@@ -36441,12 +36443,14 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                             this._delegatedRecorder.execute("pause_recorder");
                             return;
                         }
-                        this.__paused = true;
-                        this.__recording = false;
-                        this.recorder.pauseRecord();
-                        this.recorder._recorder.once("paused", function(ev) {
-                            this.set("resumevisible", true);
-                        }, this);
+                        if (typeof this.recorder !== 'undefined') {
+                            this.__paused = true;
+                            this.__recording = false;
+                            this.recorder.pauseRecord();
+                            this.recorder._recorder.once("paused", function(ev) {
+                                this.set("resumevisible", true);
+                            }, this);
+                        }
                     },
 
                     resume: function() {
@@ -36454,7 +36458,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                             this._delegatedRecorder.execute("resume");
                             return;
                         }
-                        this._resume();
+                        if (typeof this.recorder !== 'undefined')
+                            this._resume();
                     },
 
                     video_file_selected: function(file) {
