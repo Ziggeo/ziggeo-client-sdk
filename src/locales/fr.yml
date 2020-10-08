@@ -4,6 +4,18 @@
   application.error_401: Vous n’êtes pas autorisé à accéder à l’application depuis ce site.
   application.error_412: Vous devez confirmer/ veuillez mettre à jour votre compte.
   application.error_unknown: Une erreur s’est produite, notre équipe a été prévenue et interviendra dans les meilleurs délais.
+  ziggeoaudioplayer.audio-not-found: Nous n'avons pas pu trouver le fichier audio spécifié.
+  ziggeoaudioplayer.audio-access-forbidden: Vous n'êtes pas autorisé à accéder à ce fichier audio.
+  ziggeoaudioplayer.audio-unknown-error: Nous ne pouvons pas accéder à cet audio pour le moment. Veuillez réessayer plus tard.
+  ziggeoaudioplayer.audio-rejected: L'audio a été rejeté.
+  ziggeoaudioplayer.audio-processing: L'audio est en cours de traitement - restez à l'écoute.
+  ziggeoaudioplayer.audio-access-error: L'audio est actuellement en cours de modération. Vous pouvez cliquer pour réessayer.
+  ziggeoimageviewer.image-not-found: Nous n'avons pas pu trouver le fichier image spécifié.
+  ziggeoimageviewer.image-access-forbidden: Vous n'êtes pas autorisé à accéder à ce fichier image.
+  ziggeoimageviewer.image-unknown-error: Nous ne pouvons pas accéder à cette image pour le moment. Veuillez réessayer plus tard.
+  ziggeoimageviewer.image-rejected: L'image a été rejetée.
+  ziggeoimageviewer.image-processing: L'image est en cours de traitement - restez à l'écoute.
+  ziggeoimageviewer.image-access-error: L'image est actuellement en cours de modération. Vous pouvez cliquer pour réessayer.
   ziggeoplayer.video-not-found: Nous ne pouvons trouver votre fichier vidéo.
   ziggeoplayer.video-access-forbidden: Vous n’êtes pas autorisé à accede à ce fichier vidéo.
   ziggeoplayer.video-unknown-error: Nous ne pouvons pas accéder à cette vidéo pour le moment - Réessayez plus tard.
