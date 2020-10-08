@@ -1,12 +1,24 @@
 'language:fi':
   application.error_503: Huoltokatkos. Yritä kohta uudestaan.
-  application.error_404: Emme tunnista API-avainta. Muista lisätä se sivuston otsikkoscriptiin.
-  application.error_401: Sinulla ei ole oikeutta käyttää sovellusta tältä sivustolta.
-  application.error_412: Sinun täytyy vahvistaa / päivittää tili.
-  application.error_unknown: Tuntematon virhe. Tiimillemme on tehty ilmoitus ja he aloittavat ratkaisemaan ongelmaa.
-  ziggeoplayer.video-not-found: Emme löytäneet määritettyä videotiedostoa.
-  ziggeoplayer.video-access-forbidden: Sinulla ei ole oikeutta käyttää tätä videotiedostoa.
-  ziggeoplayer.video-unknown-error: Emme voi käyttää tätä videota tällä hetkellä. Yritä uudelleen myöhemmin.
+  application.error_404: Epäkelpo API-avain. Muista lisätä se sivuston otsikkoskriptiin.
+  application.error_401: Ei oikeutta käyttää sovellusta tältä sivustolta.
+  application.error_412: Tili täytyy vahvistaa tai päivittää.
+  application.error_unknown: Tuntematon virhe. Tiimillemme on tehty ilmoitus ja he aloittavat ongelmanratkaisun.
+  ziggeoaudioplayer.audio-not-found: Määriteltyä äänitiedostoa ei löydy.
+  ziggeoaudioplayer.audio-access-forbidden: Ei oikeutta käyttää tätä äänitiedostoa.
+  ziggeoaudioplayer.audio-unknown-error: Tätä äänitiedostoa ei voi käyttää tällä hetkellä. Yritä uudelleen myöhemmin.
+  ziggeoaudioplayer.audio-rejected: Äänitiedosto on hylätty.
+  ziggeoaudioplayer.audio-processing: Äänitiedostoa käsitellään - odota sulkematta.
+  ziggeoaudioplayer.audio-access-error: Äänitiedosto on moderoitavana. Yritä uudelleen klikkaamalla.
+  ziggeoimageviewer.image-not-found: Määriteltyä kuvaa ei löydy.
+  ziggeoimageviewer.image-access-forbidden: Ei oikeutta käyttää tätä kuvaa.
+  ziggeoimageviewer.image-unknown-error: Tätä kuvaa ei voi käyttää tällä hetkellä. Yritä uudelleen myöhemmin.
+  ziggeoimageviewer.image-rejected: Kuva on hylätty.
+  ziggeoimageviewer.image-processing: Kuvaa käsitellään - odota sulkematta.
+  ziggeoimageviewer.image-access-error: Kuva on moderoitavana. Yritä uudelleen klikkaamalla.
+  ziggeoplayer.video-not-found: Määriteltyä videota ei löydy.
+  ziggeoplayer.video-access-forbidden: Ei oikeutta käyttää tätä videota.
+  ziggeoplayer.video-unknown-error: Tätä videota ei voi käyttää tällä hetkellä. Yritä uudelleen myöhemmin.
   ziggeoplayer.video-rejected: Video on hylätty.
   ziggeoplayer.video-processing: Videota käsitellään - odota sulkematta.
-  ziggeoplayer.video-access-error: Video on moderoitavana. Voit yrittää uudelleen klikkaamalla.
+  ziggeoplayer.video-access-error: Video on moderoitavana. Yritä uudelleen klikkaamalla.
