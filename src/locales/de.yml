@@ -4,6 +4,18 @@
    application.error_401: Der Zugriff auf die Applikation wurde verweigert.
    application.error_412: Ihr Account muss bestätigt bzw. für weitere Videos freigeschaltet werden.
    application.error_unknown: Ein unbekannter Fehler ist aufgetreten. Unser Team wurde darüber informiert und wird das Problem lösen.
+   ziggeoaudioplayer.audio-not-found: Die angegebene Audiodatei wurde nicht gefunden.
+   ziggeoaudioplayer.audio-access-forbidden: Der Zugriff auf die angegebene Audiodatei wurde verweigert.
+   ziggeoaudioplayer.audio-unknown-error: Auf die angegebene Audiodatei kann zur Zeit nicht zugegriffen werden. Bitte zu einem späteren Zeitpunkt erneut versuchen.
+   ziggeoaudioplayer.audio-rejected: Die Audiodatei wurde nicht freigegeben.
+   ziggeoaudioplayer.audio-processing: Die Audiodatei wird gerade verarbeitet, bitte kurz warten.
+   ziggeoaudioplayer.audio-access-error: Die Audiodatei wird gerade moderiert, bitte etwas später erneut versuchen.
+   ziggeoimageviewer.image-not-found: Die angegebene Bilddatei konnte nicht gefunden werden.
+   ziggeoimageviewer.image-access-forbidden: Der Zugriff auf die angegebene Bilddatei wurde verweigert.
+   ziggeoimageviewer.image-unknown-error: Auf die angegebene Bilddatei kann zur Zeit nicht zugegriffen werden. Bitte zu einem späteren Zeitpunkt erneut versuchen.
+   ziggeoimageviewer.image-rejected: Die Bilddatei wurde nicht freigegeben.
+   ziggeoimageviewer.image-processing: Die Bilddatei wird gerade verarbeitet, bitte kurz warten.
+   ziggeoimageviewer.image-access-error: Die Bilddatei wird gerade moderiert, bitte etwas später erneut versuchen.
    ziggeoplayer.video-not-found: Das angegebene Video konnte nicht gefunden werden.
    ziggeoplayer.video-access-forbidden: Der Zugriff auf das angegebene Video wurde verweigert.
    ziggeoplayer.video-unknown-error: Auf das angegebene Video kann zur Zeit nicht zugegriffen werden. Bitte zu einem späteren Zeitpunkt erneut versuchen.
