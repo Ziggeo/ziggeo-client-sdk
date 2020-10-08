@@ -1,12 +1,24 @@
-"language:de":
-   application.error_503: Das System wird gerade gewartet. Die Videofunktion ist in Kürze wieder aktiv.
-   application.error_404: Der API Schlüssel wurde nicht gefunden. Bitte überprüfen.
-   application.error_401: Der Zugriff auf die Applikation wurde verweigert.
-   application.error_412: Ihr Account muss bestätigt bzw. für weitere Videos freigeschaltet werden.
-   application.error_unknown: Ein unbekannter Fehler ist aufgetreten. Unser Team wurde darüber informiert und wird das Problem lösen.
-   ziggeoplayer.video-not-found: Das angegebene Video konnte nicht gefunden werden.
-   ziggeoplayer.video-access-forbidden: Der Zugriff auf das angegebene Video wurde verweigert.
-   ziggeoplayer.video-unknown-error: Auf das angegebene Video kann zur Zeit nicht zugegriffen werden. Bitte zu einem späteren Zeitpunkt erneut versuchen.
-   ziggeoplayer.video-rejected: Das Video wurde nicht freigegeben.
-   ziggeoplayer.video-processing: Das Video wird gerade verarbeitet, bitte kurz warten.
-   ziggeoplayer.video-access-error: Das Video wird gerade moderiert, bitte etwas später erneut versuchen.
+'language:de':
+  application.error_503: Das System wird gerade gewartet. Die Videofunktion ist in Kürze wieder aktiv.
+  application.error_404: Der API Schlüssel wurde nicht gefunden. Bitte überprüfen.
+  application.error_401: Der Zugriff auf die Applikation wurde verweigert.
+  application.error_412: Ihr Account muss bestätigt bzw. für weitere Videos freigeschaltet werden.
+  application.error_unknown: Ein unbekannter Fehler ist aufgetreten. Unser Team wurde darüber informiert und wird das Problem lösen.
+  ziggeoaudioplayer.audio-not-found: Das angegebene Audio konnte nicht gefunden werden.
+  ziggeoaudioplayer.audio-access-forbidden: Der Zugriff auf das angegebene Audio wurde verweigert.
+  ziggeoaudioplayer.audio-unknown-error: Auf das angegebene Audio kann zur Zeit nicht zugegriffen werden. Bitte zu einem späteren Zeitpunkt erneut versuchen.
+  ziggeoaudioplayer.audio-rejected: Das Audio wurde nicht freigegeben.
+  ziggeoaudioplayer.audio-processing: Das Audio wird gerade verarbeitet, bitte kurz warten.
+  ziggeoaudioplayer.audio-access-error: Das Audio wird gerade moderiert, bitte etwas später erneut versuchen.
+  ziggeoimageviewer.image-not-found: Das angegebene Bild konnte nicht gefunden werden.
+  ziggeoimageviewer.image-access-forbidden: Der Zugriff auf das angegebene Bild wurde verweigert.
+  ziggeoimageviewer.image-unknown-error: Auf das angegebene Bild kann zur Zeit nicht zugegriffen werden. Bitte zu einem späteren Zeitpunkt erneut versuchen.
+  ziggeoimageviewer.image-rejected: Das Bild wurde nicht freigegeben.
+  ziggeoimageviewer.image-processing: Das Bild wird gerade verarbeitet, bitte kurz warten.
+  ziggeoimageviewer.image-access-error: Das Bild wird gerade moderiert, bitte etwas später erneut versuchen.
+  ziggeoplayer.video-not-found: Das angegebene Video konnte nicht gefunden werden.
+  ziggeoplayer.video-access-forbidden: Der Zugriff auf das angegebene Video wurde verweigert.
+  ziggeoplayer.video-unknown-error: Auf das angegebene Video kann zur Zeit nicht zugegriffen werden. Bitte zu einem späteren Zeitpunkt erneut versuchen.
+  ziggeoplayer.video-rejected: Das Video wurde nicht freigegeben.
+  ziggeoplayer.video-processing: Das Video wird gerade verarbeitet, bitte kurz warten.
+  ziggeoplayer.video-access-error: Das Video wird gerade moderiert, bitte etwas später erneut versuchen.
