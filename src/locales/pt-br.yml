@@ -8,6 +8,18 @@
   application.error_unknown: >-
     Ocorreu um erro desconhecido. Nossa equipe foi notificada e irá resolver o
     problema.
+  ziggeoaudioplayer.audio-not-found: Nós não encontramos o arquivo de áudio especificado.
+  ziggeoaudioplayer.audio-access-forbidden: Você não tem permissão para acessar esse arquivo de áudio.
+  ziggeoaudioplayer.audio-unknown-error: Nós não conseguimos acessar esse áudio no momento. Por favor tente novamente mais tarde.
+  ziggeoaudioplayer.audio-rejected: O áudio foi rejeitado.
+  ziggeoaudioplayer.audio-processing: O áudio está sendo processado - fique atento.
+  ziggeoaudioplayer.audio-access-error: O áudio está sob moderação. Você pode clicar para tentar novamente.
+  ziggeoimageviewer.image-not-found: Nós não encontramos esse arquivo específico de imagem.
+  ziggeoimageviewer.image-access-forbidden: Você não tem permissão para acessar esse arquivo de imagem.
+  ziggeoimageviewer.image-unknown-error: Nós não conseguimos acessar essa imagem no momento. Por favor tente novamente mais tarde.
+  ziggeoimageviewer.image-rejected: A imagem foi rejeitada.
+  ziggeoimageviewer.image-processing: A imagem está sendo processada - fique atento.
+  ziggeoimageviewer.image-access-error: A imagem está sob moderação. Você pode clicar para tentar novamente.
   ziggeoplayer.video-not-found: Não foi possível encontrar o arquivo de vídeo especificado.
   ziggeoplayer.video-access-forbidden: Você não tem permissão para acessar esse arquivo de vídeo.
   ziggeoplayer.video-unknown-error: >-
