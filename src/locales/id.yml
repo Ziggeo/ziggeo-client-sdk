@@ -8,6 +8,18 @@
   application.error_unknown: >-
     Terjadi kesalahan yang tidak diketahui. Tim kami telah diberi tahu dan akan
     menyelesaikan masalah ini.
+  ziggeoaudioplayer.audio-not-found: Kami tidak dapat menemukan file audio yang ditentukan.
+  ziggeoaudioplayer.audio-access-forbidden: Anda tidak diizinkan untuk mengakses file audio ini.
+  ziggeoaudioplayer.audio-unknown-error: Saat ini kami tidak dapat mengakses audio ini. Silahkan coba lagi nanti.
+  ziggeoaudioplayer.audio-rejected: Audio telah ditolak.
+  ziggeoaudioplayer.audio-processing: Audio sedang diproses - nantikan.
+  ziggeoaudioplayer.audio-access-error: Audio saat ini sedang dalam moderasi. Anda bisa mengklik untuk mencoba lagi.
+  ziggeoimageviewer.image-not-found: Kami tidak dapat menemukan file gambar yang ditentukan.
+  ziggeoimageviewer.image-access-forbidden: Anda tidak diizinkan mengakses file gambar ini.
+  ziggeoimageviewer.image-unknown-error: Saat ini kami tidak dapat mengakses gambar ini. Silahkan coba lagi nanti.
+  ziggeoimageviewer.image-rejected: Gambar telah ditolak.
+  ziggeoimageviewer.image-processing: Gambar sedang diproses - nantikan.
+  ziggeoimageviewer.image-access-error: Gambar saat ini sedang dalam moderasi. Anda bisa mengklik untuk mencoba lagi.
   ziggeoplayer.video-not-found: Kami tidak dapat menemukan file video yang ditentukan.
   ziggeoplayer.video-access-forbidden: Anda tidak diizinkan mengakses file video ini.
   ziggeoplayer.video-unknown-error: Saat ini kami tidak dapat mengakses video ini. Silakan coba lagi nanti.
