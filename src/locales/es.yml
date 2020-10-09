@@ -11,15 +11,15 @@
   ziggeoaudioplayer.audio-not-found: No hemos podido encontrar el archivo de audio especificado.
   ziggeoaudioplayer.audio-access-forbidden: No se le permite acceder a este archivo de audio.
   ziggeoaudioplayer.audio-unknown-error: >-
-    No podemos acceder a este vídeo por el momento. Por favor, inténtelo de nuevo
+    No podemos acceder a este audio por el momento. Por favor, inténtelo de nuevo
     más tarde.
   ziggeoaudioplayer.audio-rejected: El audio ha sido rechazado.
   ziggeoaudioplayer.audio-processing: El audio está siendo procesado - estad atentos.
   ziggeoaudioplayer.audio-access-error: >-
     EL audio está actualmente en moderación. Puede hacer clic para volver a
     intentarlo.
-  ziggeoimageviewer.image-not-found: No se le permite acceder a esta imagen.
-  ziggeoimageviewer.image-access-forbidden: You are not permitted to access this image file.
+  ziggeoimageviewer.image-not-found: No hemos podido encontrar el archivo de imagen especificado.
+  ziggeoimageviewer.image-access-forbidden: No se le permite acceder a esta imagen.
   ziggeoimageviewer.image-unknown-error: >-
     No podemos acceder a esta imagen por el momento. Por favor, inténtelo de nuevo
     más tarde.
