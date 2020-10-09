@@ -8,11 +8,23 @@
   application.error_unknown: >-
     Er is een onbekende fout opgetreden. Ons team is aangemeld en zal het
     probleem op te lossen.
+  ziggeoaudioplayer.audio-not-found: We konden het opgegeven audiobestand niet vinden.
+  ziggeoaudioplayer.audio-access-forbidden: U heeft geen toegang tot dit audiobestand.
+  ziggeoaudioplayer.audio-unknown-error: We hebben momenteel geen toegang tot deze audio. Probeer het later opnieuw.
+  ziggeoaudioplayer.audio-rejected: De audio is afgewezen.
+  ziggeoaudioplayer.audio-processing: De audio wordt verwerkt - even geduld aub.
+  ziggeoaudioplayer.audio-access-error: De audio wordt momenteel gemodereerd. U kunt klikken om het opnieuw te proberen.
+  ziggeoimageviewer.image-not-found: We konden het opgegeven afbeeldingsbestand niet vinden.
+  ziggeoimageviewer.image-access-forbidden: U heeft geen toegang tot dit afbeeldingsbestand.
+  ziggeoimageviewer.image-unknown-error: We hebben momenteel geen toegang tot deze afbeelding. Probeer het later opnieuw.
+  ziggeoimageviewer.image-rejected: De afbeelding is afgewezen.
+  ziggeoimageviewer.image-processing: Het beeld wordt verwerkt - even geduld aub.
+  ziggeoimageviewer.image-access-error: De afbeelding wordt momenteel gemodereerd. U kunt klikken om het opnieuw te proberen.
   ziggeoplayer.video-not-found: We konden het opgegeven video-bestand niet vinden.
   ziggeoplayer.video-access-forbidden: U bent niet toegestaan ​​om toegang tot dit videobestand.
   ziggeoplayer.video-unknown-error: >-
     We hebben geen toegang tot deze video op dit moment. Probeer het later
     opnieuw.
   ziggeoplayer.video-rejected: De video is geweigerd.
-  ziggeoplayer.video-processing: De video wordt verwerkt - stay tuned.
+  ziggeoplayer.video-processing: De video wordt verwerkt - even geduld aub.
   ziggeoplayer.video-access-error: De video is momenteel in matiging. U kunt klikken om opnieuw te proberen.
