@@ -1,22 +1,38 @@
 'language:tl':
   application.error_503: >-
-    Kami ay pinapanatili ang aming serbisyo. Video ay maaaring bumalik sa lalong
+    Kasalukuyan naming pinapanatili ang aming serbisyo. Video ay maaaring bumalik sa lalong
     madaling panahon.
   application.error_404: >-
-    Hindi namin maaaring makilala ang iyong api key. Mangyaring siguraduhin na
+    Hindi namin makilala ang iyong api key. Mangyaring siguraduhin na
     tukuyin ito sa header ng iyong website.
   application.error_401: Hindi ka pinapayagang i-access ang application mula sa site na ito.
   application.error_412: Kailangan mong kumpirmahin / i-upgrade ang iyong account.
   application.error_unknown: >-
-    Isang hindi alam na error ang naganap. Ang aming koponan ay aabisuhan at
-    kukumpirmahin malutas ang isyu.
+    Isang hindi matukoy na error ang naganap. Ang aming koponan ay aabisuhan at
+    kukumpirmahing malutas ang isyu.
+  ziggeoaudioplayer.audio-not-found: Hindi namin makita ang tinutukoy na audio file.
+  ziggeoaudioplayer.audio-access-forbidden: Ikaw ay hindi pinapayagan na ma-access ang audio file na ito.
+  ziggeoaudioplayer.audio-unknown-error: >-
+    Hindi namin ma-access ang video sa sandaling ito. Subukang muli mamaya.
+  ziggeoaudioplayer.audio-rejected: Ang audio na ito ay tinanggihan.
+  ziggeoaudioplayer.audio-processing: Ang audio ay pinoproseso - manatiling nakatutok.
+  ziggeoaudioplayer.audio-access-error: >-
+    Ang audio na ito ay kasalukuyang sumasailalim sa moderasyon. Maaari mong i-click upang subukang muli.
+  ziggeoimageviewer.image-not-found: Hindi namin makita ang tinutukoy na imahe.
+  ziggeoimageviewer.image-access-forbidden: Ikaw ay hindi pinapayagan na ma-access ang imaheng ito.
+  ziggeoimageviewer.image-unknown-error: >-
+    Hindi namin ma-access ang imahe sa sandaling ito. Subukang muli mamaya.
+  ziggeoimageviewer.image-rejected: Ang imaheng ito ay tinanggihan.
+  ziggeoimageviewer.image-processing: Ang imahe ay pinoproseso - manatiling nakatutok.
+  ziggeoimageviewer.image-access-error: >-
+    Ang imaheng ito ay kasalukuyang sumasailalim sa moderasyon. Maari mong i-click upang subukang muli.
   ziggeoplayer.video-not-found: Hindi kami makahanap ng ang tinukoy na file na video.
-  ziggeoplayer.video-access-forbidden: Ikaw ay hindi pinapayagan na ma-access ang video file.
+  ziggeoplayer.video-access-forbidden: Ikaw ay hindi pinapayagan na ma-access ang video file na ito.
   ziggeoplayer.video-unknown-error: >-
-    Hindi namin ma-access ang video na ito sa sandaling ito. Subukang muli
+    Hindi namin ma-access ang video sa sandaling ito. Subukang muli
     mamaya.
   ziggeoplayer.video-rejected: Ang video na ito ay tinanggihan.
   ziggeoplayer.video-processing: Ang video ay pinoproseso - manatiling nakatutok.
   ziggeoplayer.video-access-error: >-
-    Ang video na ito ay kasalukuyang sumasailalim sa pagmo-moderate. Maaari mong
+    Ang video na ito ay kasalukuyang sumasailalim sa moderasyon. Maaari mong
     i-click upang subukang muli.
