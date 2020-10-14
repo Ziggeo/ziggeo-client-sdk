@@ -1,0 +1,26 @@
+'language:cs':
+  application.error_503: Momentálně na službě pracujeme, zkuste to prosím za chvíli.
+  application.error_404: >-
+    Nepodařilo se rozpoznat Váš api klíč. Zkontrolujte prosím, že je uveden v hlavičce Vaší webové stránky.
+  application.error_401: Z této stránky nemáte povolen přístup k aplikaci.
+  application.error_412: Musíte potvrdit / upgradovat svůj účet.
+  application.error_unknown: >-
+    Nastala neočekávaná chyba. Náš tým byl informován a pokusí se tento problém brzy vyřešit.
+  ziggeoaudioplayer.audio-not-found: Nepodařilo se najít specifikovaný audio soubor.
+  ziggeoaudioplayer.audio-access-forbidden: Nemáte přístup k tomuto audio souboru.
+  ziggeoaudioplayer.audio-unknown-error: Momentálně se nám získat toto audio. Zkuste to prosím za chvíli.
+  ziggeoaudioplayer.audio-rejected: Toto audio bylo zamítnuté.
+  ziggeoaudioplayer.audio-processing: Toto audio se zpracovává - vyčkejte prosím.
+  ziggeoaudioplayer.audio-access-error: Toto audio čeká na schválení. Můžete kliknout a zkusit to znovu.
+  ziggeoimageviewer.image-not-found: Nepodařilo se nám najít specifikovaný obrázek.
+  ziggeoimageviewer.image-access-forbidden: Nemáte přístup k tomuto obrázku.
+  ziggeoimageviewer.image-unknown-error: Nepodařilo se nám získat tento obrázek. Zkuste to prosím za chvíli.
+  ziggeoimageviewer.image-rejected: Obrázek byl zamítnut.
+  ziggeoimageviewer.image-processing: Obrázek se zpracovává - vyčkejte prosím.
+  ziggeoimageviewer.image-access-error: Tento obrázek čeká na schválení. Můžete kliknout a zkusit to znovu.
+  ziggeoplayer.video-not-found: Nepodařilo se najít video.
+  ziggeoplayer.video-access-forbidden: Nemáte přístup k tomuto video souboru.
+  ziggeoplayer.video-unknown-error: Momentálně se nám získat toto video. Zkuste to prosím za chvíli.
+  ziggeoplayer.video-rejected: Toto video bylo zamítnuté.
+  ziggeoplayer.video-processing: Toto video se zpracovává - vyčkejte prosím.
+  ziggeoplayer.video-access-error: Toto video čeká na schválení. Můžete kliknout a zkusit to znovu.
