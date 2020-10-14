@@ -1,20 +1,38 @@
-'language:it':
-  application.error_503: Stiamo mantenendo il nostro servizio. Video torneranno presto.
+"language:it":
+  application.error_503: Il nostro servizio è in fase di manutenzione. I video torneranno presto.
   application.error_404: >-
-    Non possiamo riconoscere la chiave API. Assicurati di specificare che
+    Non riusciamo a riconoscere la tua chiave API. Assicurati di specificarla
     nell'intestazione del tuo sito web.
-  application.error_401: Non è consentito di accedere all'applicazione da questo sito.
+  application.error_401: Non è consentito accedere all'applicazione da questo sito.
   application.error_412: È necessario confermare / aggiornare il tuo account.
   application.error_unknown: >-
-    Un errore sconosciuto si è verificato. La nostra squadra è stata notifica e
+    Si è verificato un errore sconosciuto. La nostra squadra è stata notifica e
     dovrà risolvere il problema.
+  ziggeoaudioplayer.audio-not-found: Non è stato possibile trovare l'archivio audio specificato.
+  ziggeoaudioplayer.audio-access-forbidden: Non è possibile accedere a questo archivio audio.
+  ziggeoaudioplayer.audio-unknown-error: >-
+    Non è possibile accedere a questo audio per il momento. Riprova più tardi.
+  ziggeoaudioplayer.audio-rejected: L'audio è stato rifiutato.
+  ziggeoaudioplayer.audio-processing: L'audio è in fase di elaborazione - rimani in attesa.
+  ziggeoaudioplayer.audio-access-error: >-
+    L'audio è in fase di moderazione. È possibile fare clic per
+    riprovare.
+  ziggeoimageviewer.image-not-found: Non è stato possibile trovare l'archivio di immagini specificato.
+  ziggeoimageviewer.image-access-forbidden: Non hai i permessi necessari per accedere a questa immagine.
+  ziggeoimageviewer.image-unknown-error: >-
+    Non possiamo accedere a questa immagine per il momento. Riprova più tardi.
+  ziggeoimageviewer.image-rejected: L'immagine è stata rifiutata.
+  ziggeoimageviewer.image-processing: L'immagine è in fase di elaborazione - rimani in attesa.
+  ziggeoimageviewer.image-access-error: >-
+    L'immagine è in fase di moderazione. È possibile fare clic per
+    riprovare.
   ziggeoplayer.video-not-found: Non siamo riusciti a trovare il file video specificato.
-  ziggeoplayer.video-access-forbidden: Non è consentito per accedere a questo file video.
+  ziggeoplayer.video-access-forbidden: Non è consentito accedere a questo file video.
   ziggeoplayer.video-unknown-error: >-
     Non possiamo accedere a questo video in questo momento. Per favore riprova
     più tardi.
   ziggeoplayer.video-rejected: Il video è stato rifiutato.
-  ziggeoplayer.video-processing: Il video è in fase di elaborazione - rimanete sintonizzati.
+  ziggeoplayer.video-processing: Il video è in fase di elaborazione - rimani in attesa.
   ziggeoplayer.video-access-error: >-
     Il video è attualmente in fase di moderazione. È possibile fare clic per
     riprovare.
