@@ -1,0 +1,26 @@
+'language:mk':
+  application.error_503: Нашите услуги се под оддржување. Ќе се вратиме наскоро.
+  application.error_404: >-
+    Неможеме да го препознаеме вашиот АПИ клуч. Бидете сигурни дека е наведен во хедерот на вашата страница.
+  application.error_401: Вие не се дозволени да пристапите до апликацијата од овој сајт
+  application.error_412: Морате да го потврдите / ажурирате вашиот акаунт.
+  application.error_unknown: Непозната грешка се случи. Нашиот тим е известен и го изреши проблемот.
+  ziggeoaudioplayer.audio-not-found: Неможевме да го најдеме избраниот аудио фајл.
+  ziggeoaudioplayer.audio-access-forbidden: Не сте дозволени да го пристапите овој фајл.
+  ziggeoaudioplayer.audio-unknown-error: >-
+    Неможевме да го пристапиме аудиото во овој момент. Ве молиме, пробајте подоцна.
+  ziggeoaudioplayer.audio-rejected: Аудиото е одбиено.
+  ziggeoaudioplayer.audio-processing: Аудиото се процесира - останете во тек.
+  ziggeoaudioplayer.audio-access-error: Аудиото е под модерација. Можете да кликнете да пробате пак.
+  ziggeoimageviewer.image-not-found: Неможевме да ја најдеме избраната слика.
+  ziggeoimageviewer.image-access-forbidden: Не сте дозволени да ја пристапите сликата.
+  ziggeoimageviewer.image-unknown-error: Неможевме да ја пристапиме сликата во моментов. Ве молиме, пробајте подоцна.
+  ziggeoimageviewer.image-rejected: Сликата е одбиена.
+  ziggeoimageviewer.image-processing: Сликата се процесира - останете во тек.
+  ziggeoimageviewer.image-access-error: Сликата е под модерација. Можете да кликнете да пробате пак.
+  ziggeoplayer.video-not-found: Неможевме да го најдеме избраниот видео фајл.
+  ziggeoplayer.video-access-forbidden: Вие не сте дозволени да го пристапите овој видео фајл.
+  ziggeoplayer.video-unknown-error: Неможевме да го пристапиме видеото во моментов. Ве молиме, пробајте подоцна.
+  ziggeoplayer.video-rejected: Видеото е одбиено.
+  ziggeoplayer.video-processing: Видеото се процесира - останете во тек.
+  ziggeoplayer.video-access-error: Видеото е под модерација. Можете да кликнете да пробате пак.
