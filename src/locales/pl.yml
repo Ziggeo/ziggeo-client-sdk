@@ -1,20 +1,32 @@
 'language:pl':
-  application.error_503: Podtrzymujemy naszą usługę. Filmy będą wkrótce.
+  application.error_503: Serwisujemy naszą usługę. Niedługo wracamy! 
   application.error_404: >-
-    Nie możemy rozpoznać swój klucz API. Pamiętaj, aby podać go w nagłówku
+    Nie możemy rozpoznać Twojego klucza API. Pamiętaj, aby podać go w nagłówku
     witryny.
   application.error_401: 'Nie masz uprawnień, aby uzyskać dostęp do aplikacji z tej strony.'
-  application.error_412: Musisz potwierdzić / upgrade konta.
+  application.error_412: Musisz potwierdzić / ulepszyć konto.
   application.error_unknown: >-
-    Wystąpił nieznany błąd. Nasz zespół został powiadomiony i będzie rozwiązać
+    Wystąpił nieznany błąd. Nasz zespół został powiadomiony i będzie rozwiązywać
     problem.
+  ziggeoaudioplayer.audio-not-found: Nie można znaleźć określnego pliku audio.
+  ziggeoaudioplayer.audio-access-forbidden: Nie masz uprawnień, aby uzyskać dostęp do tego pliku audio.
+  ziggeoaudioplayer.audio-unknown-error: Nie można aktualnie uzyskać dostępu do tego pliku audio. Spróbuj ponownie później.
+  ziggeoaudioplayer.audio-rejected: Audio zostało odrzucone.
+  ziggeoaudioplayer.audio-processing: Audio jest przetwarzane.
+  ziggeoaudioplayer.audio-access-error: Audio jest obecnie w moderacji. Kliknij, aby ponowić.
+  ziggeoimageviewer.image-not-found: Nie można znaleźć określonego pliku zdjęcia.
+  ziggeoimageviewer.image-access-forbidden: Nie masz uprawnień, aby uzyskać dostęp do tego zdjęcia.
+  ziggeoimageviewer.image-unknown-error: Nie można aktualnie uzyskać dostępu do tego zdjęcia. Spróbuj ponownie później.
+  ziggeoimageviewer.image-rejected: Zdjęcie zostało odrzucone.
+  ziggeoimageviewer.image-processing: Przetwarzanie zdjęcia.
+  ziggeoimageviewer.image-access-error: Zdjęcie jest obecnie w moderacji. Kliknij, aby ponowić. 
   ziggeoplayer.video-not-found: Nie można znaleźć określonego pliku wideo.
-  ziggeoplayer.video-access-forbidden: 'Nie masz wystarczających uprawnień, aby uzyskać dostęp do tego pliku wideo.'
+  ziggeoplayer.video-access-forbidden: 'Nie masz wystarczających uprawnień, aby uzyskać dostęp do tego pliku wideo. Spróbuj ponownie później.'
   ziggeoplayer.video-unknown-error: >-
-    Nie możemy uzyskać dostęp do tego filmu w tym momencie. Spróbuj ponownie
+    Nie możemy uzyskać obecnie dostępu do tego filmu. Spróbuj ponownie
     później.
   ziggeoplayer.video-rejected: Film został odrzucony.
-  ziggeoplayer.video-processing: Film jest przetwarzanie - stay tuned.
+  ziggeoplayer.video-processing: Film jest przetwarzany.
   ziggeoplayer.video-access-error: >-
-    Film jest obecnie w umiarkowanych ilościach. Można kliknąć, aby ponowić
+    Film jest obecnie w moderacji. Kliknij, aby ponowić
     próbę.
