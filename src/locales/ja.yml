@@ -1,0 +1,28 @@
+'language:ja':
+  application.error_503: ただ今メンテナンス中です。しばらくお待ちください。
+  application.error_404: >-
+    APIキーを認識できません。
+    必ず指定のAPIキーをウェブサイトのヘッダーに設定してください。
+  application.error_401: このサイトからアプリケーションにアクセスすることは許可されていません。
+  application.error_412: アカウントを確認/アップグレードする必要があります。
+  application.error_unknown: >-
+    不明なエラーが発生しました。
+    この問題のトラブルシューティングを行うようチームに通知がされました。
+  ziggeoaudioplayer.audio-not-found: 指定された音声ファイルが見つかりませんでした。
+  ziggeoaudioplayer.audio-access-forbidden: この音声ファイルへのアクセスは許可されていません。
+  ziggeoaudioplayer.audio-unknown-error: 現在この音声にアクセスできません。後でもう一度やり直してください。
+  ziggeoaudioplayer.audio-rejected: 音声が拒否されました。
+  ziggeoaudioplayer.audio-processing: 音声の処理中です - しばらくお待ちください。
+  ziggeoaudioplayer.audio-access-error: この音声は承認を待っています。クリックして再試行できます。
+  ziggeoimageviewer.image-not-found: 指定された画像ファイルが見つかりませんでした。
+  ziggeoimageviewer.image-access-forbidden: この画像ファイルへのアクセスは許可されていません。
+  ziggeoimageviewer.image-unknown-error: 現在この画像にアクセスできません。後でもう一度やり直してください。
+  ziggeoimageviewer.image-rejected: 画像は拒否されました。
+  ziggeoimageviewer.image-processing: 画像の処理中です - しばらくお待ちください。
+  ziggeoimageviewer.image-access-error: この画像は承認を待っています。クリックして再試行できます。
+  ziggeoplayer.video-not-found: 指定された動画ファイルが見つかりませんでした。
+  ziggeoplayer.video-access-forbidden: この動画ファイルへのアクセスは許可されていません。
+  ziggeoplayer.video-unknown-error: 現在この動画にアクセスできません。後でもう一度やり直してください。
+  ziggeoplayer.video-rejected: 動画は拒否されました。
+  ziggeoplayer.video-processing: 動画の処理中です - しばらくお待ちください。
+  ziggeoplayer.video-access-error: この動画は承認を待っています。クリックして再試行できます。
