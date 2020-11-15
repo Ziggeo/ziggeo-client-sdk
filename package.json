@@ -1,7 +1,7 @@
 {
   "name": "ziggeo-client-sdk",
   "description": "Ziggeo API (https://ziggeo.com) allows you to integrate video recording and playback with only two lines of code in your site, service or app. This is the JavaScript Client SDK.",
-  "version": "2.36.10",
+  "version": "2.36.11",
   "author": "Ziggeo",
   "repository": "https://github.com/Ziggeo/ziggeo-client-sdk.git",
   "contributors": [
