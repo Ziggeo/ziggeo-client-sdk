@@ -7,6 +7,7 @@ two lines of code in your site, service or app. This is the Client SDK repositor
 
 ## Client-Side Integration
 
+
 For the client-side integration, you need to add these assets to your html file:
 
 ```html 
