@@ -40,19 +40,10 @@ module.exports = function(grunt) {
                         "module": "root:BetaJS.Browser"
                     }
                 }, {
-                    src: require.resolve("betajs-flash/dist/betajs-flash-noscoped.js"),
-                    bindings: {
-                        "base": "root:BetaJS",
-                        "browser": "root:BetaJS.Browser",
-                        "module": "root:BetaJS.Flash"
-                    },
-                    full: true
-                }, {
                     src: require.resolve("betajs-media/dist/betajs-media-noscoped.js"),
                     bindings: {
                         "base": "root:BetaJS",
                         "browser": "root:BetaJS.Browser",
-                        "flash": "root:BetaJS.Flash",
                         "module": "root:BetaJS.Media"
                     },
                     full: true
@@ -130,8 +121,7 @@ module.exports = function(grunt) {
                         "private": "root:ZiggeoApi.V2",
                         "media": "root:BetaJS.Media",
                         "mediacomponents": "root:BetaJS.MediaComponents",
-                        "dynamics": "root:BetaJS.Dynamics",
-                        "flash": "root:BetaJS.Flash"
+                        "dynamics": "root:BetaJS.Dynamics"
                     },
                     full: true
                 }, {
@@ -154,7 +144,6 @@ module.exports = function(grunt) {
     .uglifyTask('playerjs-uglify', 'temp/playerjs.js', 'build/playerjs-adapter.js')
     .simplecopyTask('copy-assets', {
         'build/ziggeo-ie8.eot': require.resolve("betajs-media-components/dist/bjsmc-ie8.eot"),
-        'build/ziggeo.swf': require.resolve("betajs-flash/dist/betajs-flash.swf"),
         "build/testing-watermark.png": "./src/css/testing-watermark.png"
     })
     .concatTask("css-concat", [
