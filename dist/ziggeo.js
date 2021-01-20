@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.37.1 - 2020-12-16
+ziggeo-client-sdk - v2.37.2 - 2021-01-19
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2373,8 +2373,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.218",
-    "datetime": 1606949461303
+    "version": "1.0.219",
+    "datetime": 1611084456894
 };
 });
 
@@ -2385,6 +2385,16 @@ Scoped.define("module:Types", function() {
      * @module BetaJS.Types
      */
     return {
+        /**
+         * Returns whether argument is an object and is not null
+         *
+         * @param x argument
+         * @return true if x is an object
+         */
+        is_object_instance: function(x) {
+            return this.is_object(x) && !this.is_null(x);
+        },
+
         /**
          * Returns whether argument is an object
          * 
@@ -2603,10 +2613,8 @@ Scoped.define("module:Types", function() {
          * @return integer value
          */
         parseDateTime: function(x) {
-            if (typeof x === "number")
+            if (typeof x === "number" || this.is_none(x))
                 return x;
-            if (x === null || x === undefined)
-                return 0;
             if (typeof x === "object")
                 x = x.toString();
             var d = new Date(x);
@@ -4731,169 +4739,6 @@ Scoped.define("module:Time", [], function() {
 
 });
 
-Scoped.define("module:Timers.Timer", ["module:Class","module:Objs","module:Time"], function(Class, Objs, Time, scoped) {
-    return Class.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * Timer Class
-         * 
-         * @class BetaJS.Timers.Timer
-         */
-        return {
-
-            /**
-             * Create a new timer instance.
-             * 
-             * @param {object} options, including
-             *   int delay (mandatory): number of milliseconds until it fires
-             *   bool once (optional, default false): should it fire infinitely often
-             *   func fire (optional): will be fired
-             *   object context (optional): for fire
-             *   bool start (optional, default true): should it start immediately
-             *   bool real_time (default false)
-             *   bool immediate (optional, default false): zero time until first fire
-             *   int duration (optional, default null)
-             *   int fire_max (optional, default null)
-             * 
-             */
-            constructor: function(options) {
-                inherited.constructor.call(this);
-                options = Objs.extend({
-                    once: false,
-                    start: true,
-                    fire: null,
-                    context: this,
-                    destroy_on_fire: false,
-                    destroy_on_stop: false,
-                    real_time: false,
-                    duration: null,
-                    fire_max: null,
-                    immediate: false
-                }, options);
-                this.__immediate = options.immediate;
-                this.__delay = options.delay;
-                this.__destroy_on_fire = options.destroy_on_fire;
-                this.__destroy_on_stop = options.destroy_on_stop;
-                this.__once = options.once;
-                this.__fire = options.fire;
-                this.__context = options.context;
-                this.__started = false;
-                this.__real_time = options.real_time;
-                this.__end_time = options.duration !== null ? Time.now() + options.duration : null;
-                this.__fire_max = options.fire_max;
-                if (options.start)
-                    this.start();
-            },
-
-            /**
-             * @override
-             */
-            destroy: function() {
-                this.stop();
-                inherited.destroy.call(this);
-            },
-
-            /**
-             * Returns the number of times the timer has fired.
-             * 
-             * @return {int} fire count
-             */
-            fire_count: function() {
-                return this.__fire_count;
-            },
-
-            /**
-             * Returns the current duration of timer.
-             * 
-             * @return {int} duration in milliseconds
-             */
-            duration: function() {
-                return Time.now() - this.__start_time;
-            },
-
-            /**
-             * Fired when the timer fires.
-             */
-            fire: function() {
-                if (this.__once)
-                    this.__started = false;
-                if (this.__fire) {
-                    this.__fire.call(this.__context, this);
-                    this.__fire_count++;
-                    if (this.__real_time && !this.__destroy_on_fire && !this.__once) {
-                        while ((this.__fire_count + 1) * this.__delay <= Time.now() - this.__start_time) {
-                            this.__fire.call(this.__context, this);
-                            this.__fire_count++;
-                        }
-                    }
-                }
-                if ((this.__end_time !== null && Time.now() + this.__delay > this.__end_time) ||
-                    (this.__fire_max !== null && this.__fire_max <= this.__fire_count))
-                    this.stop();
-                if (this.__destroy_on_fire)
-                    this.weakDestroy();
-            },
-
-            /**
-             * Stops the timer.
-             * 
-             * @return {object}
-             */
-            stop: function() {
-                if (!this.__started)
-                    return this;
-                if (this.__once)
-                    clearTimeout(this.__timer);
-                else
-                    clearInterval(this.__timer);
-                this.__started = false;
-                if (this.__destroy_on_stop)
-                    this.weakDestroy();
-                return this;
-            },
-
-            /**
-             * Starts the timer.
-             * 
-             * @return {object} this
-             */
-            start: function() {
-                if (this.__started)
-                    return this;
-                var self = this;
-                this.__start_time = Time.now();
-                this.__fire_count = 0;
-                if (this.__once)
-                    this.__timer = setTimeout(function() {
-                        self.fire();
-                    }, this.__delay);
-                else
-                    this.__timer = setInterval(function() {
-                        self.fire();
-                    }, this.__delay);
-                this.__started = true;
-                if (this.__immediate)
-                    this.fire();
-                return this;
-            },
-
-            /**
-             * Restarts the timer.
-             * 
-             * @return {object} this
-             */
-            restart: function() {
-                this.stop();
-                this.start();
-                return this;
-            }
-
-        };
-    });
-});
-
 Scoped.define("module:Async", ["module:Types","module:Functions","module:Time"], function(Types, Functions, Time) {
 
     var clearTimeoutGlobal = function(h) {
@@ -5872,6 +5717,292 @@ Scoped.define("module:Promise", ["module:Types","module:Functions","module:Async
     });
 
     return PromiseCls;
+});
+
+Scoped.define("module:Classes.OptimisticConditionalInstance", ["module:Class","module:Objs","module:Promise"], function(Class, Objs, Promise, scoped) {
+    return Class.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * OptimisticConditionalInstance for registering and optimistically creating particular flavors of a certain class under particular conditions
+         * 
+         * @class BetaJS.Classes.OptimisticConditionalInstance
+         */
+        return {
+
+            /**
+             * Instantiates a particular flavor of a OptimisticConditionalInstance
+             * 
+             * @param {object} options Options for the instance
+             * @param {object} transitionals Particular transitional data that should be passed on from one instance to the next
+             */
+            constructor: function(options, transitionals) {
+                inherited.constructor.call(this);
+                this._transitionals = {};
+            },
+
+            /**
+             * Returns an initialization promise.
+             * 
+             * @return {object} Initialization promise
+             */
+            _initializer: function() {
+                // returns a promise
+            },
+
+            /**
+             * Tries to initialize this instance.
+             * 
+             * @return {object} Success promise
+             */
+            _initialize: function() {
+                return this._initializer().success(function() {
+                    this._afterInitialize();
+                }, this);
+            },
+
+            /**
+             * Returns the current set of transitionals.
+             * 
+             * @return {object} Set of transitionals
+             */
+            transitionals: function() {
+                return this._transitionals;
+            },
+
+            /**
+             * Will be called after an instance has been initialized.
+             * 
+             */
+            _afterInitialize: function() {
+                // setup
+            }
+
+        };
+    }, {}, {
+
+        __registry: [],
+
+        /**
+         * Registers a particular flavor of an OptimisticConditionalInstance
+         * 
+         * @param {object} cls flavor class
+         * @param {int} priority priority of this class; the higher the priority the more likely it is to be instantiated
+         * 
+         * @static
+         */
+        register: function(cls, priority) {
+            this.__registry.push({
+                cls: cls,
+                priority: priority
+            });
+        },
+
+        /**
+         * Instantiates the best match.
+         * 
+         * @param {object} options Set of options
+         * @return {object} Instance of best match as a promise
+         * 
+         * @static
+         */
+        create: function(options) {
+            var promise = Promise.create();
+            var reg = Objs.clone(this.__registry, 1);
+            var transitionals = {};
+            var next = function() {
+                if (!reg.length) {
+                    promise.asyncError(true);
+                    return;
+                }
+                var p = -1;
+                var j = -1;
+                for (var i = 0; i < reg.length; ++i) {
+                    if (reg[i].priority > p) {
+                        p = reg[i].priority;
+                        j = i;
+                    }
+                }
+                var cls = reg[j].cls;
+                reg.splice(j, 1);
+                var instance = new cls(options, transitionals);
+                instance._initialize().error(function() {
+                    transitionals = instance.transitionals();
+                    instance.destroy();
+                    next.call(this);
+                }, this).success(function() {
+                    promise.asyncSuccess(instance);
+                });
+            };
+            next.call(this);
+            return promise;
+        }
+
+    });
+});
+
+Scoped.define("module:Timers.Timer", ["module:Class","module:Objs","module:Time"], function(Class, Objs, Time, scoped) {
+    return Class.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * Timer Class
+         * 
+         * @class BetaJS.Timers.Timer
+         */
+        return {
+
+            /**
+             * Create a new timer instance.
+             * 
+             * @param {object} options, including
+             *   int delay (mandatory): number of milliseconds until it fires
+             *   bool once (optional, default false): should it fire infinitely often
+             *   func fire (optional): will be fired
+             *   object context (optional): for fire
+             *   bool start (optional, default true): should it start immediately
+             *   bool real_time (default false)
+             *   bool immediate (optional, default false): zero time until first fire
+             *   int duration (optional, default null)
+             *   int fire_max (optional, default null)
+             * 
+             */
+            constructor: function(options) {
+                inherited.constructor.call(this);
+                options = Objs.extend({
+                    once: false,
+                    start: true,
+                    fire: null,
+                    context: this,
+                    destroy_on_fire: false,
+                    destroy_on_stop: false,
+                    real_time: false,
+                    duration: null,
+                    fire_max: null,
+                    immediate: false
+                }, options);
+                this.__immediate = options.immediate;
+                this.__delay = options.delay;
+                this.__destroy_on_fire = options.destroy_on_fire;
+                this.__destroy_on_stop = options.destroy_on_stop;
+                this.__once = options.once;
+                this.__fire = options.fire;
+                this.__context = options.context;
+                this.__started = false;
+                this.__real_time = options.real_time;
+                this.__end_time = options.duration !== null ? Time.now() + options.duration : null;
+                this.__fire_max = options.fire_max;
+                if (options.start)
+                    this.start();
+            },
+
+            /**
+             * @override
+             */
+            destroy: function() {
+                this.stop();
+                inherited.destroy.call(this);
+            },
+
+            /**
+             * Returns the number of times the timer has fired.
+             * 
+             * @return {int} fire count
+             */
+            fire_count: function() {
+                return this.__fire_count;
+            },
+
+            /**
+             * Returns the current duration of timer.
+             * 
+             * @return {int} duration in milliseconds
+             */
+            duration: function() {
+                return Time.now() - this.__start_time;
+            },
+
+            /**
+             * Fired when the timer fires.
+             */
+            fire: function() {
+                if (this.__once)
+                    this.__started = false;
+                if (this.__fire) {
+                    this.__fire.call(this.__context, this);
+                    this.__fire_count++;
+                    if (this.__real_time && !this.__destroy_on_fire && !this.__once) {
+                        while ((this.__fire_count + 1) * this.__delay <= Time.now() - this.__start_time) {
+                            this.__fire.call(this.__context, this);
+                            this.__fire_count++;
+                        }
+                    }
+                }
+                if ((this.__end_time !== null && Time.now() + this.__delay > this.__end_time) ||
+                    (this.__fire_max !== null && this.__fire_max <= this.__fire_count))
+                    this.stop();
+                if (this.__destroy_on_fire)
+                    this.weakDestroy();
+            },
+
+            /**
+             * Stops the timer.
+             * 
+             * @return {object}
+             */
+            stop: function() {
+                if (!this.__started)
+                    return this;
+                if (this.__once)
+                    clearTimeout(this.__timer);
+                else
+                    clearInterval(this.__timer);
+                this.__started = false;
+                if (this.__destroy_on_stop)
+                    this.weakDestroy();
+                return this;
+            },
+
+            /**
+             * Starts the timer.
+             * 
+             * @return {object} this
+             */
+            start: function() {
+                if (this.__started)
+                    return this;
+                var self = this;
+                this.__start_time = Time.now();
+                this.__fire_count = 0;
+                if (this.__once)
+                    this.__timer = setTimeout(function() {
+                        self.fire();
+                    }, this.__delay);
+                else
+                    this.__timer = setInterval(function() {
+                        self.fire();
+                    }, this.__delay);
+                this.__started = true;
+                if (this.__immediate)
+                    this.fire();
+                return this;
+            },
+
+            /**
+             * Restarts the timer.
+             * 
+             * @return {object} this
+             */
+            restart: function() {
+                this.stop();
+                this.start();
+                return this;
+            }
+
+        };
+    });
 });
 
 Scoped.define("module:Iterators.Iterator", ["module:Class","module:Functions","module:Async","module:Promise"], function(Class, Functions, Async, Promise, scoped) {
@@ -7236,44 +7367,118 @@ Scoped.define("module:Strings", ["module:Objs"], function(Objs) {
 
 });
 
-Scoped.define("module:Tokens", function () {
-    /**
-     * Unique Token Generation
-     *
-     * @module BetaJS.Tokens
-     */
-    return {
+Scoped.define("module:Classes.ConditionalInstance", ["module:Class","module:Objs"], function(Class, Objs, scoped) {
+    return Class.extend({
+        scoped: scoped
+    }, function(inherited) {
+
         /**
-         * Generates a random token
-         *
-         * @param {integer} length optional length of token, default is 16
-         * @return {string} generated token
+         * Conditional Instance Class for registering and creating particular flavors of a certain class under particular conditions
+         * 
+         * @class BetaJS.Classes.ConditionalInstance
          */
-        generate_token: function (length) {
-            if (length === void 0) { length = 16; }
-            var s = "";
-            while (s.length < length)
-                s += Math.random().toString(36).substr(2);
-            return s.substr(0, length);
-        },
-        /**
-         * Generated a simple hash value from a string.
-         *
-         * @param {string} input string
-         * @return {integer} simple hash value
-         * @see http://jsperf.com/string-hashing-methods
-         */
-        simple_hash: function (s) {
-            if (s.length == 0)
-                return 0;
-            var nHash = 0;
-            for (var i = 0; i < s.length; ++i) {
-                nHash = ((nHash << 5) - nHash) + s.charCodeAt(i);
-                nHash = nHash & nHash;
+        return {
+
+            /**
+             * Instantiates a particular flavor of a ConditionalInstance
+             * 
+             * @param {object} options Options for the instance
+             */
+            constructor: function(options) {
+                inherited.constructor.call(this);
+                this._options = this.cls._initializeOptions(options);
             }
-            return Math.abs(nHash);
+
+        };
+    }, {
+
+        /**
+         * Initialize given options with potentially additional parameters
+         * 
+         * @param {object} options Given options
+         * @return {object} Initialized options
+         * 
+         * @static
+         */
+        _initializeOptions: function(options) {
+            return options;
+        },
+
+        /**
+         * Determines whether a set of options is supported by this flavor of a ConditionalInstance
+         * 
+         * @param {object} options set of options
+         * @return {boolean} true if supported
+         * 
+         * @static
+         */
+        supported: function(options) {
+            return false;
         }
-    };
+
+    }, {
+
+        __registry: [],
+
+        /**
+         * Registers a particular flavor of a ConditionalInstance
+         * 
+         * @param {object} cls flavor class
+         * @param {int} priority priority of this class; the higher the priority the more likely it is to be instantiated
+         * 
+         * @static
+         */
+        register: function(cls, priority) {
+            this.__registry.push({
+                cls: cls,
+                priority: priority
+            });
+        },
+
+        /**
+         * Determines the best match of all registered flavors, given a set of options.
+         * 
+         * @param {object} options Set of options
+         * @return {object} flavor class being the best match
+         * 
+         * @static
+         */
+        match: function(options) {
+            options = this._initializeOptions(options);
+            var bestMatch = null;
+            Objs.iter(this.__registry, function(entry) {
+                if ((!bestMatch || bestMatch.priority < entry.priority) && entry.cls.supported(options))
+                    bestMatch = entry;
+            }, this);
+            return bestMatch;
+        },
+
+        /**
+         * Instantiates the best match.
+         * 
+         * @param {object} options Set of options
+         * @return {object} Instance of best match
+         * 
+         * @static
+         */
+        create: function(options) {
+            var match = this.match(options);
+            return match ? new match.cls(options) : null;
+        },
+
+        /**
+         * Determines whether there is any support for a given set of options.
+         * 
+         * @param {object} options Set of options
+         * @return {boolean} True if there is at least one match.
+         * 
+         * @static
+         */
+        anySupport: function(options) {
+            return this.match(options) !== null;
+        }
+
+    });
 });
 
 Scoped.define("module:Properties.ObservableMixin", [], function() {
@@ -8306,6 +8511,277 @@ Scoped.define("module:Comparators", ["module:Types","module:Properties.Propertie
     };
 });
 
+Scoped.define("module:Exceptions.Exception", ["module:Class","module:Comparators"], function(Class, Comparators, scoped) {
+    return Class.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * Exception Class
+         * 
+         * @class BetaJS.Exceptions.Exception
+         */
+        return {
+
+            /**
+             * Instantiates a new exception.
+             * 
+             * @param {string} message Exception message
+             */
+            constructor: function(message) {
+                inherited.constructor.call(this);
+                this.__message = message;
+                try {
+                    throw new Error();
+                } catch (e) {
+                    this.__stack = e.stack;
+                }
+            },
+
+            /**
+             * Asserts to be a certain type of exception. Throws this as an exception of assertion fails.
+             * 
+             * @param {object} exception_class Exception class to be asserted
+             * @return {object} this
+             */
+            assert: function(exception_class) {
+                if (!this.instance_of(exception_class))
+                    throw this;
+                return this;
+            },
+
+            /**
+             * Returns exception message string.
+             * 
+             * @return {string} Exception message string
+             */
+            message: function() {
+                return this.__message;
+            },
+
+            /**
+             * Returns exception stack.
+             * 
+             * @return Exception stack
+             */
+            stack: function() {
+                return this.__stack;
+            },
+
+            /**
+             * Format exception as string.
+             * 
+             * @return {string} Exception string
+             */
+            toString: function() {
+                return this.message();
+            },
+
+            /**
+             * Format exception as string including the classname.
+             * 
+             * @return {string} Exception string plus classname
+             */
+            format: function() {
+                return this.cls.classname + ": " + this.toString();
+            },
+
+            /**
+             * Returns exception data as JSON.
+             * 
+             * @return {object} exception data
+             */
+            json: function() {
+                return {
+                    classname: this.cls.classname,
+                    message: this.message(),
+                    stack: this.stack()
+                };
+            },
+
+            /**
+             * Determines whether this exception is equal to another.
+             * 
+             * @param {object} other Other exception
+             * @return {boolean} True if equal
+             */
+            equals: function(other) {
+                return other && this.cls === other.cls && Comparators.deepEqual(this.json(), other.json(), -1);
+            }
+
+        };
+    }, {
+
+        /**
+         * Ensures that a given exception is an instance of an Exception class
+         * 
+         * @param e Exception
+         * @return {object} Exception instance
+         */
+        ensure: function(e) {
+            if (!this.is_instance_of(e))
+                throw "Unasserted Exception " + e;
+            return e;
+        }
+
+    });
+});
+
+Scoped.define("module:Ajax.AjaxException", ["module:Exceptions.Exception"], function(Exception, scoped) {
+    return Exception.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * Abstract Ajax Exception Class
+         * 
+         * @class BetaJS.Ajax.AjaxException
+         */
+        return {
+
+            /**
+             * Returns the status code associated with the exception
+             * 
+             * @return {int} status code
+             */
+            status_code: function() {
+                return 500;
+            }
+
+        };
+    });
+});
+
+Scoped.define("module:Ajax.NoCandidateAjaxException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
+    return Exception.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * No Candidate Ajax Exception Class
+         * 
+         * @class BetaJS.Ajax.NoCandidateAjaxException
+         */
+        return {
+
+        };
+    });
+});
+
+Scoped.define("module:Ajax.ReturnDataParseException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
+    return Exception.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * Return Data Parse Exception Class
+         * 
+         * @class BetaJS.Ajax.ReturnDataParseException 
+         */
+        return {
+
+            /**
+             * Creates a new instance.
+             * 
+             * @param data return data
+             * @param {string} decodeType decode type for return data 
+             */
+            constructor: function(data, decodeType) {
+                inherited.constructor.call(this, "Could not decode data with type " + decodeType);
+                this.__decodeType = decodeType;
+                this.__data = data;
+            }
+
+        };
+    });
+});
+
+Scoped.define("module:Ajax.RequestException", ["module:Ajax.AjaxException","module:Objs"], function(Exception, Objs, scoped) {
+    return Exception.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * Request Exception Class
+         * 
+         * @class BetaJS.Ajax.RequestException
+         */
+        return {
+
+            /**
+             * Instantiates a Ajax Request Exception
+             * 
+             * @param status_code Status Code
+             * @param {string} status_text Status Text
+             * @param data Custom Exception Data
+             */
+            constructor: function(status_code, status_text, data) {
+                inherited.constructor.call(this, status_code + ": " + status_text);
+                this.__status_code = status_code;
+                this.__status_text = status_text;
+                this.__data = data;
+            },
+
+            /**
+             * Returns the status code associated with the exception
+             * 
+             * @return {int} status code
+             */
+            status_code: function() {
+                return this.__status_code;
+            },
+
+            /**
+             * Returns the status text associated with the exception
+             * 
+             * @return {string} status text
+             */
+            status_text: function() {
+                return this.__status_text;
+            },
+
+            /**
+             * Returns the custom data associated with the exception 
+             * 
+             * @return custom data
+             */
+            data: function() {
+                return this.__data;
+            },
+
+            /**
+             * Returns a JSON representation of the exception
+             * 
+             * @return {object} Exception JSON representation
+             */
+            json: function() {
+                return Objs.extend({
+                    data: this.data(),
+                    status_code: this.status_code(),
+                    status_text: this.status_text()
+                }, inherited.json.call(this));
+            }
+
+        };
+    });
+});
+
+Scoped.define("module:Ajax.TimeoutException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
+    return Exception.extend({
+        scoped: scoped
+    }, function(inherited) {
+
+        /**
+         * Timeout Exception Class
+         *
+         * @class BetaJS.Ajax.Timeout
+         */
+        return {
+
+        };
+    });
+});
+
 Scoped.define("module:Sort", ["module:Comparators","module:Types","module:Objs"], function(Comparators, Types, Objs) {
 
     /**
@@ -8593,514 +9069,6 @@ Scoped.define("module:Net.Uri", ["module:Objs","module:Types","module:Strings","
         }
 
     };
-});
-
-Scoped.define("module:Classes.OptimisticConditionalInstance", ["module:Class","module:Objs","module:Promise"], function(Class, Objs, Promise, scoped) {
-    return Class.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * OptimisticConditionalInstance for registering and optimistically creating particular flavors of a certain class under particular conditions
-         * 
-         * @class BetaJS.Classes.OptimisticConditionalInstance
-         */
-        return {
-
-            /**
-             * Instantiates a particular flavor of a OptimisticConditionalInstance
-             * 
-             * @param {object} options Options for the instance
-             * @param {object} transitionals Particular transitional data that should be passed on from one instance to the next
-             */
-            constructor: function(options, transitionals) {
-                inherited.constructor.call(this);
-                this._transitionals = {};
-            },
-
-            /**
-             * Returns an initialization promise.
-             * 
-             * @return {object} Initialization promise
-             */
-            _initializer: function() {
-                // returns a promise
-            },
-
-            /**
-             * Tries to initialize this instance.
-             * 
-             * @return {object} Success promise
-             */
-            _initialize: function() {
-                return this._initializer().success(function() {
-                    this._afterInitialize();
-                }, this);
-            },
-
-            /**
-             * Returns the current set of transitionals.
-             * 
-             * @return {object} Set of transitionals
-             */
-            transitionals: function() {
-                return this._transitionals;
-            },
-
-            /**
-             * Will be called after an instance has been initialized.
-             * 
-             */
-            _afterInitialize: function() {
-                // setup
-            }
-
-        };
-    }, {}, {
-
-        __registry: [],
-
-        /**
-         * Registers a particular flavor of an OptimisticConditionalInstance
-         * 
-         * @param {object} cls flavor class
-         * @param {int} priority priority of this class; the higher the priority the more likely it is to be instantiated
-         * 
-         * @static
-         */
-        register: function(cls, priority) {
-            this.__registry.push({
-                cls: cls,
-                priority: priority
-            });
-        },
-
-        /**
-         * Instantiates the best match.
-         * 
-         * @param {object} options Set of options
-         * @return {object} Instance of best match as a promise
-         * 
-         * @static
-         */
-        create: function(options) {
-            var promise = Promise.create();
-            var reg = Objs.clone(this.__registry, 1);
-            var transitionals = {};
-            var next = function() {
-                if (!reg.length) {
-                    promise.asyncError(true);
-                    return;
-                }
-                var p = -1;
-                var j = -1;
-                for (var i = 0; i < reg.length; ++i) {
-                    if (reg[i].priority > p) {
-                        p = reg[i].priority;
-                        j = i;
-                    }
-                }
-                var cls = reg[j].cls;
-                reg.splice(j, 1);
-                var instance = new cls(options, transitionals);
-                instance._initialize().error(function() {
-                    transitionals = instance.transitionals();
-                    instance.destroy();
-                    next.call(this);
-                }, this).success(function() {
-                    promise.asyncSuccess(instance);
-                });
-            };
-            next.call(this);
-            return promise;
-        }
-
-    });
-});
-
-Scoped.define("module:Classes.ConditionalInstance", ["module:Class","module:Objs"], function(Class, Objs, scoped) {
-    return Class.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * Conditional Instance Class for registering and creating particular flavors of a certain class under particular conditions
-         * 
-         * @class BetaJS.Classes.ConditionalInstance
-         */
-        return {
-
-            /**
-             * Instantiates a particular flavor of a ConditionalInstance
-             * 
-             * @param {object} options Options for the instance
-             */
-            constructor: function(options) {
-                inherited.constructor.call(this);
-                this._options = this.cls._initializeOptions(options);
-            }
-
-        };
-    }, {
-
-        /**
-         * Initialize given options with potentially additional parameters
-         * 
-         * @param {object} options Given options
-         * @return {object} Initialized options
-         * 
-         * @static
-         */
-        _initializeOptions: function(options) {
-            return options;
-        },
-
-        /**
-         * Determines whether a set of options is supported by this flavor of a ConditionalInstance
-         * 
-         * @param {object} options set of options
-         * @return {boolean} true if supported
-         * 
-         * @static
-         */
-        supported: function(options) {
-            return false;
-        }
-
-    }, {
-
-        __registry: [],
-
-        /**
-         * Registers a particular flavor of a ConditionalInstance
-         * 
-         * @param {object} cls flavor class
-         * @param {int} priority priority of this class; the higher the priority the more likely it is to be instantiated
-         * 
-         * @static
-         */
-        register: function(cls, priority) {
-            this.__registry.push({
-                cls: cls,
-                priority: priority
-            });
-        },
-
-        /**
-         * Determines the best match of all registered flavors, given a set of options.
-         * 
-         * @param {object} options Set of options
-         * @return {object} flavor class being the best match
-         * 
-         * @static
-         */
-        match: function(options) {
-            options = this._initializeOptions(options);
-            var bestMatch = null;
-            Objs.iter(this.__registry, function(entry) {
-                if ((!bestMatch || bestMatch.priority < entry.priority) && entry.cls.supported(options))
-                    bestMatch = entry;
-            }, this);
-            return bestMatch;
-        },
-
-        /**
-         * Instantiates the best match.
-         * 
-         * @param {object} options Set of options
-         * @return {object} Instance of best match
-         * 
-         * @static
-         */
-        create: function(options) {
-            var match = this.match(options);
-            return match ? new match.cls(options) : null;
-        },
-
-        /**
-         * Determines whether there is any support for a given set of options.
-         * 
-         * @param {object} options Set of options
-         * @return {boolean} True if there is at least one match.
-         * 
-         * @static
-         */
-        anySupport: function(options) {
-            return this.match(options) !== null;
-        }
-
-    });
-});
-
-Scoped.define("module:Exceptions.Exception", ["module:Class","module:Comparators"], function(Class, Comparators, scoped) {
-    return Class.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * Exception Class
-         * 
-         * @class BetaJS.Exceptions.Exception
-         */
-        return {
-
-            /**
-             * Instantiates a new exception.
-             * 
-             * @param {string} message Exception message
-             */
-            constructor: function(message) {
-                inherited.constructor.call(this);
-                this.__message = message;
-                try {
-                    throw new Error();
-                } catch (e) {
-                    this.__stack = e.stack;
-                }
-            },
-
-            /**
-             * Asserts to be a certain type of exception. Throws this as an exception of assertion fails.
-             * 
-             * @param {object} exception_class Exception class to be asserted
-             * @return {object} this
-             */
-            assert: function(exception_class) {
-                if (!this.instance_of(exception_class))
-                    throw this;
-                return this;
-            },
-
-            /**
-             * Returns exception message string.
-             * 
-             * @return {string} Exception message string
-             */
-            message: function() {
-                return this.__message;
-            },
-
-            /**
-             * Returns exception stack.
-             * 
-             * @return Exception stack
-             */
-            stack: function() {
-                return this.__stack;
-            },
-
-            /**
-             * Format exception as string.
-             * 
-             * @return {string} Exception string
-             */
-            toString: function() {
-                return this.message();
-            },
-
-            /**
-             * Format exception as string including the classname.
-             * 
-             * @return {string} Exception string plus classname
-             */
-            format: function() {
-                return this.cls.classname + ": " + this.toString();
-            },
-
-            /**
-             * Returns exception data as JSON.
-             * 
-             * @return {object} exception data
-             */
-            json: function() {
-                return {
-                    classname: this.cls.classname,
-                    message: this.message(),
-                    stack: this.stack()
-                };
-            },
-
-            /**
-             * Determines whether this exception is equal to another.
-             * 
-             * @param {object} other Other exception
-             * @return {boolean} True if equal
-             */
-            equals: function(other) {
-                return other && this.cls === other.cls && Comparators.deepEqual(this.json(), other.json(), -1);
-            }
-
-        };
-    }, {
-
-        /**
-         * Ensures that a given exception is an instance of an Exception class
-         * 
-         * @param e Exception
-         * @return {object} Exception instance
-         */
-        ensure: function(e) {
-            if (!this.is_instance_of(e))
-                throw "Unasserted Exception " + e;
-            return e;
-        }
-
-    });
-});
-
-Scoped.define("module:Ajax.AjaxException", ["module:Exceptions.Exception"], function(Exception, scoped) {
-    return Exception.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * Abstract Ajax Exception Class
-         * 
-         * @class BetaJS.Ajax.AjaxException
-         */
-        return {
-
-            /**
-             * Returns the status code associated with the exception
-             * 
-             * @return {int} status code
-             */
-            status_code: function() {
-                return 500;
-            }
-
-        };
-    });
-});
-
-Scoped.define("module:Ajax.NoCandidateAjaxException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
-    return Exception.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * No Candidate Ajax Exception Class
-         * 
-         * @class BetaJS.Ajax.NoCandidateAjaxException
-         */
-        return {
-
-        };
-    });
-});
-
-Scoped.define("module:Ajax.ReturnDataParseException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
-    return Exception.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * Return Data Parse Exception Class
-         * 
-         * @class BetaJS.Ajax.ReturnDataParseException 
-         */
-        return {
-
-            /**
-             * Creates a new instance.
-             * 
-             * @param data return data
-             * @param {string} decodeType decode type for return data 
-             */
-            constructor: function(data, decodeType) {
-                inherited.constructor.call(this, "Could not decode data with type " + decodeType);
-                this.__decodeType = decodeType;
-                this.__data = data;
-            }
-
-        };
-    });
-});
-
-Scoped.define("module:Ajax.RequestException", ["module:Ajax.AjaxException","module:Objs"], function(Exception, Objs, scoped) {
-    return Exception.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * Request Exception Class
-         * 
-         * @class BetaJS.Ajax.RequestException
-         */
-        return {
-
-            /**
-             * Instantiates a Ajax Request Exception
-             * 
-             * @param status_code Status Code
-             * @param {string} status_text Status Text
-             * @param data Custom Exception Data
-             */
-            constructor: function(status_code, status_text, data) {
-                inherited.constructor.call(this, status_code + ": " + status_text);
-                this.__status_code = status_code;
-                this.__status_text = status_text;
-                this.__data = data;
-            },
-
-            /**
-             * Returns the status code associated with the exception
-             * 
-             * @return {int} status code
-             */
-            status_code: function() {
-                return this.__status_code;
-            },
-
-            /**
-             * Returns the status text associated with the exception
-             * 
-             * @return {string} status text
-             */
-            status_text: function() {
-                return this.__status_text;
-            },
-
-            /**
-             * Returns the custom data associated with the exception 
-             * 
-             * @return custom data
-             */
-            data: function() {
-                return this.__data;
-            },
-
-            /**
-             * Returns a JSON representation of the exception
-             * 
-             * @return {object} Exception JSON representation
-             */
-            json: function() {
-                return Objs.extend({
-                    data: this.data(),
-                    status_code: this.status_code(),
-                    status_text: this.status_text()
-                }, inherited.json.call(this));
-            }
-
-        };
-    });
-});
-
-Scoped.define("module:Ajax.TimeoutException", ["module:Ajax.AjaxException"], function(Exception, scoped) {
-    return Exception.extend({
-        scoped: scoped
-    }, function(inherited) {
-
-        /**
-         * Timeout Exception Class
-         *
-         * @class BetaJS.Ajax.Timeout
-         */
-        return {
-
-        };
-    });
 });
 
 Scoped.define("module:Net.HttpHeader", function() {
@@ -9406,6 +9374,46 @@ Scoped.define("module:Ajax.Support", ["module:Ajax.NoCandidateAjaxException","mo
             return helper(options.resilience);
         }
 
+    };
+});
+
+Scoped.define("module:Tokens", function () {
+    /**
+     * Unique Token Generation
+     *
+     * @module BetaJS.Tokens
+     */
+    return {
+        /**
+         * Generates a random token
+         *
+         * @param {integer} length optional length of token, default is 16
+         * @return {string} generated token
+         */
+        generate_token: function (length) {
+            if (length === void 0) { length = 16; }
+            var s = "";
+            while (s.length < length)
+                s += Math.random().toString(36).substr(2);
+            return s.substr(0, length);
+        },
+        /**
+         * Generated a simple hash value from a string.
+         *
+         * @param {string} input string
+         * @return {integer} simple hash value
+         * @see http://jsperf.com/string-hashing-methods
+         */
+        simple_hash: function (s) {
+            if (s.length == 0)
+                return 0;
+            var nHash = 0;
+            for (var i = 0; i < s.length; ++i) {
+                nHash = ((nHash << 5) - nHash) + s.charCodeAt(i);
+                nHash = nHash & nHash;
+            }
+            return Math.abs(nHash);
+        }
     };
 });
 
@@ -14394,155 +14402,6 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
     };
 });
 
-Scoped.define("module:FlashHelper", ["base:Time","base:Objs","base:Types","base:Net.Uri","base:Ids","module:Info","module:Dom"], function(Time, Objs, Types, Uri, Ids, Info, Dom) {
-    return {
-
-        getFlashObject: function(container) {
-            container = Dom.unbox(container);
-            var embed = container.getElementsByTagName("EMBED")[0];
-            if (Info.isInternetExplorer() && Info.internetExplorerVersion() <= 10)
-                embed = null;
-            if (!embed)
-                embed = container.getElementsByTagName("OBJECT")[0];
-            if (!embed) {
-                var objs = document.getElementsByTagName("OBJECT");
-                for (var i = 0; i < objs.length; ++i)
-                    if (container.contains(objs[i]))
-                        embed = objs[i];
-            }
-            return embed;
-        },
-
-        embedTemplate: function(options) {
-            options = options || {};
-            var params = [];
-            params.push({
-                "objectKey": "classid",
-                "value": "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
-            });
-            params.push({
-                "objectKey": "codebase",
-                "value": "https://fpdownload.macromedia.com/get/flashplayer/current/swflash.cab"
-            });
-            params.push({
-                "embedKey": "align",
-                "value": "middle"
-            });
-            params.push({
-                "embedKey": "play",
-                "value": "true"
-            });
-            params.push({
-                "embedKey": "loop",
-                "value": "false"
-            });
-            params.push({
-                "embedKey": "type",
-                "value": "application/x-shockwave-flash"
-            });
-            params.push({
-                "embedKey": "pluginspage",
-                "value": "https://get.adobe.com/flashplayer"
-            });
-            params.push({
-                "objectParam": "quality",
-                "embedKey": "quality",
-                "value": "high"
-            });
-            params.push({
-                "objectParam": "allowScriptAccess",
-                "embedKey": "allowScriptAccess",
-                "value": "always"
-            });
-            params.push({
-                "objectParam": "wmode",
-                "embedKey": "wmode",
-                "value": "opaque"
-            });
-            params.push({
-                "objectParam": "movie",
-                "embedKey": "src",
-                "value": options.flashFile + (options.forceReload ? "?" + Time.now() : "")
-            });
-            if (options.width) {
-                params.push({
-                    "objectKey": "width",
-                    "embedKey": "width",
-                    "value": options.width
-                });
-            }
-            if (options.height) {
-                params.push({
-                    "objectKey": "height",
-                    "embedKey": "height",
-                    "value": options.height
-                });
-            }
-            if (options.bgcolor) {
-                params.push({
-                    "objectParam": "bgcolor",
-                    "embedKey": "bgcolor",
-                    "value": options.bgcolor
-                });
-            }
-            if (options.FlashVars) {
-                params.push({
-                    "objectParam": "FlashVars",
-                    "embedKey": "FlashVars",
-                    "value": Types.is_object(options.FlashVars) ? Uri.encodeUriParams(options.FlashVars) : options.FlashVars
-                });
-            }
-            params.push({
-                "objectKey": "id",
-                "value": options.objectId || Ids.uniqueId("flash")
-            });
-            var objectKeys = [];
-            var objectParams = [];
-            var embedKeys = [];
-            Objs.iter(params, function(param) {
-                if (param.objectKey)
-                    objectKeys.push(param.objectKey + '="' + param.value + '"');
-                if (param.embedKey)
-                    embedKeys.push(param.embedKey + '="' + param.value + '"');
-                if (param.objectParam)
-                    objectParams.push('<param name="' + param.objectParam + '" value="' + param.value + '" />');
-            }, this);
-            return "<object " + objectKeys.join(" ") + ">" + objectParams.join(" ") + "<embed " + embedKeys.join(" ") + "></embed></object>";
-        },
-
-        embedFlashObject: function(container, options) {
-            container = Dom.unbox(container);
-            options = options || {};
-            if (options.parentBgcolor) {
-                try {
-                    var hex = container.style.backgroundColor || "";
-                    if (hex.indexOf("rgb") >= 0) {
-                        var rgb = hex.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-                        var convert = function(x) {
-                            return ("0" + parseInt(x, 10).toString(16)).slice(-2);
-                        };
-                        if (rgb && rgb.length > 3)
-                            hex = "#" + convert(rgb[1]) + convert(rgb[2]) + convert(rgb[3]);
-                    }
-                    options.bgcolor = hex;
-                } catch (e) {}
-            }
-            if (options.fixHalfPixels) {
-                try {
-                    var offset = Dom.elementOffset(container);
-                    if (offset.top % 1 !== 0)
-                        container.style.marginTop = (Math.round(offset.top) - offset.top) + "px";
-                    if (offset.left % 1 !== 0)
-                        container.style.marginLeft = (Math.round(offset.left) - offset.left) + "px";
-                } catch (e) {}
-            }
-            container.innerHTML = this.embedTemplate(options);
-            return this.getFlashObject(container);
-        }
-
-    };
-});
-
 Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions","module:Dom"], function(Class, Objs, Functions, Dom, scoped) {
     return Class.extend({
         scoped: scoped
@@ -16159,404 +16018,6 @@ Scoped.extend("module:DomMutation.NodeInsertObserver", ["module:DomMutation.Node
 var Scoped = this.subScope();
 Scoped.binding('base', 'root:BetaJS');
 Scoped.binding('browser', 'root:BetaJS.Browser');
-Scoped.binding('module', 'root:BetaJS.Flash');
-Scoped.define("module:", function () {
-	return {
-    "guid": "3adc016a-e639-4d1a-b4cb-e90cab02bc4f",
-    "version": "0.0.20"
-};
-});
-
-Scoped.extend("module:", ["module:"], function () {
-	return {
-		options: {
-			flashFile: "betajs-flash.swf"			
-		}
-	};
-});
-
-Scoped.define("module:FlashClassRegistry", ["base:Class"], function(Class,
-		scoped) {
-	return Class.extend({
-		scoped : scoped
-	}, {
-
-		interfaces : {},
-
-		register : function(cls, methods, statics) {
-			this.interfaces[cls] = {
-				methods: methods || {},
-				statics: statics || {}
-			};
-		},
-		
-		get: function (cls) {
-			return this.interfaces[cls];
-		}
-
-	});
-});
-
-Scoped.define("module:FlashObjectWrapper", ["base:Class","base:Objs","base:Functions"], function(Class, Objs, Functions, scoped) {
-	return Class.extend({
-		scoped : scoped
-	}, function(inherited) {
-		return {
-
-			constructor : function(embedding, objectIdent, objectType) {
-				inherited.constructor.call(this);
-				this.__embedding = embedding;
-				this.__ident = objectIdent;
-				this.__type = objectType;
-				if (embedding.__registry) {
-					var lookup = embedding.__registry.get(objectType);
-					if (lookup) {
-						Objs.iter(lookup.methods, function (method) {
-							this[method] = function () {
-								var args = Functions.getArguments(arguments);
-								args.unshift(method);
-								args.unshift(this.__ident);
-								return this.__embedding.flashCall.apply(this.__embedding, args);
-							};
-							this[method + "Void"] = function () {
-								var args = Functions.getArguments(arguments);
-								args.unshift(method);
-								args.unshift(this.__ident);
-								return this.__embedding.flashCallVoid.apply(this.__embedding, args);
-							};
-						}, this);
-					}
-				}
-			},
-			
-			destroy: function () {
-				try {
-                    this.__embedding.flashDestroy(this.__ident);
-                } catch (e) {}
-				inherited.destroy.call(this);
-			},
-			
-			set: function (key, value) {
-				return this.__embedding.flashSet.call(this.__embedding, this.__ident, key, value);
-			},
-
-			get: function (key) {
-				return this.__embedding.flashGet.call(this.__embedding, this.__ident, key);
-			}
-			
-		};
-	});
-});
-
-Scoped.define("module:FlashClassWrapper", ["base:Class","base:Objs","base:Functions"], function(Class, Objs, Functions, scoped) {
-	return Class.extend({
-		scoped : scoped
-	}, function(inherited) {
-		return {
-
-			constructor : function(embedding, classType) {
-				inherited.constructor.call(this);
-				this.__embedding = embedding;
-				this.__type = classType;
-				if (embedding.__registry) {
-					var lookup = embedding.__registry.get(classType);
-					if (lookup) {
-						Objs.iter(lookup.statics, function (method) {
-							this[method] = function () {
-								var args = Functions.getArguments(arguments);
-								args.unshift(method);
-								args.unshift(this.__type);
-								return this.__embedding.flashStaticCall.apply(this.__embedding, args);
-							};
-							this[method + "Void"] = function () {
-								var args = Functions.getArguments(arguments);
-								args.unshift(method);
-								args.unshift(this.__type);
-								return this.__embedding.flashStaticCallVoid.apply(this.__embedding, args);
-							};
-						}, this);
-					}
-				}
-			},
-			
-			set: function (key, value) {
-				return this.__embedding.flashSetStatic.call(this.__embedding, this.__type, key, value);
-			},
-
-			get: function (key) {
-				return this.__embedding.flashGetStatic.call(this.__embedding, this.__type, key);
-			}
-
-		};
-	});
-});
-
-Scoped.define("module:FlashEmbedding", ["base:Class","base:Events.EventsMixin","browser:Dom","base:Strings","base:Functions","base:Types","base:Objs","base:Ids","base:Time","base:Timers.Timer","base:Async","base:Tokens","module:FlashObjectWrapper","module:FlashClassWrapper","browser:FlashHelper","module:"], function(Class, EventsMixin, Dom, Strings, Functions, Types, Objs, Ids, Time, Timer, Async, Tokens, FlashObjectWrapper, FlashClassWrapper, FlashHelper, mod, scoped) {
-	return Class.extend({ scoped : scoped }, [EventsMixin, function(inherited) {
-		return {
-
-			constructor : function(container, options, flashOptions) {
-				inherited.constructor.call(this);
-				options = options || {};
-				this.__registry = options.registry;
-				this.__wrap = options.wrap;
-				this.__hasEmbedding = options.hasEmbedding;
-				this.__cache = {};
-				this.__callbacks = {
-					ready: Functions.as_method(this.__ready, this)
-				};
-				this.__namespace = options.namespace ? options.namespace : ("flash_" + Tokens.generate_token());
-				this.__is_ready = false;
-				this.__is_suspended = false;
-				this.__throttle_status = "";
-				this.__ready_queue = [];
-				this.__wrappers = {};
-				this.__staticWrappers = {};
-				window[this.__namespace] = this.__callbacks;
-				flashOptions = Objs.extend(Objs.clone(mod.options, 1), Objs.extend({
-					FlashVars: {}
-				}, flashOptions));
-				flashOptions.FlashVars.ready = this.__namespace + ".ready";
-				if (options.debug)
-					flashOptions.FlashVars.debug = true;
-				if (!container) {
-					this.__helper_container = true;
-					container = document.createElement("div");
-					container.style.width = "1px";
-					container.style.height = "1px";
-					container.style.visibility = "hidden";
-					container.style.position = "absolute";
-					container.style.zIndex = -1;
-					document.body.appendChild(container);
-				}
-				this.__container = Dom.unbox(container);
-				this.__embedding = options.hasEmbedding ? FlashHelper.getFlashObject(this.__container) : FlashHelper.embedFlashObject(this.__container, flashOptions);
-				this.__suspendedTimer = this.auto_destroy(new Timer({
-					delay: 50,
-					context: this,
-					fire: this.__suspendedCheck
-				}));
-			},
-			
-			destroy: function () {
-				try {
-					window[this.__namespace] = null;
-					delete window[this.__namespace];
-				} catch (e) {}
-				Objs.iter(this.__wrappers, function (wrapper) {
-					wrapper.weakDestroy();
-				});
-				Objs.iter(this.__staticWrappers, function (wrapper) {
-					wrapper.weakDestroy();
-				});
-				if (!this.__hasEmbedding) {
-                    this.__container.innerHTML = "";
-                    if (this.__helper_container)
-                        this.__container.parentNode.removeChild(this.__container);
-				}
-				inherited.destroy.call(this);
-			},
-			
-			registerCallback: function (callback, context) {
-				var value = "__FLASHCALLBACK__" + Ids.uniqueId();
-				var self = this;
-				this.__callbacks[value] = function () {
-					callback.apply(context || self, Objs.map(Functions.getArguments(arguments), self.unserialize, self));
-				};
-				return value;
-			},
-			
-			unregisterCallback: function (value) {
-				delete this.__callbacks[value];
-			},
-			
-			serialize : function (value) {
-				if (Types.is_array(value))
-					return Objs.map(value, this.serialize, this);
-				if (Types.is_function(value))
-					value = this.registerCallback(value);
-				if (Types.is_string(value)) {
-					if (Strings.starts_with(value, "__FLASHCALLBACK__"))
-						value = this.__namespace + "." + value;
-				}
-				if (FlashObjectWrapper.is_instance_of(value))
-					value = value.__ident;
-				if (FlashClassWrapper.is_instance_of(value))
-					value = value.__type;
-				return value;
-			},
-
-			unserialize : function(value) {
-				if (Types.is_string(value) && Strings.starts_with(value, "__FLASHERR__"))
-					throw Strings.strip_start(value, "__FLASHERR__");
-				 if (Types.is_string(value) && Strings.starts_with(value, "__FLASHOBJ__")) {
-					 if (this.__wrap) {
-						var type = Strings.strip_start(value, "__FLASHOBJ__");
-						type = Strings.splitFirst(type, "__").head.replace("::", ".");
-						if (type.toLowerCase() != "object") {
-							if (!(value in this.__wrappers))
-								this.__wrappers[value] = new FlashObjectWrapper(this, value, type);
-							return this.__wrappers[value];
-						}
-					 }
-				}
-				return value;
-			},
-
-			invoke : function(method, args) {
-				if (!this.__is_ready)
-					throw "Flash is not ready yet";
-				args = args || [];
-				return this.unserialize(this.__embedding[method].apply(this.__embedding, this.serialize(Functions.getArguments(args))));
-			},
-
-			invokeCached : function(method, args) {
-				args = args || [];
-				var key = method + "__" + Functions.getArguments(args).join("__");
-				if (!(key in this.__cache))
-					this.__cache[key] = this.invoke.call(this, method, args);
-				return this.__cache[key];
-			},
-			
-			getClass: function (className) {
-				if (!this.__wrap)
-					return null;
-				if (!(className in this.__staticWrappers))
-					this.__staticWrappers[className] = new FlashClassWrapper(this, className);
-				return this.__staticWrappers[className];
-			},
-			
-			newObject: function () {
-				return this.flashCreate.apply(this, arguments);
-			},
-			
-			newCallback: function () {
-				return Types.is_string(arguments[0]) ? this.flashCreateCallbackObject.apply(this, arguments) : this.flashCreateCallbackFunction.apply(this, arguments);
-			},
-			
-			flashCreateCallbackObject : function() {
-				return this.invoke("create_callback_object", arguments);
-			},
-			
-			flashCreateCallbackFunction : function() {
-				return this.invoke("create_callback_function", arguments);
-			},
-
-			flashCreate : function() {
-				return this.invoke("create", arguments);
-			},
-
-			flashDestroy : function () {
-				return this.invoke("destroy", arguments);
-			},
-
-			flashCall : function() {
-				return this.invoke("call", arguments);
-			},
-
-			flashCallVoid : function() {
-				return this.invoke("call_void", arguments);
-			},
-
-			flashGet : function() {
-				return this.invoke("get", arguments);
-			},
-
-			flashSet : function() {
-				return this.invoke("set", arguments);
-			},
-
-			flashStaticCall : function() {
-				return this.invoke("static_call", arguments);
-			},
-
-			flashStaticCallVoid : function() {
-				return this.invoke("static_call_void", arguments);
-			},
-
-			flashGetStatic : function() {
-				return this.invoke("get_static", arguments);
-			},
-
-			flashSetStatic : function() {
-				return this.invoke("set_static", arguments);
-			},
-
-			flashMain : function() {
-				return this.invokeCached("main");
-			},
-			
-			__suspendedCheck: function () {
-				if (this.__is_ready) {
-					var test = Time.now();
-					var tries = 10;
-					while (tries > 0) {
-						try {
-							if (this.__embedding.echo(test) == test)
-								break;
-						} catch (e) {}
-						tries--;
-					}
-					var result = tries === 0;
-					if (result !== this.__is_suspended) {
-						this.__is_suspended = result;
-						this.trigger(result ? "suspended" : "resumed");
-					}
-					try {
-						var status = this.__embedding.throttle();
-						var changed = status !== this.__throttle_status;
-						this.__throttle_status = status;
-						if (changed)
-							this.trigger(this.isThrottled() ? "throttled" : "unthrottled");
-					} catch (e) {}
-				}
-			},
-			
-			isSuspended: function () {
-				return this.__is_ready && this.__is_suspended;
-			},
-
-			isThrottled: function () {
-				return this.__throttle_status === "throttle";
-			},
-			
-			__ready: function () {
-				if (!this.__is_ready) {
-					this.__is_ready = true;
-					this.__is_suspended = false;
-					Async.eventually(function () {
-						Objs.iter(this.__ready_queue, function (entry) {
-							entry.callback.call(entry.context || this);
-						}, this);
-					}, this);
-					this.trigger("ready");
-				}
-			},
-
-			ready : function(callback, context) {
-				if (this.__is_ready) {
-					Async.eventually(function () {
-						callback.call(context || this);
-					}, this);
-				} else {
-					this.__ready_queue.push({
-						callback: callback,
-						context: context
-					});
-				}
-			}
-
-		};
-	}]);
-});
-
-
-}).call(Scoped);
-(function () {
-var Scoped = this.subScope();
-Scoped.binding('base', 'root:BetaJS');
-Scoped.binding('browser', 'root:BetaJS.Browser');
-Scoped.binding('flash', 'root:BetaJS.Flash');
 Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
@@ -40016,10 +39477,9 @@ Scoped.binding('private', 'root:ZiggeoApi.V2');
 Scoped.binding('media', 'root:BetaJS.Media');
 Scoped.binding('mediacomponents', 'root:BetaJS.MediaComponents');
 Scoped.binding('dynamics', 'root:BetaJS.Dynamics');
-Scoped.binding('flash', 'root:BetaJS.Flash');
 Scoped.define("module:", function(){return{guid:"6c65838a-53fd-4fd1-8d48-e571a0500135"}});
 
-Scoped.define("private:Core", function(){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:7342","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","cdn-api-server.public.domain":"localhost:2396","cdn-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",regions:{other:{prefix:"r1",location:"Somewhere","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:11193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","cdn-api-server.public.domain":"localhost:23196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"video-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","cdn-api-server.public.domain":"cdnapi.ziggeo.com","cdn-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. / International",regions:{"eu-west-1":{prefix:"r1",location:"Ireland / EU","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"video-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","cdn-api-server.public.domain":"cdnapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"video-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","cdn-api-server.public.domain":"cdnapi-dev.ziggeo.com","cdn-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"video-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","cdn-api-server.public.domain":"cdnapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:37,latest:!0,prerelease:!0},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
+Scoped.define("private:Core", function(){return{servers:{local:{whitedomains:["*"],"server.api.server.public.domain":"localhost:91","server.api.server.public.protocol":"http","assets.api.server.public.domain":"localhost:92","assets.api.server.public.protocol":"http","embed.api.server.public.domain":"localhost:93","embed.api.server.public.protocol":"http","analytics.api.server.public.domain":"localhost:1197","analytics.api.server.public.protocol":"http","server.js-api.server.public.domain":"localhost:1197","server.js-api.server.public.protocol":"http","embed-cdn.api.server.public.domain":"localhost:7342","embed-cdn.api.server.public.protocol":"http","streaming-cdn.api.server.public.domain":"localhost:90","streaming-cdn.api.server.public.protocol":"http","webserver.public.domain":"localhost:98","webserver.public.protocol":"http","web-api-server.public.domain":"localhost:96","web-api-server.public.protocol":"http","cdn-api-server.public.domain":"localhost:2396","cdn-api-server.public.protocol":"http","hosted.pages.server.public.domain":"localhost:99","hosted.pages.server.public.protocol":"http","wowza.api.record.rtmp.protocol":"rtmp","wowza.api.record.rtmp.domain":"localhost","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://localhost:4444/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"Home",account_number_prefix:"01",regions:{other:{prefix:"r1",location:"Somewhere",account_number_prefix:"02","server.api.server.public.domain":"localhost:191","embed.api.server.public.domain":"localhost:193","analytics.api.server.public.domain":"localhost:2197","server.js-api.server.public.domain":"localhost:2197","embed-cdn.api.server.public.domain":"localhost:11193","streaming-cdn.api.server.public.domain":"localhost:190","webserver.public.domain":"localhost:198","web-api-server.public.domain":"localhost:196","cdn-api-server.public.domain":"localhost:23196","hosted.pages.server.public.domain":"localhost:199"}},tags:{local:!0,development:!0}},production:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1.ziggeo.com","analytics.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1.ziggeo.com","server.js-api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"video-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","media-cdn.api.server.public.domain":"media-cdn.ziggeo.com","media-cdn.api.server.public.protocol":"https","webserver.public.domain":"ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi.ziggeo.com","web-api-server.public.protocol":"https","cdn-api-server.public.domain":"cdnapi.ziggeo.com","cdn-api-server.public.protocol":"https","hosted.pages.server.public.domain":"ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. / International",account_number_prefix:"01",regions:{"eu-west-1":{prefix:"r1",location:"Ireland / EU",account_number_prefix:"02","server.api.server.public.domain":"srvapi-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"video-cdn-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-eu-west-1.ziggeo.com","media-cdn.api.server.public.domain":"media-cdn-eu-west-1.ziggeo.com","webserver.public.domain":"eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-eu-west-1.ziggeo.com","cdn-api-server.public.domain":"cdnapi-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{production:!0}},development:{whitedomains:["*.ziggeo.com","ziggeo.com","localhost"],"server.api.server.public.domain":"srvapi-dev.ziggeo.com","server.api.server.public.protocol":"https","assets.api.server.public.domain":"assets-dev.ziggeo.com","assets.api.server.public.protocol":"https","embed.api.server.public.domain":"embed-dev.ziggeo.com","embed.api.server.public.protocol":"https","analytics.api.server.public.domain":"api-us-east-1-dev.ziggeo.com","analytics.api.server.public.protocol":"https","embed-cdn.api.server.public.domain":"video-dev-cdn.ziggeo.com","embed-cdn.api.server.public.protocol":"https","server.js-api.server.public.domain":"api-us-east-1-dev.ziggeo.com","server.js-api.server.public.protocol":"https","streaming-cdn.api.server.public.domain":"streaming-cdn-dev.ziggeo.com","streaming-cdn.api.server.public.protocol":"https","media-cdn.api.server.public.domain":"media-cdn-dev.ziggeo.com","media-cdn.api.server.public.protocol":"https","webserver.public.domain":"www-dev.ziggeo.com","webserver.public.protocol":"https","web-api-server.public.domain":"webapi-dev.ziggeo.com","web-api-server.public.protocol":"https","cdn-api-server.public.domain":"cdnapi-dev.ziggeo.com","cdn-api-server.public.protocol":"https","hosted.pages.server.public.domain":"dev.ziggeo.io","hosted.pages.server.public.protocol":"https","wowza.api.record.rtmp.protocol":"rtmps","wowza.api.record.rtmp.domain":"wowza-dev.ziggeo.com","wowza.api.record.rtmp.path":"record/_definst_","wowza.api.record.rtmp.audiopath":"audiorecord/_definst_","wowza.api.record.webrtc.wssurl":"wss://wowza-dev.ziggeo.com:443/webrtc-session.json","wowza.api.record.webrtc.app":"webrtcziggeo","wowza.api.record.webrtc.audioapp":"webrtcziggeoaudio",prefix:"",location:"U.S. (US Law)",account_number_prefix:"01",regions:{"eu-west-1":{prefix:"r1",location:"Ireland (European Law)",account_number_prefix:"02","server.api.server.public.domain":"srvapi-dev-eu-west-1.ziggeo.com","embed.api.server.public.domain":"embed-dev-eu-west-1.ziggeo.com","analytics.api.server.public.domain":"api-eu-west-1.ziggeo.com","embed-cdn.api.server.public.domain":"video-dev-cdn-eu-west-1.ziggeo.com","server.js-api.server.public.domain":"api-eu-west-1.ziggeo.com","streaming-cdn.api.server.public.domain":"streaming-cdn-dev-eu-west-1.ziggeo.com","media-cdn.api.server.public.domain":"media-cdn-dev-eu-west-1.ziggeo.com","webserver.public.domain":"dev-eu-west-1.ziggeo.com","web-api-server.public.domain":"webapi-dev-eu-west-1.ziggeo.com","cdn-api-server.public.domain":"cdnapi-dev-eu-west-1.ziggeo.com","hosted.pages.server.public.domain":"dev-eu-west-1.ziggeo.io","wowza.api.record.rtmp.domain":"wowza-dev-eu-west-1.ziggeo.com","wowza.api.record.webrtc.wssurl":"wss://wowza-dev-eu-west-1.ziggeo.com:443/webrtc-session.json"}},tags:{development:!0}}},models:{session_cookie_prefix:"i07af2jp98rvoctt26y5egy3"},revision:{version:1,revision:37,latest:!0,prerelease:!0},video:{iframe:{"allow-player-mods":["speakers","autoplay","fullscreen"],"allow-recorder-mods":["speakers","autoplay","fullscreen","microphone","camera","usermedia"],"allow-audio-player-mods":["speakers","autoplay","fullscreen"],"allow-audio-recorder-mods":["speakers","autoplay","fullscreen","microphone","usermedia"],"allow-image-viewer-mods":["fullscreen"],"allow-image-capture-mods":["fullscreen","camera","usermedia"]}}}});
 
 Scoped.define("private:Application.Connect", ["base:Class","base:Objs","base:Ajax.AjaxWrapper"], ["browser:Ajax.IframePostmessageAjax","browser:Ajax.JsonpScriptAjax","browser:Ajax.XDomainRequestAjax","browser:Ajax.XmlHttpRequestAjax"], function(e,i,a,t){return e.extend({scoped:t},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.ajax=new a({sendContentType:!1,contentType:"urlencoded",wrapStatus:!0,wrapStatusParam:"_wrapstatus",noCache:!0,noCacheParam:"_nocache"})},destroy:function(){this.ajax.destroy(),t.destroy.call(this)},rawRequest:function(e,t){return this.ajax.execute({method:t.method,data:t.data,uri:e,resilience:t.resilience,sendContentType:t.sendContentType})},request:function(e,t){return this.rawRequest(this.application.urls.httpApiResourceUrl(e,t),t)},apiRequest:function(e,t){return this.rawRequest(this.application.urls.apiResourceUrl(e,t),i.extend({sendContentType:!0},t))}}})});
 
@@ -40033,11 +39493,9 @@ Scoped.define("module:Locale", ["base:Classes.LocaleAggregator","base:Classes.Lo
 
 Scoped.define("private:Logger", [], function(){return{__console:function(e,t){try{console&&console[e]&&console[e].apply(console,t)}catch(i){}return this},warn:function(){return this.__console("warn",arguments)},log:function(){return this.__console("log",arguments)}}});
 
-Scoped.define("private:Environment", ["private:Logger","private:Core","browser:Info","browser:Loader","base:Objs","base:Types","base:Net.Uri"], function(e,t,i,a,s,r,n){t.revision.prerelease&&e.warn("You are currently using a prerelease version of the Ziggeo JS SDK. We suggest using the stable revision for production use, and prereleases for staging environments and tests only.");var o=!!Scoped.getGlobal("ZiggeoLocal")||!!Scoped.getGlobal("ZiggeoWeb")&&-1===location.hostname.indexOf("ziggeo.com"),c=!1;o||(c=!0);try{0!==location.protocol.indexOf("file")||i.isCordova()||e.warn("In order to use Ziggeo's recording technology, this page needs to be served via https. The file:// protocol is not supported. For more details contact us at support@ziggeo.com")}catch(x){}try{0===location.protocol.indexOf("https")?window.location!==window.parent.location&&0===document.referrer.indexOf("https")&&e.warn("Accessing the camera and the microphone on insecure origins (HTTP) is deprecated, and future browser versions will stop to support insecure origins. We highly recommend upgrading to SSL (HTTPS). For more details contact us at support@ziggeo.com"):0===location.protocol.indexOf("http")&&e.warn("Accessing the camera and the microphone on insecure origins (HTTP) is deprecated, and future browser versions will stop to support insecure origins. We highly recommend upgrading to SSL (HTTPS). For more details contact us at support@ziggeo.com")}catch(x){}var d=!o,u=o||!!Scoped.getGlobal("ZiggeoDev")||!!Scoped.getGlobal("ZiggeoWeb")&&d&&-1!==location.hostname.indexOf("dev"),l=!u,h=o?"local":l?"production":"development",p=s.clone(t.servers[h],1),m={};if(l&&(m.cdn=p["assets.api.server.public.domain"].replace("assets.","assets-cdn.")),m.normal=p["assets.api.server.public.domain"],o)try{window.location.hostname&&/^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)&&(p=s.map(p,function(e){return r.is_string(e)?e.replace("localhost",window.location.hostname):e}),m.local=p["assets.api.server.public.domain"])}catch(x){}var g=p["assets.api.server.public.domain"],_="/v"+t.revision.version+"-r"+t.revision.revision+"/",f=c?"https":"http",v=null;for(var y in m)try{var b=m[y],w=a.findScript(b);if(w&&-1!==w.src.indexOf("ziggeo.js")){var k=n.parse(w.src),f=c?"https":k.protocol,g=k.host;k.port&&(g+=":"+k.port),_=k.directory;break}}catch(x){}return v=v||f+"://"+g+_,{isLocal:o,isServer:d,isDevelopment:u,isProduction:l,environment:h,serverEnvironments:t.servers,servers:p,serversByToken:function(t){var i=s.clone(p,-1);return s.iter(p.regions,function(e){0===t.indexOf(e.prefix)&&(i=s.extend(i,e))}),i},assetsDomain:g,assetsPath:_,assetsBase:v,sslRequired:c}});
+Scoped.define("private:Environment", ["private:Logger","private:Core","browser:Info","browser:Loader","base:Objs","base:Types","base:Net.Uri"], function(e,t,i,a,s,r,n){t.revision.prerelease&&e.warn("You are currently using a prerelease version of the Ziggeo JS SDK. We suggest using the stable revision for production use, and prereleases for staging environments and tests only.");var o=!!Scoped.getGlobal("ZiggeoLocal")||!!Scoped.getGlobal("ZiggeoWeb")&&-1===location.hostname.indexOf("ziggeo.com"),c=!1;o||(c=!0);try{0!==location.protocol.indexOf("file")||i.isCordova()||e.warn("In order to use Ziggeo's recording technology, this page needs to be served via https. The file:// protocol is not supported. For more details contact us at support@ziggeo.com")}catch(x){}try{0===location.protocol.indexOf("https")?window.location!==window.parent.location&&0===document.referrer.indexOf("https")&&e.warn("Accessing the camera and the microphone on insecure origins (HTTP) is deprecated, and future browser versions will stop to support insecure origins. We highly recommend upgrading to SSL (HTTPS). For more details contact us at support@ziggeo.com"):0===location.protocol.indexOf("http")&&e.warn("Accessing the camera and the microphone on insecure origins (HTTP) is deprecated, and future browser versions will stop to support insecure origins. We highly recommend upgrading to SSL (HTTPS). For more details contact us at support@ziggeo.com")}catch(x){}var d=!o,u=o||!!Scoped.getGlobal("ZiggeoDev")||!!Scoped.getGlobal("ZiggeoWeb")&&d&&-1!==location.hostname.indexOf("dev"),l=!u,h=o?"local":l?"production":"development",p=s.clone(t.servers[h],1),g={};if(l&&(g.cdn=p["assets.api.server.public.domain"].replace("assets.","assets-cdn.")),g.normal=p["assets.api.server.public.domain"],o)try{window.location.hostname&&/^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)&&(p=s.map(p,function(e){return r.is_string(e)?e.replace("localhost",window.location.hostname):e}),g.local=p["assets.api.server.public.domain"])}catch(x){}var m=p["assets.api.server.public.domain"],_="/v"+t.revision.version+"-r"+t.revision.revision+"/",f=c?"https":"http",v=null;for(var y in g)try{var b=g[y],w=a.findScript(b);if(w&&-1!==w.src.indexOf("ziggeo.js")){var k=n.parse(w.src),f=c?"https":k.protocol,m=k.host;k.port&&(m+=":"+k.port),_=k.directory;break}}catch(x){}return v=v||f+"://"+m+_,{isLocal:o,isServer:d,isDevelopment:u,isProduction:l,environment:h,serverEnvironments:t.servers,servers:p,serversByToken:function(t){var i=s.clone(p,-1);return s.iter(p.regions,function(e){0===t.indexOf(e.prefix)&&(i=s.extend(i,e))}),i},assetsDomain:m,assetsPath:_,assetsBase:v,sslRequired:c}});
 
-Scoped.define("private:Application.Analytics", ["base:Class","base:Events.EventsMixin","base:Objs","base:Time","base:Timers.Timer","browser:Info","private:Core","private:Environment","private:Logger"], function(e,t,n,o,i,a,c,s,r,d){var u=o.now();return e.extend({scoped:d},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__google_analytics_events={},e.data.get("google_analytics")&&(this.__google_analytics_events=n.objectify(e.data.get("google_analytics_track"))),this.__queue=[],this.__trackFailed=0,this.__trackSuccess=0,this.application.data.get("analytics")&&(this.__timer=this.auto_destroy(new i({context:this,fire:this.__pushEvents,delay:5e3})))},_generateEvent:function(e,t,i,a,s,r){return r=r||o.now(),i=i||{},a=a||{},s=s||{},{tokens:n.extend({application_token:this.application.data.get("token")},i),client:{type:"web",version:"v"+c.revision.version+"-"+c.revision.revision,revision:c.revision.revision,sdk_version:e},environment:{location:document.location.href,time:r-u},device:{navigator_appname:navigator.appName,navigator_appcodename:navigator.appCodeName,navigator_appversion:navigator.appVersion,navigator_cookieenabled:navigator.cookieEnabled,navigator_language:navigator.language||navigator.userLanguage||"",navigator_platform:navigator.platform,navigator_useragent:navigator.userAgent,navigator_window_chrome:"chrome"in window,navigator_window_opera:"opera"in window},event:{time:r,type:t,media_time:a.media_time||null,embed_type:a.embed_type||null,data_size:a.data_size||null,bandwidth:a.bandwidth||null},media:{duration:s.duration||null,width:s.width||null,height:s.height||null,tags:s.tags?s.tags.join(","):null,creation_type:s.creation_type||null,hd:s.width&&s.height&&921600<=s.width*s.height}}},track:function(e,t,i,a,s,r){try{var n=this._generateEvent(e,t,i,a,s,r);this.application.data.get("analytics")&&this.__queue.push(n),this.__google_analytics_events[t]&&ga("send","event","Ziggeo",t,"Ziggeo Campaign",a.media_time||s.duration||a.data_size||undefined),this.trigger("track",n)}catch(o){}},userTrack:function(e){this.track("2",e)},__pushEvents:function(){var e;this.application.data.get("analytics")&&0!==this.__queue.length&&(10<this.__trackFailed&&this.__trackSuccess/this.__trackFailed<.5||(e=this.__queue,this.__queue=[],this.application.connect.apiRequest("/scitylana/kcart",{data:{events:JSON.stringify(e)},method:"POST"}).error(function(){this.__trackFailed++,this.__queue=e.concat(this.__queue)},this).success(function(){this.__trackSuccess++},this)))}}}])});
-
-Scoped.define("private:Application.Urls", ["base:Class","base:Objs","base:Sort","base:Types","base:Comparators","base:Net.Uri","base:Async","browser:Info","media:WebRTC.RecorderWrapper","private:Environment"], function(e,i,a,t,s,r,n,o,c,d,u){return e.extend({scoped:u},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__servers=d.serversByToken(this.application.data.get("token")),this.__rtmpConnectivityResults={},this.__rtmpAudioConnectivityResults={}},httpApiBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["embed.api.server.public.domain"]},httpStreamingBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["embed-cdn.api.server.public.domain"]},apiStreamingBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["streaming-cdn.api.server.public.domain"]},rtmpRecordingUrls:function(){var e=[];return e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.path"]),d.isLocal?(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.path"])):(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmps://"+this.__servers["wowza.api.record.rtmp.domain"]+":443/"+this.__servers["wowza.api.record.rtmp.path"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.path"])),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.path"]),e.filter(function(e){return 0<this.__rtmpConnectivityResults[e]},this).concat(e.filter(function(e){return!this.__rtmpConnectivityResults[e]},this)).concat(e.filter(function(e){return this.__rtmpConnectivityResults[e]<0},this))},registerRtmpConnectivityResult:function(e,t){this.__rtmpConnectivityResults[e]=t},rtmpRecordingUrl:function(){return this.rtmpRecordingUrls()[0]},webrtcStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.app"]+(e||"")},wssUrl:function(){return this.__servers["wowza.api.record.webrtc.wssurl"]},rtmpAudioRecordingUrls:function(){var e=[];return e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.audiopath"]),d.isLocal?(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":1936/"+this.__servers["wowza.api.record.rtmp.audiopath"])):(e.push("rtmp://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmps://"+this.__servers["wowza.api.record.rtmp.domain"]+":443/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+":80/"+this.__servers["wowza.api.record.rtmp.audiopath"])),e.push("rtmpt://"+this.__servers["wowza.api.record.rtmp.domain"]+"/"+this.__servers["wowza.api.record.rtmp.audiopath"]),e.filter(function(e){return 0<this.__rtmpAudioConnectivityResults[e]},this).concat(e.filter(function(e){return!this.__rtmpAudioConnectivityResults[e]},this)).concat(e.filter(function(e){return this.__rtmpAudioConnectivityResults[e]<0},this))},registerRtmpAudioConnectivityResult:function(e,t){this.__rtmpAudioConnectivityResults[e]=t},rtmpAudioRecordingUrl:function(){return this.rtmpAudioRecordingUrls()[0]},webrtcAudioStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.audioapp"]+(e||"")},httpApiAppUrl:function(){return this.httpApiBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiBaseUrl:function(){return(d.isLocal?"http":"https")+"://"+this.__servers["analytics.api.server.public.domain"]},apiAppUrl:function(){return this.apiBaseUrl()+"/embed/v1/applications/"+this.application.data.get("token")},apiResourceUrl:function(e,t){return this.resourceUrl(this.apiAppUrl(),e,i.extend({auth:!0},t))},httpApiResourceUrl:function(e,t){return this.resourceUrl(this.httpApiAppUrl(),e,i.extend({auth:!0},t))},httpStreamingAppUrl:function(){return this.httpStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},httpStreamingResourceUrl:function(e,t){return this.resourceUrl(this.httpStreamingAppUrl(),e,t)},apiStreamingAppUrl:function(){return this.apiStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiStreamingResourceUrl:function(e,t){return this.resourceUrl(this.apiStreamingAppUrl(),e,t)},urlParams:function(e){e=e||{};var t=i.extend({},i.filter(e.params,function(e,t){return null!==e&&""!==e}));return e.auth&&this.application.data.get("auth")&&((t=i.extend(t,i.filter(e.auth,function(e,t){return null!==e&&""!==e})))[this.application.data.get("cookie_key")]=this.application.data.get("cookie_value")),a.sort_object(t,s.byValue)},hostedBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["hosted.pages.server.public.domain"]},hostedUrl:function(e){return this.hostedBaseUrl()+e},resourceUrl:function(e,t,i){return r.appendUriParams(e+(t&&0!==t.indexOf("/")?"/":"")+t,this.urlParams(i))}}})});
+Scoped.define("private:Application.Urls", ["base:Class","base:Objs","base:Sort","base:Types","base:Comparators","base:Net.Uri","base:Async","browser:Info","media:WebRTC.RecorderWrapper","private:Environment"], function(e,i,a,t,s,r,n,o,c,d,u){return e.extend({scoped:u},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__servers=d.serversByToken(this.application.data.get("token"))},httpApiBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["embed.api.server.public.domain"]},httpStreamingBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["embed-cdn.api.server.public.domain"]},apiStreamingBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["media-cdn.api.server.public.domain"]},webrtcStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.app"]+(e||"")},wssUrl:function(){return this.__servers["wowza.api.record.webrtc.wssurl"]},webrtcAudioStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.audioapp"]+(e||"")},httpApiAppUrl:function(){return this.httpApiBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiBaseUrl:function(){return(d.isLocal?"http":"https")+"://"+this.__servers["analytics.api.server.public.domain"]},apiAppUrl:function(){return this.apiBaseUrl()+"/embed/v1/applications/"+this.application.data.get("token")},apiResourceUrl:function(e,t){return this.resourceUrl(this.apiAppUrl(),e,i.extend({auth:!0},t))},httpApiResourceUrl:function(e,t){return this.resourceUrl(this.httpApiAppUrl(),e,i.extend({auth:!0},t))},httpStreamingAppUrl:function(){return this.httpStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},httpStreamingResourceUrl:function(e,t){return this.resourceUrl(this.httpStreamingAppUrl(),e,t)},apiStreamingAppUrl:function(){return this.apiStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiStreamingResourceUrl:function(e,t){return this.resourceUrl(this.apiStreamingAppUrl(),e,t)},urlParams:function(e){e=e||{};var t=i.extend({},i.filter(e.params,function(e,t){return null!==e&&""!==e}));return e.auth&&this.application.data.get("auth")&&((t=i.extend(t,i.filter(e.auth,function(e,t){return null!==e&&""!==e})))[this.application.data.get("cookie_key")]=this.application.data.get("cookie_value")),a.sort_object(t,s.byValue)},hostedBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["hosted.pages.server.public.domain"]},hostedUrl:function(e){return this.hostedBaseUrl()+e},resourceUrl:function(e,t,i){return r.appendUriParams(e+(t&&0!==t.indexOf("/")?"/":"")+t,this.urlParams(i))}}})});
 
 Scoped.define("module:Config", ["private:Environment","base:Properties.Properties","base:Functions"], function(e,t,i){var a=new t;return{set:i.as_method(a.set,a),get:i.as_method(a.get,a)}});
 
@@ -40045,7 +39503,7 @@ Scoped.define("module:Ads", ["mediacomponents:Ads.AdSenseVideoAdProvider","media
 
 Scoped.define("module:Supplementary", ["base:Async"], function(s){return{eventInvokeCallback:function(e,t,i){try{e.apply(t,i)}catch(a){s.eventually(function(){throw console.warn(a,e,t,i),a})}}}});
 
-Scoped.define("module:AudioPlayerStates.AudioProcessing", ["mediacomponents:AudioPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function(e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("audio-processing")),this.__audio=this.dyn.get("audio"),this.dyn.application.audios.watch(this.__audio,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__audioUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("audio_processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}}))},_end:function(){this.dyn.application.audios.unwatch(this.__audio,this),this.dyn.set("end-processing-time",a.now()),this.dyn._track("audio_processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
+Scoped.define("module:AudioPlayerStates.AudioProcessing", ["mediacomponents:AudioPlayer.Dynamics.PlayerStates.State","base:Time","base:Timers.Timer"], function(e,a,t,i){return e.extend({scoped:i},function(e){return{dynamics:["loader","message"],_started:function(){this.dyn.set("message",this.dyn.string("audio-processing")),this.__audio=this.dyn.get("audio"),this.__shareaudio=this.dyn.get("shareaudio"),this.dyn.set("shareaudio",[]),this.dyn.application.audios.watch(this.__audio,{auth:this.dyn.get("auth"),maxage:2500},this.dyn.__audioUpdate,this.dyn),this.dyn.set("start-processing-time",a.now()),this.dyn._track("audio_processing_start"),this.auto_destroy(new t({delay:100,context:this,fire:function(){var e=1e3;this.dyn.get("duration")&&1e3<this.dyn.get("duration")/60*1e3&&(e=this.dyn.get("duration")/60*1e3);var t=(a.now()-this.dyn.get("start-processing-time"))/e,i=1-1/(1+Math.sqrt(Math.sqrt(t)));this.dyn.trigger("processing",i),this.dyn.parent()&&this.dyn.parent().trigger("processing",i)}}))},_end:function(){this.dyn.set("shareaudio",this.__shareaudio),this.dyn.application.audios.unwatch(this.__audio,this),this.dyn.set("end-processing-time",a.now()),this.dyn._track("audio_processing_end",{media_time:this.dyn.get("end-processing-time")-this.dyn.get("start-processing-time")}),this.dyn.trigger("processed"),this.dyn.parent()&&this.dyn.parent().trigger("processed"),e._end.call(this)}}})});
 
 Scoped.define("module:AudioPlayerStates.PlayAudio", ["mediacomponents:AudioPlayer.Dynamics.PlayerStates.PlayAudio"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("audio_play_start")}}})});
 
@@ -40083,33 +39541,37 @@ Scoped.define("private:Application.StreamsApiMixin", function(){return{index:fun
 
 Scoped.define("private:Application.Streams", ["base:Class","base:Objs","private:Application.StreamsApiMixin","browser:Upload.MultiUploader"], function(e,t,i,s,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},imageUrl:function(e,t,i){i=i||{};var a="videos/"+e+"/streams/"+t+"/image";return this.application.urls.httpStreamingResourceUrl(a,{auth:i.auth,params:i.params})},videoUrl:function(e,t,i){var a="videos/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_video.mp4":"video.mp4");return this.application.urls.httpStreamingResourceUrl(a,{auth:i.auth,params:i.params})},videoAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/videoattach",{auth:i})},videoAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.videoAttachUrl(e,t,i),a)},videoAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.videoAttachUrl(e,t,i),a)},imageAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/imageattach",{auth:i})},imageAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.imageAttachUrl(e,t,i),a,{nonessential:!1})},imageAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.imageAttachUrl(e,t,i),a,{essential:!1})},audioAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/audioattach",{auth:i})},subtitleAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/subtitleattach",{auth:i})},audioAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.audioAttachUrl(e,t,i),a)},subtitleAttachUploaderUrl:function(e,t,i){return this.subtitleAttachUrl(e,t,i)},audioAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.audioAttachUrl(e,t,i),a)},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___videos___"+e+"___streams___"+t+"___video"},dataUploader:function(e,t,i){var a=new s;return i.video_data&&a.addUploader(this.videoAttachUploader(e,t,i.auth,i.video_data)),i.audio_data&&a.addUploader(this.audioAttachUploader(e,t,i.auth,i.audio_data)),i.image_data&&a.addUploader(this.imageAttachUploader(e,t,i.auth,i.image_data)),a}}}])});
 
-Scoped.define("private:Application.AudiosApiMixin", function(){return{index:function(e,t,i){return this.application.connect.request("/audios/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.request("/audios/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.request("/audios",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.request("/audios/"+e,{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.request("/audios/"+e,{method:"GET",auth:t,resilience:i})}}});
+Scoped.define("private:Application.AudiosApiMixin", function(){return{index:function(e,t,i){return this.application.connect.apiRequest("/audios/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.apiRequest("/audios/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.apiRequest("/audios",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e,{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.apiRequest("/audios/"+e,{method:"GET",auth:t,resilience:i})}}});
 
-Scoped.define("private:Application.Audios", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.AudiosApiMixin"], function(e,s,c,d,u,t,r,l,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},audioUrl:function(e,t){var i="audios/"+e+"/"+((t=t||{}).download?"download_audio.mp4":"audio.mp4");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(u.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=u.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,u.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),(!t||t.equals(r))&&l.deepEqual(i,s,10)||c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.audio_streams.dataUploader(e.audio.token,e.stream.token,{auth:a.auth,audio_data:a.audio_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.audio_streams.submit(e.audio.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
+Scoped.define("private:Application.Audios", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Types","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.AudiosApiMixin"], function(e,s,c,d,u,l,t,r,h,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},audioUrl:function(e,t){var i="audios/"+e+"/"+((t=t||{}).download?"download_audio.aac":"audio.aac");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(u.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=u.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,u.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),o.promises=[],l.is_empty(o.watchers)||((!t||t.equals(r))&&h.deepEqual(i,s,10)||c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a)))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.audio_streams.dataUploader(e.url_data,a.audio_data);return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.audio_streams.confirm(e.audio.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
 
-Scoped.define("private:Application.AudioStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},submit:function(e,t,i,a,s){return this.application.connect.request("/audios/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.request("/audios/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
+Scoped.define("private:Application.AudioStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},confirm:function(e,t,i,a,s){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t+"/confirm",{method:"POST",auth:a,resilience:s,data:i})},submit:function(e,t,i,a,s){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
 
-Scoped.define("private:Application.AudioStreams", ["base:Class","base:Objs","private:Application.AudioStreamsApiMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},audioUrl:function(e,t,i){var a="audios/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_audio.mp4":"audio.mp4");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___audios___"+e+"___streams___"+t+"___audio"},dataUploader:function(e,t,i){return this.audioAttachUploader(e,t,i.auth,i.audio_data)}}}])});
+Scoped.define("private:Application.AudioStreams", ["base:Class","base:Objs","private:Application.AudioStreamsApiMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},audioUrl:function(e,t,i){var a="audios/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_audio.aac":"audio.aac");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___audios___"+e+"___streams___"+t+"___audio"},signedUploaderConfig:function(e,t){return this.application.data.getUploaderConfig(e.url,t,{data:e.fields})},dataUploader:function(e,t){return this.application.data.getUploader(this.signedUploaderConfig(e,t))}}}])});
 
-Scoped.define("private:Application.ImagesApiMixin", function(){return{index:function(e,t,i){return this.application.connect.request("/images/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.request("/images/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.request("/images",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.request("/images/"+e,{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.request("/images/"+e,{method:"GET",auth:t,resilience:i})}}});
+Scoped.define("private:Application.ImagesApiMixin", function(){return{index:function(e,t,i){return this.application.connect.apiRequest("/images/",{method:"GET",auth:t,resilience:i,data:e})},destroy:function(e,t,i){return this.application.connect.apiRequest("/images/"+e,{method:"DELETE",auth:t,resilience:i})},create:function(e,t,i){return this.application.connect.apiRequest("/images",{method:"POST",auth:t,resilience:i,data:e})},update:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e,{method:"POST",auth:i,resilience:a,data:t})},get:function(e,t,i){return this.application.connect.apiRequest("/images/"+e,{method:"GET",auth:t,resilience:i})}}});
 
 Scoped.define("private:Application.Images", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.ImagesApiMixin"], function(e,s,c,d,u,t,r,l,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},imageUrl:function(e,t){var i="images/"+e+"/"+((t=t||{}).download?"download_image.mp4":"image.mp4");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(u.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=u.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,u.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),(!t||t.equals(r))&&l.deepEqual(i,s,10)||c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.image_streams.dataUploader(e.image.token,e.stream.token,{auth:a.auth,image_data:a.image_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.image_streams.submit(e.image.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
 
-Scoped.define("private:Application.ImageStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},submit:function(e,t,i,a,s){return this.application.connect.request("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.request("/images/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
+Scoped.define("private:Application.ImageStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},confirm:function(e,t,i,a,s){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},submit:function(e,t,i,a,s){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
 
 Scoped.define("private:Application.ImageStreams", ["base:Class","base:Objs","private:Application.ImageStreamsApiMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},imageUrl:function(e,t,i){var a="images/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_image.mp4":"image.mp4");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___images___"+e+"___streams___"+t+"___image"},dataUploader:function(e,t,i){return this.imageAttachUploader(e,t,i.auth,i.image_data)}}}])});
 
-Scoped.define("module:Application", ["base:Class","base:Objs","base:Events.EventsMixin","base:Events.Events","base:Async","base:Promise","browser:Dom","module:Locale","private:Application.Data","private:Application.Urls","private:Application.Connect","private:Application.Videos","private:Application.Streams","private:Application.Audios","private:Application.AudioStreams","private:Application.Images","private:Application.ImageStreams","private:Application.Analytics","private:Application.Debugger","module:Supplementary"], function(e,i,t,a,s,r,n,o,c,d,u,l,h,p,m,g,_,f,v,y,b){return o.mainLocale.register({error_503:"We are maintaining our service. We will be back shortly.",error_404:"We cannot recognize your api key. Please make sure to specify it in your website's header.",error_401:"You are not allowed to access the application from this site.",error_412:"You need to confirm / upgrade your account.",error_unknown:"An unknown error occurred. Our team has been notified and will resolve the issue."},"application"),e.extend({scoped:b},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.__authCache={},this.data=this.auto_destroy(new c(this,e)),this.data.get("debug")&&(this.debug=this.auto_destroy(new v(this))),this.urls=this.auto_destroy(new d(this)),this.connect=this.auto_destroy(new u(this)),this.videos=this.auto_destroy(new l(this)),this.streams=this.auto_destroy(new h(this)),this.audios=this.auto_destroy(new p(this)),this.audio_streams=this.auto_destroy(new m(this)),this.images=this.auto_destroy(new g(this)),this.image_streams=this.auto_destroy(new _(this)),this.analytics=this.auto_destroy(new f(this)),this.embed_events=this.auto_destroy(new a),this.embed_events._invokeCallback=y.eventInvokeCallback,this._invokeCallback=y.eventInvokeCallback,this.cls.register(this),this.__init()},destroy:function(){this.cls.unregister(this),t.destroy.call(this)},__init:function(){this.connect.request("session",{method:"POST",params:{noauth:!this.data.get("auth")}}).success(function(e){this.data.set("cookie_changed",e.token!==this.data.get("cookie_value")),this.data.set("cookie_value",e.token),this.data.set("testing_application",e.testing_application),this.data.set("ready",!0),this.analytics.track("2","init_application",{}),n.ready(function(){s.eventually(function(){this.persistentTrigger("ready")},this)},this)},this).error(function(e){this.data.set("error",e.status_code());var t=o.mainLocale.get("error_"+e.status_code(),"application");this.data.set("error_message",t||o.mainLocale.get("error_unknown","application")),this.persistentTrigger("error",e.status_code(),this.data.get("error_message"))},this)},authVideoReady:function(e,t){if(t&&e){var i=e.client_auth||e.server_auth;if(i&&!this.__authCache[i])return this.videos.get(t,{auth:e}).callback(function(){this.__authCache[i]=!0},this)}return r.value(!0)}}}],{__default:null,__instances:{},__deferred:0,events:new a,setDefault:function(e){this.__default=e,this.events.trigger("set-default",e)},getDefault:function(){return this.__default},getByToken:function(e){return this.__instances[e]},instanceByToken:function(e,t){return this.getByToken(e)||new this(i.extend({token:e},t))},register:function(e){var t=e.data.get("token");if(t in this.__instances)throw"Application Instance already existing for this application token.";this.__instances[t]=e,this.__default||this.setDefault(e)},unregister:function(e){var t=e.data.get("token");this.__instances[t]===e&&delete this.__instances[t],this.getDefault()===e&&this.setDefault(null)},isDeferred:function(){return 0<this.__deferred},defer:function(){this.__deferred++},undefer:function(){this.__deferred--,0===this.__deferred&&this.events.trigger("undefer")},onUndefer:function(e,t){this.isDeferred()?this.events.once("undefer",e,t):e.call(t||this)}})});
+Scoped.define("private:Application.AnalyticsApiMixin", function(){return{_push:function(e,t,i){return this.application.connect.apiRequest("/analytics/track",{method:"POST",auth:t,resilience:i,data:e})}}});
+
+Scoped.define("private:Application.Analytics", ["base:Class","base:Events.EventsMixin","base:Objs","base:Time","base:Timers.Timer","browser:Info","private:Application.AnalyticsApiMixin","private:Core","private:Environment","private:Logger"], function(e,t,n,o,i,a,s,c,r,d,u){var l=o.now();return e.extend({scoped:u},[t,s,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__google_analytics_events={},e.data.get("google_analytics")&&(this.__google_analytics_events=n.objectify(e.data.get("google_analytics_track"))),this.__queue=[],this.__trackFailed=0,this.__trackSuccess=0,this.application.data.get("analytics")&&(this.__timer=this.auto_destroy(new i({context:this,fire:this.__pushEvents,delay:5e3})))},_generateEvent:function(e,t,i,a,s,r){return r=r||o.now(),i=i||{},a=a||{},s=s||{},{tokens:n.extend({application_token:this.application.data.get("token")},i),client:{type:"web",version:"v"+c.revision.version+"-"+c.revision.revision,revision:c.revision.revision,sdk_version:e},environment:{location:document.location.href,time:r-l},device:{navigator_appname:navigator.appName,navigator_appcodename:navigator.appCodeName,navigator_appversion:navigator.appVersion,navigator_cookieenabled:navigator.cookieEnabled,navigator_language:navigator.language||navigator.userLanguage||"",navigator_platform:navigator.platform,navigator_useragent:navigator.userAgent,navigator_window_chrome:"chrome"in window,navigator_window_opera:"opera"in window},event:{time:r,type:t,media_time:a.media_time||null,embed_type:a.embed_type||null,data_size:a.data_size||null,bandwidth:a.bandwidth||null},media:{duration:s.duration||null,width:s.width||null,height:s.height||null,tags:s.tags?s.tags.join(","):null,creation_type:s.creation_type||null,hd:s.width&&s.height&&921600<=s.width*s.height}}},track:function(e,t,i,a,s,r){try{var n=this._generateEvent(e,t,i,a,s,r);this.application.data.get("analytics")&&this.__queue.push(n),this.__google_analytics_events[t]&&ga("send","event","Ziggeo",t,"Ziggeo Campaign",a.media_time||s.duration||a.data_size||undefined),this.trigger("track",n)}catch(o){}},userTrack:function(e){this.track("2",e)},__pushEvents:function(){var e;this.application.data.get("analytics")&&0!==this.__queue.length&&(10<this.__trackFailed&&this.__trackSuccess/this.__trackFailed<.5||(e=this.__queue,this.__queue=[],this._push({events:JSON.stringify(e)}).error(function(){this.__trackFailed++,this.__queue=e.concat(this.__queue)},this).success(function(){this.__trackSuccess++},this)))}}}])});
+
+Scoped.define("module:Application", ["base:Class","base:Objs","base:Events.EventsMixin","base:Events.Events","base:Async","base:Promise","browser:Dom","module:Locale","private:Application.Data","private:Application.Urls","private:Application.Connect","private:Application.Videos","private:Application.Streams","private:Application.Audios","private:Application.AudioStreams","private:Application.Images","private:Application.ImageStreams","private:Application.Analytics","private:Application.Debugger","module:Supplementary"], function(e,i,t,a,s,r,n,o,c,d,u,l,h,p,g,m,_,f,v,y,b){return o.mainLocale.register({error_503:"We are maintaining our service. We will be back shortly.",error_404:"We cannot recognize your api key. Please make sure to specify it in your website's header.",error_401:"You are not allowed to access the application from this site.",error_412:"You need to confirm / upgrade your account.",error_unknown:"An unknown error occurred. Our team has been notified and will resolve the issue."},"application"),e.extend({scoped:b},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.__authCache={},this.data=this.auto_destroy(new c(this,e)),this.data.get("debug")&&(this.debug=this.auto_destroy(new v(this))),this.urls=this.auto_destroy(new d(this)),this.connect=this.auto_destroy(new u(this)),this.videos=this.auto_destroy(new l(this)),this.streams=this.auto_destroy(new h(this)),this.audios=this.auto_destroy(new p(this)),this.audio_streams=this.auto_destroy(new g(this)),this.images=this.auto_destroy(new m(this)),this.image_streams=this.auto_destroy(new _(this)),this.analytics=this.auto_destroy(new f(this)),this.embed_events=this.auto_destroy(new a),this.embed_events._invokeCallback=y.eventInvokeCallback,this._invokeCallback=y.eventInvokeCallback,this.cls.register(this),this.__init()},destroy:function(){this.cls.unregister(this),t.destroy.call(this)},__init:function(){this.connect.request("session",{method:"POST",params:{noauth:!this.data.get("auth")}}).success(function(e){this.data.set("cookie_changed",e.token!==this.data.get("cookie_value")),this.data.set("cookie_value",e.token),this.data.set("testing_application",e.testing_application),this.data.set("ready",!0),this.analytics.track("2","init_application",{}),n.ready(function(){s.eventually(function(){this.persistentTrigger("ready")},this)},this)},this).error(function(e){this.data.set("error",e.status_code());var t=o.mainLocale.get("error_"+e.status_code(),"application");this.data.set("error_message",t||o.mainLocale.get("error_unknown","application")),this.persistentTrigger("error",e.status_code(),this.data.get("error_message"))},this)},authMediaReady:function(e,t,i){if(t&&e){var a=e.client_auth||e.server_auth;if(a&&!this.__authCache[a])return this[i].get(t,{auth:e}).callback(function(){this.__authCache[a]=!0},this)}return r.value(!0)},authVideoReady:function(e,t){return this.authMediaReady(e,t,"videos")},authAudioReady:function(e,t){return this.authMediaReady(e,t,"audios")}}}],{__default:null,__instances:{},__deferred:0,events:new a,setDefault:function(e){this.__default=e,this.events.trigger("set-default",e)},getDefault:function(){return this.__default},getByToken:function(e){return this.__instances[e]},instanceByToken:function(e,t){return this.getByToken(e)||new this(i.extend({token:e},t))},register:function(e){var t=e.data.get("token");if(t in this.__instances)throw"Application Instance already existing for this application token.";this.__instances[t]=e,this.__default||this.setDefault(e)},unregister:function(e){var t=e.data.get("token");this.__instances[t]===e&&delete this.__instances[t],this.getDefault()===e&&this.setDefault(null)},isDeferred:function(){return 0<this.__deferred},defer:function(){this.__deferred++},undefer:function(){this.__deferred--,0===this.__deferred&&this.events.trigger("undefer")},onUndefer:function(e,t){this.isDeferred()?this.events.once("undefer",e,t):e.call(t||this)}})});
 
 Scoped.define("private:Dynamics", ["dynamics:DomObserver","dynamics:Parser","dynamics:Registries","base:Async","browser:Dom","module:Application"], function(e,t,i,a,s,r){t.secureMode=!0;var n=new e({allowed_dynamics:["ziggeoplayer","ziggeorecorder","ziggeoaudioplayer","ziggeoaudiorecorder","ziggeoimageviewer","ziggeoimagecapture","ziggeoiframeplayer","ziggeoiframerecorder"],enabled:!(i.prefixes.ziggeo=!0)});return s.ready(function(){a.eventually(function(){r.onUndefer(function(){n.enable()})})}),{domObserver:n}});
 
 Scoped.define("private:ZiggeoDynamicMixin", ["module:Application","base:Types"], function(e,t){return{_obtainApplication:function(){this.get("application")&&(this.application=t.is_string(this.get("application"))?e.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||e.getDefault()},_deferActivate:function(){return this._obtainApplication(),!(this.application||!this.get("lazy-application"))&&(e.events.once("set-default",function(e){this.application=e,this.activate()},this),!0)}}});
 
-Scoped.define("module:AudioPlayer", ["mediacomponents:AudioPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function(e,t,i,a,s,r,n,o,u,c,d,l,h,p){return e.extend({scoped:p},[h,function(e){return{types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool"},_notifications:{_activate:"_createWithApplication"},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},attrs:{"client-auth":null,"server-auth":null,"intermediate-token":null,audio:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1},create:function(){if(this._invokeCallback=o.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("audio_status",null)},_obtainApplication:function(){this.get("application")&&(this.application=a.is_string(this.get("application"))?i.instanceByToken(this.get("application")):this.get("application")),this.application=this.application||i.getDefault()},_createWithApplication:function(){var e;this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist&&(this.set("playlist",this.__playlist.map(function(e){return this.__sourceByAudio(e)},this)),e=this.get("playlist")[0],this.set("source",e.source),this.set("audio",e.token),this.on("playlist-next",function(e){this.set("audio",e.token)},this)),this.application.on("ready",function(){this.set("application_status",!0),this.get("playlist")||this.get("source")||this.__setAudioSources(),this.set("ready",!0),this._track("embedding_loaded")},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this),this.set("tracktags",this.application.data.get("track_tags"))):t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):t.warn("No application (token) defined. We need an application (token) to include an embedding.")},events:{"change:audio":function(){this.set("stream",null),this.__setAudioSources()},paused:function(){this._track("audio_play_pause",{media_time:this.get("position")})},playing:function(){this._track("audio_play_playing",{media_time:this.get("position")})},ended:function(){this._track("audio_play_end",{media_time:this.get("duration")})},seek:function(e){this._track("audio_play_seek",{media_time:e})}},__setAudioSources:function(){this.get("audio")&&this.get("application_status")&&(this.set("shareaudiourl",this.application.audios.publicAudioUrl(this.get("audio")).replace("http://","https://")),this.get("stream")||this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),this.application.audios.cache(this.get("audio"),{auth:this.get("auth")}).callback(this.__audioUpdate,this),this.get("ready")&&this.reattachAudio())},__setSources:function(){this.setAll(this.__sourceByAudio(this.get("audio"),this.get("stream")))},__sourceByAudio:function(t,e){var i=this.get("audio_data"),a=u.filter(i&&i.streams?i.streams:[],function(e){return(e.token===i.original_stream.token||e.parent_stream===i.original_stream.token)&&5===e.state&&3===e.streamable},this);if(this.get("playlist")&&(a=[],e=null),e||a.length<2){var s=e?this.application.audio_streams:this.application.audios,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{effect_profile:this.get("effect-profile"),force_refresh:this.get("forcerefresh")}}),{source:s.audioUrl.apply(s,r),token:t}}var n=[],o=[],c={force_refresh:this.get("forcerefresh"),auth:this.get("auth")};u.iter(a,function(e){n.push({src:this.application.audio_streams.audioUrl(t,e.token,c),token:e.token}),o.push({filter:{token:e.token}})},this);var d=o[0];return{source:null,sources:n,streams:o,currentstream:d,token:t}},__audioUpdate:function(e,t){if(!this.destroyed())if(e)this.set("audio_status",!1),e.status_code()===r.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("audio-not-found")}):e.status_code()===r.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("audio-access-forbidden")}):this.state().next("FatalError",{message:this.string("audio-unknown-error")});else{if(this.set("audio_data",t),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("audio-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("audio-unknown-error")});if(this.set("audio_status",!0),4===t.state)return void("AudioProcessing"!==this.state().state_name()&&this.state().next("AudioProcessing"));if("AudioProcessing"===this.state().state_name())return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.audios.refreshToken(this.get("audio")))return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){var a,s;this.application&&(a=c.now(),(s=d.create()).success(function(){this.application.analytics.track("2",e,{audio_token:this.get("audio_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},u.extend({embed_type:"player"},t),u.extend({duration:this.get("audio_data").duration||this.get("duration"),tags:this.get("audio_data").tags},i),a)},this),this.get("audio_data")?s.asyncSuccess():this.once("change:audio_data",function(){s.asyncSuccess()},this))}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoaudioplayer").register("ziggeoaudioplayer").attachStringTable(n.mainLocale).addStrings({"audio-not-found":"We could not find the specified audio file.","audio-access-forbidden":"You are not permitted to access this audio file.","audio-unknown-error":"We cannot access this audio at the moment. Please try again later.","audio-rejected":"The audio has been rejected.","audio-processing":"The audio is processing - stay tuned.","audio-access-error":"The audio is currently under moderation. You may click to retry."})});
+Scoped.define("module:AudioPlayer", ["mediacomponents:AudioPlayer.Dynamics.Player","private:Logger","module:Application","base:Types","module:PlayerStates","base:Net.HttpHeader","module:Locale","module:Supplementary","base:Objs","base:Time","base:Promise","base:TimeFormat","private:ZiggeoDynamicMixin"], function(e,t,i,a,s,r,n,o,u,c,d,l,h,p){return e.extend({scoped:p},[h,function(e){return{attrs:{"client-auth":null,"server-auth":null,"intermediate-token":null,audio:null,stream:null,application:null,forcerefresh:!1,pauseonplay:!1},types:{playlist:"array",pauseonplay:"bool","lazy-application":"bool"},create:function(){if(this._invokeCallback=o.eventInvokeCallback,this.get("source")||0<this.get("sources").length)return e.create.call(this);this.set("ready",!1),this.__playlist=this.get("playlist"),this.set("playlist",null),e.create.call(this),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.set("audio_status",null)},_notifications:{_activate:"_createWithApplication"},_createWithApplication:function(){var e;this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.__playlist&&(this.set("playlist",this.__playlist.map(function(e){return this.__sourceByAudio(e)},this)),e=this.get("playlist")[0],this.set("source",e.source),this.set("audio",e.token),this.on("playlist-next",function(e){this.set("audio",e.token)},this)),this.listenOn(this.application,"ready",function(){this.application.authAudioReady(this.get("auth"),this.get("audio")).callback(function(){this.set("application_status",!0),!this.get("playlist")&&this.get("source")||this.__setAudioSources(),this.set("ready",!0),this._track("embedding_loaded")},this)},this).listenOn(this.application,"error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.get("pauseonplay")&&this.application.embed_events.on("playing",function(e){e!==this&&this.get("playing")&&this.execute("pause")},this),this.set("tracktags",this.application.data.get("track_tags"))):t.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):t.warn("No application (token) defined. We need an application (token) to include an embedding.")},destroy:function(){this.application.embed_events.off(null,null,this),e.destroy.call(this)},events:{"change:audio":function(){var e;this.host&&(this.set("stream",null),e=0<=this.host.state().state_name().indexOf("Error"),this.__setAudioSources(),e&&this.host.next("Initial"))},paused:function(){this._track("audio_play_pause",{media_time:this.get("position")})},playing:function(){this._track("audio_play_playing",{media_time:this.get("position")})},ended:function(){this._track("audio_play_end",{media_time:this.get("duration")})},seek:function(e){this._track("audio_play_seek",{media_time:e})}},__setAudioSources:function(){this.get("audio")&&this.get("application_status")&&(this.get("stream")||this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),this.application.audios.cache(this.get("audio"),{auth:this.get("auth")}).callback(this.__audioUpdate,this),this.get("ready")&&this.reattachAudio())},__sourceByAudio:function(t,e){var i=this.get("audio_data");i&&i.duration&&this.set("duration",i.duration);var a=u.filter(i&&i.streams?i.streams:[],function(e){return(e.token===i.original_stream.token||e.parent_stream===i.original_stream.token)&&5===e.state&&3===e.streamable},this);if(this.get("playlist")&&(a=[],e=null),e||a.length<2){var s=e?this.application.audio_streams:this.application.audios,r=[t];return e&&r.push(e),r.push({auth:this.get("auth"),params:{force_refresh:this.get("forcerefresh")}}),{source:s.audioUrl.apply(s,r),token:t}}var n=[],o=[],c={force_refresh:this.get("forcerefresh"),auth:this.get("auth")};u.iter(a,function(e){n.push({src:this.application.audio_streams.audioUrl(t,e.token,c),token:e.token}),o.push({filter:{token:e.token}})},this);var d=o[0];return{source:null,sources:n,streams:o,currentstream:d,token:t}},__setSources:function(){this.setAll(this.__sourceByAudio(this.get("audio"),this.get("stream")))},__audioUpdate:function(e,t){if(!this.destroyed())if(e)this.set("audio_status",!1),e.status_code()===r.HTTP_STATUS_NOT_FOUND?this.state().next("FatalError",{message:this.string("audio-not-found")}):e.status_code()===r.HTTP_STATUS_FORBIDDEN?this.state().next("FatalError",{message:this.string("audio-access-forbidden")}):this.state().next("FatalError",{message:this.string("audio-unknown-error")});else{if(this.set("audio_data",t),this.get("title")||this.set("title",t.title),this.set("totalduration",t.duration),!1===t.approved&&!this.get("intermediate-token"))return void this.state().next("FatalError",{message:t.moderation_reason||this.string("audio-rejected")});if(t.state<4)return void this.state().next("FatalError",{message:this.string("audio-unknown-error")});if(this.set("audio_status",!0),4===t.state)return void("AudioProcessing"!==this.state().state_name()&&this.state().next("AudioProcessing"));if("AudioProcessing"===this.state().state_name())return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.set("forcerefresh",c.now()),this.__setSources(),void this.state().next("LoadPlayer");if(!this.get("stream")&&!this.get("refresh_token")&&this.application.audios.refreshToken(this.get("audio")))return this.set("refresh_token",this.application.audios.refreshToken(this.get("audio"))),this.__setSources(),void this.state().next("LoadPlayer");this.__setSources()}},_track:function(e,t,i){var a,s;this.application&&(a=c.now(),(s=d.create()).success(function(){this.application.analytics.track("2",e,{audio_token:this.get("audio_data").token,stream_token:this.get("stream")?this.get("stream"):undefined},u.extend({embed_type:"player"},t),u.extend({duration:this.get("audio_data").duration||this.get("duration"),tags:this.get("audio_data").tags},i),a)},this),this.get("audio_data")?s.asyncSuccess():this.once("change:audio_data",function(){s.asyncSuccess()},this))}}}],function(e){return{playerStates:function(){return e.playerStates.call(this).concat([s])}}}).register("ba-ziggeoaudioplayer").register("ziggeoaudioplayer").attachStringTable(n.mainLocale).addStrings({"audio-not-found":"We could not find the specified audio file.","audio-access-forbidden":"You are not permitted to access this audio file.","audio-unknown-error":"We cannot access this audio at the moment. Please try again later.","audio-rejected":"The audio has been rejected.","audio-processing":"The audio is processing - stay tuned.","audio-access-error":"The audio is currently under moderation. You may click to retry."})});
 
 Scoped.define("module:PopupAudioPlayer", ["module:AudioPlayer","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
-Scoped.define("module:AudioRecorder", ["mediacomponents:AudioRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:AudioRecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function(AudioRecorder,Application,Device,Logger,Environment,AudioRecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return AudioRecorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynaudioplayer:"ziggeoaudioplayer","audio-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,audio:null,description:null,title:null,tags:null,"custom-data":null,key:null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1},types:{tags:"array","custom-data":"object","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),this.set("rtmpstreamtype",Environment.isLocal?"flv":"aac"),t.create.call(this),this.get("audio")&&!this.get("key")&&Strings.starts_with(this.get("audio"),"_")&&this.set("key",Strings.strip_start(this.get("audio"),"_")),this.get("simulate")&&this.set("localplayback",!0),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialaudio=!!this.get("audio"),this.get("audio")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(){return this.application.audios.get(this.get("audio"),{auth:this.get("auth")}).success(function(e){e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1))},this)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),audio:this.get("audio"),"force-refresh":Time.now()}),this._track("audio_embedding_loaded"),this._updateUrls(),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile"))):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{audio_token:this.get("audio"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialaudio?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("audio")&&!this.__hadInitialaudio&&this.set("audio",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(){this.set("playerattrs.audio",this.get("audio"));var t=this.application.audio_streams.rtmpStreamName(this.get("audio"),this.get("stream"),this.get("auth"));this.set("uploadoptions",{rtmp:this.application.urls.rtmpAudioRecordingUrls().map(function(e){return{serverUrl:e,streamName:t}}),webrtcStreaming:{wssUrl:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?this.application.urls.wssUrl():undefined,streamInfo:this.application.data.get("webrtc_streaming")||this.application.data.get("webrtc_streaming_if_necessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("audio"),this.get("stream"),this.get("auth"))}:undefined,delay:4750,stopDelay:2750},audio:Objs.extend({resilienceCheck:function(e){return!e||!e.duration}},this.application.audio_streams.attachUploaderConfig(this.get("audio"),this.get("stream"),this.get("auth")))})},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),force_overwrite:this.get("force-overwrite"),audio_profile:this.get("audio-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,audio_file_name:this._audioFileName,device_info:Objs.extend({api_version:2,embed_code:e},Device.info)}},__recordingTypeParams:function(){return this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},_prepareRecording:function(){return this.get("audio")?this.application.audio_streams.create(this.get("audio"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls()},this):this.application.audios.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(e){this.set("audio",e.audio.token),this.set("audio_data",e.audio),this.set("stream",e.stream.token),this.set("stream_data",e.stream),this._updateUrls()},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("audio")&&(this.get("simulate")?Promise.value(!0):this.application.audio_streams.submit(this.get("audio"),this.get("stream"),{},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("audio")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.audios.cacheInvalidate(this.get("audio"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("audio")&&(this.__inputBindElement.value=this.get("audio")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([AudioRecorderStates])}}}).register("ba-ziggeoaudiorecorder").register("ziggeoaudiorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
+Scoped.define("module:AudioRecorder", ["mediacomponents:AudioRecorder.Dynamics.Recorder","module:Application","module:Device","private:Logger","private:Environment","module:AudioRecorderStates","base:Types","base:Time","base:Strings","module:Locale","module:Supplementary","base:Objs","base:Promise","base:Async","browser:Events","browser:Info","private:ZiggeoDynamicMixin"], function(AudioRecorder,Application,Device,Logger,Environment,AudioRecorderStates,Types,Time,Strings,Locale,Supplementary,Objs,Promise,Async,DomEvents,Info,ZiggeoDynamicMixin,scoped){return AudioRecorder.extend({scoped:scoped},[ZiggeoDynamicMixin,function(t){return{template:t.template.replace('"overlay">','"overlay"><a class="ziggeo-v2-testing" ba-if="{{testing}}" href="https://ziggeo.com/pricing" target="_blank"></a>'),attrs:{dynaudioplayer:"ziggeoaudioplayer","audio-profile":null,"meta-profile":null,"client-auth":null,"server-auth":null,"intermediate-token":null,application:null,audio:null,description:null,title:null,tags:null,"custom-data":null,key:null,"expiration-days":null,"force-overwrite":null,"recover-streams":null,"input-bind":null,"form-accept":null,playermodeifexists:!1,rerecordableifexists:!1},types:{tags:"array","custom-data":"object","expiration-days":"int","delete-old-streams":"bool","force-overwrite":"bool","recover-streams":"bool","lazy-application":"bool",playermodeifexists:"bool",rerecordableifexists:"bool"},events:{rerecord:function(){this.__inputBindElement&&(this.__inputBindElement.value=""),this.get("form-accept")&&this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()})},processed:function(){this.__had_processed=!0}},create:function(){this._invokeCallback=Supplementary.eventInvokeCallback,this.set("ready",!1),t.create.call(this),this.get("audio")&&!this.get("key")&&Strings.starts_with(this.get("audio"),"_")&&this.set("key",Strings.strip_start(this.get("audio"),"_")),this.get("simulate")&&this.set("localplayback",!0),this.set("auth",{client_auth:this.get("client-auth"),server_auth:this.get("server-auth"),intermediate_token:this.get("intermediate-token")}),this.set("application_status",null),this.__hadInitialaudio=!!this.get("audio"),this.get("audio")||(this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),this.get("form-accept")&&(this._formAcceptEvents=this.auto_destroy(new DomEvents),this._formAcceptEvents.on(document.querySelector(this.get("form-accept")),"submit",function(e){e.preventDefault()}))),this.on("rerecord",function(){this._track("rerecord_confirm")},this),this.__had_processed=!1},_notifications:{_activate:"_createWithApplication"},_deferActivate:function(){if(this._obtainApplication(),(this.application||!this.get("lazy-application"))&&!this.get("playermodeifexists")&&!this.get("rerecordableifexists"))return!1;var t=Promise.create();return this.application?t.asyncSuccess(!0):Application.events.once("set-default",function(e){this.application=e,t.asyncSuccess(!0)},this),(this.get("playermodeifexists")||this.get("rerecordableifexists"))&&(t=t.mapSuccess(function(){return this.application.audios.get(this.get("audio"),{auth:this.get("auth")}).success(function(e){return e&&(this.get("playermodeifexists")&&this.set("recordermode",!1),this.get("rerecordableifexists")||this.set("rerecordable",!1)),this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),result},this)},this).mapError(function(){return this.set("playermodeifexists",!1),this.set("rerecordableifexists",!1),Promise.value(!0)},this)),t.success(this.activate,this),!0},_createWithApplication:function(){this._obtainApplication(),this.application?this.application.data.get("auth")||!this.get("client-auth")&&!this.get("server-auth")?(this.application.embed_events.delegateEvents(null,this,null,[this]),this.application.on("ready",function(){this.set("application_status",!0),this.set("ready",!0),this.set("testing",this.application.data.get("testing_application"))},this).on("error",function(e,t){this.set("application_status",!1),this.state().next("FatalError",{message:t})},this),this.set("playerattrs",{application:this.application,"client-auth":this.get("client-auth"),"server-auth":this.get("server-auth"),"intermediate-token":this.get("intermediate-token"),audio:this.get("audio"),"force-refresh":Time.now()}),this._track("audio_embedding_loaded"),this.set("webrtcstreaming",this.application.data.get("webrtc_streaming")),this.set("webrtcstreamingifnecessary",this.application.data.get("webrtc_streaming_if_necessary")),this.set("webrtconmobile",this.application.data.get("webrtc_on_mobile")),Info.isSafari()&&Info.isDesktop()&&!this.get("webrtcstreaming")&&!this.get("webrtcstreamingifnecessary")&&this.set("webrtcstreamingifnecessary",!0),!this.get("webrtcstreaming")&&!this.get("webrtcstreamingifnecessary")||this.get("timeminlimit")||this.set("timeminlimit",5),this._updateUrls()):Logger.warn("You are specifying auth tokens on your embedding yet your application is initialized with auth = false."):Logger.warn("No application (token) defined. We need an application (token) to include an embedding.")},_track:function(e,t,i){this.application.analytics.track("2",e,{audio_token:this.get("audio"),stream_token:this.get("stream")},Objs.extend({embed_type:this.__hadInitialaudio?"rerecorder":"recorder"},t),Objs.extend({creation_type:this.get("creation-type"),duration:this.get("duration"),tags:this.get("tags")},i))},functions:{reset:function(){this.get("audio")&&!this.__hadInitialaudio&&this.set("audio",null),this.__had_processed=!1,t.functions.reset.call(this)},ready_to_play:function(){this.__had_processed||(this.trigger("processing",1),this.trigger("processed")),t.functions.ready_to_play.call(this)}},_updateUrls:function(e){this.set("playerattrs.audio",this.get("audio")),this.set("uploadoptions",{webrtcStreaming:{wssUrl:this.get("webrtcstreaming")||this.get("webrtcstreamingifnecessary")?this.application.urls.wssUrl():undefined,streamInfo:this.get("webrtcstreaming")||this.get("webrtcstreamingifnecessary")?{applicationName:this.application.urls.webrtcStreamingApp(Info.isFirefox()?"udp":""),streamName:this.application.streams.webrtcStreamName(this.get("audio"),this.get("stream"),this.get("auth"))}:undefined,delay:4750,stopDelay:2750},audio:e?Objs.extend({resilienceCheck:function(e){return!e||!e.duration}},this.application.audio_streams.signedUploaderConfig(e)):undefined})},__createParams:function(){var e={};try{var t=this.activeElement().cloneNode();t.innerHTML="",e=t.outerHTML}catch(i){}return{description:this.get("description"),title:this.get("title"),tags:this.get("tags")?this.get("tags").join(","):undefined,data:this.get("custom-data")?JSON.stringify(this.get("custom-data")):undefined,key:this.get("key"),expiration_days:this.get("expiration-days"),delete_old_streams:this.get("delete-old-streams"),force_overwrite:this.get("force-overwrite"),audio_profile:this.get("audio-profile"),meta_profile:this.get("meta-profile"),enforce_duration:this.get("enforce-duration"),recover_streams:this.get("recover-streams"),max_duration:this.get("timelimit"),user_language:navigator.language||navigator.userLanguage,audio_file_name:this._audioFileName,device_info:Objs.extend({api_version:2,embed_code:e,media_source:this.__getMediaSource(),capture_type:this.__getCaptureType()},Device.info)}},__recordingTypeParams:function(){return this.recorder?{webrtc_recording:!0,create_stream:!0,webrtc_streaming:this.isWebrtcStreaming()}:{create_stream:!0}},__getMediaSource:function(){return this.__recordingTypeParams().webrtc_recording?"record":"upload"},__getCaptureType:function(){var e=this.__recordingTypeParams();return e.webrtc_streaming?"webrtc_streaming":e.webrtc_recording?"webrtc":"file_capture"},_prepareRecording:function(){return this.get("audio")?this.application.audio_streams.create(this.get("audio"),this.__recordingTypeParams(),this.get("auth")).mapSuccess(function(e){this.set("stream",e.token),this.set("stream_data",e),this._updateUrls(data.url_data)},this):this.application.audios.create(Objs.extend(this.__createParams(),this.__recordingTypeParams()),this.get("auth")).mapSuccess(function(e){this.set("audio",e.audio.token),this.set("audio_data",e.audio),this.set("stream",e.audio_stream.token),this.set("stream_data",e.audio_stream),this._updateUrls(e.url_data)},this)},_verifyRecording:function(){var e=Promise.create();return Async.eventually(function(){this.get("audio")&&(this.get("simulate")?Promise.value(!0):this.application.audio_streams.confirm(this.get("audio"),this.get("stream"),{},this.get("auth"),50)).success(function(){this.__inputBindElement&&(this.__inputBindElement.value=this.get("audio")),this.get("form-accept")&&this._formAcceptEvents.off(document.querySelector(this.get("form-accept")),"submit"),this.application.audios.cacheInvalidate(this.get("audio"))},this).forwardCallback(e)},this,2500),e},_afterActivate:function(e){t._afterActivate.apply(this,arguments),this.get("input-bind")&&(this.__inputBindElement=document.getElementsByName(this.get("input-bind"))[0],this.__inputBindElement||(this.__inputBindElement=document.createElement("input"),this.__inputBindElement.type="hidden",this.__inputBindElement.id=this.get("input-bind"),this.__inputBindElement.name=this.get("input-bind"),e.parentElement.appendChild(this.__inputBindElement)),this.get("audio")&&(this.__inputBindElement.value=this.get("audio")))}}}],function(e){return{recorderStates:function(){return e.recorderStates.call(this).concat([AudioRecorderStates])}}}).register("ba-ziggeoaudiorecorder").register("ziggeoaudiorecorder").registerFunctions({testing:function(obj){with(obj)return testing}}).attachStringTable(Locale.mainLocale).addStrings({})});
 
 Scoped.define("module:PopupAudioRecorder", ["module:AudioRecorder","mediacomponents:PopupHelper"], function(e,t,i){return e.extend({scoped:i},t.mixin)});
 
