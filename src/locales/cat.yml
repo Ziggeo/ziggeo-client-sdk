@@ -16,3 +16,15 @@
   ziggeoplayer.video-access-error: >-
     El vídeo està actualment a la moderació. Podeu fer clic per tornar a
     intentar-ho.
+  ziggeoaudioplayer.audio-not-found: No hem pogut trobar el fitxer d'àudio especificat.
+  ziggeoaudioplayer.audio-access-forbidden: No teniu permís per accedir a aquest fitxer d'àudio.
+  ziggeoaudioplayer.audio-unknown-error: 'De moment no podem accedir a aquest àudio. Siusplau, intenta-ho més tard.'
+  ziggeoaudioplayer.audio-rejected: S'ha rebutjat l'àudio.
+  ziggeoaudioplayer.audio-processing: L’àudio s’està processant. Estigueu atents.
+  ziggeoaudioplayer.audio-access-error: Actualment l’àudio està moderat. Podeu fer clic per tornar-ho a provar.
+  ziggeoimageviewer.image-not-found: No hem pogut trobar el fitxer d'imatge especificat.
+  ziggeoimageviewer.image-access-forbidden: No teniu permís per accedir a aquest fitxer d'imatge.
+  ziggeoimageviewer.image-unknown-error: 'De moment no podem accedir a aquesta imatge. Siusplau, intenta-ho més tard.'
+  ziggeoimageviewer.image-rejected: La imatge ha estat rebutjada.
+  ziggeoimageviewer.image-processing: La imatge s'està processant; estigueu atents.
+  ziggeoimageviewer.image-access-error: 'Actualment, la imatge està moderada. Podeu fer clic per tornar-ho a provar.'

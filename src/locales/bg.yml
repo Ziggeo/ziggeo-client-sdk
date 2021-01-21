@@ -14,3 +14,17 @@
   ziggeoplayer.video-rejected: Видеото е било отхвърлено.
   ziggeoplayer.video-processing: Видеото е обработка - останете на линия.
   ziggeoplayer.video-access-error: 'Видеото е в процес на умереност. Можете да кликнете, за да опитате отново.'
+  ziggeoaudioplayer.audio-not-found: Не можахме да намерим посочения аудио файл.
+  ziggeoaudioplayer.audio-access-forbidden: Нямате достъп до този аудио файл.
+  ziggeoaudioplayer.audio-unknown-error: 'В момента нямаме достъп до това аудио. Моля, опитайте отново по-късно.'
+  ziggeoaudioplayer.audio-rejected: Аудиото е отхвърлено.
+  ziggeoaudioplayer.audio-processing: Аудиото се обработва - следете.
+  ziggeoaudioplayer.audio-access-error: 'В момента аудиото е под модерация. Можете да щракнете, за да опитате отново.'
+  ziggeoimageviewer.image-not-found: Не можахме да намерим посочения файл с изображение.
+  ziggeoimageviewer.image-access-forbidden: Нямате достъп до този файл с изображения.
+  ziggeoimageviewer.image-unknown-error: 'В момента нямаме достъп до това изображение. Моля, опитайте отново по-късно.'
+  ziggeoimageviewer.image-rejected: Изображението е отхвърлено.
+  ziggeoimageviewer.image-processing: Изображението се обработва - следете.
+  ziggeoimageviewer.image-access-error: >-
+    В момента изображението е под модерация. Можете да щракнете, за да опитате
+    отново.

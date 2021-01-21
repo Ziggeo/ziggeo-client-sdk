@@ -1,14 +1,24 @@
 'language:zh-cn':
   application.error_503: 服务器正在维护中，稍后就会恢复。
-  application.error_404: >-
-    我们无法验证您的应用金钥，请确定您有在网站配置参数中正确指定了金钥。
+  application.error_404: 我们无法验证您的应用金钥，请确定您有在网站配置参数中正确指定了金钥。
   application.error_401: 未经授权的应用，请确认。
   application.error_412: 您必须确认/更新您的帐户。
-  application.error_unknown: >-
-    发生了未知的错误，已通知工作团队来排除此问题。
+  application.error_unknown: 发生了未知的错误，已通知工作团队来排除此问题。
   ziggeoplayer.video-not-found: 无法找到该影片。
   ziggeoplayer.video-access-forbidden: 未授权存取此影片。
   ziggeoplayer.video-unknown-error: 暂时无法存取此影片，请稍后再试。
   ziggeoplayer.video-rejected: 拒绝存取影片。
   ziggeoplayer.video-processing: 影片处理中，请稍候。
   ziggeoplayer.video-access-error: 影片正在转档中，请稍后再试。
+  ziggeoaudioplayer.audio-not-found: 我们找不到指定的音频文件。
+  ziggeoaudioplayer.audio-access-forbidden: 您无权访问此音频文件。
+  ziggeoaudioplayer.audio-unknown-error: 目前我们无法访问此音频。请稍后再试。
+  ziggeoaudioplayer.audio-rejected: 音频已被拒绝。
+  ziggeoaudioplayer.audio-processing: 音频正在处理-敬请期待。
+  ziggeoaudioplayer.audio-access-error: 音频当前处于中等状态。您可以单击重试。
+  ziggeoimageviewer.image-not-found: 我们找不到指定的图像文件。
+  ziggeoimageviewer.image-access-forbidden: 您无权访问此图像文件。
+  ziggeoimageviewer.image-unknown-error: 我们目前无法访问该图像。请稍后再试。
+  ziggeoimageviewer.image-rejected: 图片已被拒绝。
+  ziggeoimageviewer.image-processing: 图片正在处理-请继续关注。
+  ziggeoimageviewer.image-access-error: 该图像当前处于审核状态。您可以单击重试。

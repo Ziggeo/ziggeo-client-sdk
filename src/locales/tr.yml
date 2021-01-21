@@ -12,3 +12,15 @@
   ziggeoplayer.video-rejected: Video reddedildi.
   ziggeoplayer.video-processing: Video işleme - bizi izlemeye devam edin.
   ziggeoplayer.video-access-error: Video ılımlılık aşamasındadır. Tekrar denemek için tıklayabilirsiniz.
+  ziggeoaudioplayer.audio-not-found: Belirtilen ses dosyasını bulamadık.
+  ziggeoaudioplayer.audio-access-forbidden: Bu ses dosyasına erişim izniniz yok.
+  ziggeoaudioplayer.audio-unknown-error: Şu anda bu sese erişemiyoruz. Lütfen daha sonra tekrar deneyiniz.
+  ziggeoaudioplayer.audio-rejected: Ses reddedildi.
+  ziggeoaudioplayer.audio-processing: Ses işleniyor - bizi izlemeye devam edin.
+  ziggeoaudioplayer.audio-access-error: Ses şu anda denetleniyor. Yeniden denemek için tıklayabilirsiniz.
+  ziggeoimageviewer.image-not-found: Belirtilen görüntü dosyasını bulamadık.
+  ziggeoimageviewer.image-access-forbidden: Bu görüntü dosyasına erişim izniniz yok.
+  ziggeoimageviewer.image-unknown-error: Bu resme şu anda erişemiyoruz. Lütfen daha sonra tekrar deneyiniz.
+  ziggeoimageviewer.image-rejected: Görüntü reddedildi.
+  ziggeoimageviewer.image-processing: Görüntü işleniyor - bizi izlemeye devam edin.
+  ziggeoimageviewer.image-access-error: Görüntü şu anda denetleniyor. Yeniden denemek için tıklayabilirsiniz.

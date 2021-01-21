@@ -16,3 +16,15 @@
   ziggeoplayer.video-rejected: Video je odbijen.
   ziggeoplayer.video-processing: Video obrađuje - Stay tuned.
   ziggeoplayer.video-access-error: Spot je trenutno u umjerenim količinama. Možete kliknuti na ponovni pokušaj.
+  ziggeoaudioplayer.audio-not-found: Nismo mogli pronaći navedenu audio datoteku.
+  ziggeoaudioplayer.audio-access-forbidden: Nije vam dozvoljen pristup ovoj audio datoteci.
+  ziggeoaudioplayer.audio-unknown-error: Trenutno ne možemo pristupiti ovom zvuku. Molimo pokušajte ponovo kasnije.
+  ziggeoaudioplayer.audio-rejected: Zvuk je odbijen.
+  ziggeoaudioplayer.audio-processing: Zvuk se obrađuje - pratite nas.
+  ziggeoaudioplayer.audio-access-error: Zvuk je trenutno pod moderiranjem. Možete kliknuti za ponovni pokušaj.
+  ziggeoimageviewer.image-not-found: Nismo mogli pronaći navedenu datoteku slike.
+  ziggeoimageviewer.image-access-forbidden: Nije vam dozvoljen pristup ovoj slikovnoj datoteci.
+  ziggeoimageviewer.image-unknown-error: Trenutno ne možemo pristupiti ovoj slici. Molimo pokušajte ponovo kasnije.
+  ziggeoimageviewer.image-rejected: Slika je odbijena.
+  ziggeoimageviewer.image-processing: Slika se obrađuje - pratite nas.
+  ziggeoimageviewer.image-access-error: Trenutno se slika moderira. Možete kliknuti za ponovni pokušaj.
