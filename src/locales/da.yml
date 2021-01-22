@@ -12,3 +12,15 @@
   ziggeoplayer.video-rejected: Videoen er blevet afvist.
   ziggeoplayer.video-processing: Videoen behandles - Stay tuned.
   ziggeoplayer.video-access-error: Videoen er i øjeblikket under moderation. Du kan klikke for at prøve igen.
+  ziggeoaudioplayer.audio-not-found: Vi kunne ikke finde den angivne lydfil.
+  ziggeoaudioplayer.audio-access-forbidden: Du har ikke adgang til denne lydfil.
+  ziggeoaudioplayer.audio-unknown-error: Vi kan ikke få adgang til denne lyd i øjeblikket. Prøv igen senere.
+  ziggeoaudioplayer.audio-rejected: Lyden er blevet afvist.
+  ziggeoaudioplayer.audio-processing: Lyden behandles - hold dig opdateret.
+  ziggeoaudioplayer.audio-access-error: Lyden er i øjeblikket under moderering. Du kan klikke for at prøve igen.
+  ziggeoimageviewer.image-not-found: Vi kunne ikke finde den angivne billedfil.
+  ziggeoimageviewer.image-access-forbidden: Du har ikke adgang til denne billedfil.
+  ziggeoimageviewer.image-unknown-error: Vi kan ikke få adgang til dette billede i øjeblikket. Prøv igen senere.
+  ziggeoimageviewer.image-rejected: Billedet er afvist.
+  ziggeoimageviewer.image-processing: Billedet behandles - hold dig opdateret.
+  ziggeoimageviewer.image-access-error: Billedet er i øjeblikket under moderering. Du kan klikke for at prøve igen.

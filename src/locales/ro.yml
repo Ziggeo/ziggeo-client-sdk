@@ -18,3 +18,23 @@
   ziggeoplayer.video-access-error: >-
     Video este în prezent în curs de moderare. Aveți dreptul să faceți clic
     pentru a încerca din nou.
+  ziggeoaudioplayer.audio-not-found: Nu am putut găsi fișierul audio specificat.
+  ziggeoaudioplayer.audio-access-forbidden: Nu aveți permisiunea de a accesa acest fișier audio.
+  ziggeoaudioplayer.audio-unknown-error: >-
+    Nu putem accesa acest audio în acest moment. Vă rugăm să încercați din nou
+    mai târziu.
+  ziggeoaudioplayer.audio-rejected: Sunetul a fost respins.
+  ziggeoaudioplayer.audio-processing: Sunetul se procesează - rămâneți la curent.
+  ziggeoaudioplayer.audio-access-error: >-
+    Sunetul este în prezent sub moderare. Puteți face clic pentru a încerca din
+    nou.
+  ziggeoimageviewer.image-not-found: Nu am putut găsi fișierul imagine specificat.
+  ziggeoimageviewer.image-access-forbidden: Nu aveți permisiunea de a accesa acest fișier imagine.
+  ziggeoimageviewer.image-unknown-error: >-
+    Nu putem accesa această imagine în acest moment. Vă rugăm să încercați din
+    nou mai târziu.
+  ziggeoimageviewer.image-rejected: Imaginea a fost respinsă.
+  ziggeoimageviewer.image-processing: Imaginea se procesează - rămâneți la curent.
+  ziggeoimageviewer.image-access-error: >-
+    Imaginea este în prezent în curs de moderare. Puteți face clic pentru a
+    încerca din nou.

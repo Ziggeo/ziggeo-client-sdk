@@ -14,3 +14,19 @@
   ziggeoplayer.video-rejected: Видео је одбијен.
   ziggeoplayer.video-processing: Видео обрађује - стаи тунед.
   ziggeoplayer.video-access-error: Видео је тренутно у фази умерености. Можете да кликнете да поновите.
+  ziggeoaudioplayer.audio-not-found: Нисмо могли да пронађемо наведену аудио датотеку.
+  ziggeoaudioplayer.audio-access-forbidden: Није вам дозвољен приступ овој аудио датотеци.
+  ziggeoaudioplayer.audio-unknown-error: Тренутно не можемо приступити овом звуку. Покушајте поново касније.
+  ziggeoaudioplayer.audio-rejected: Звук је одбијен.
+  ziggeoaudioplayer.audio-processing: Звук се обрађује - пратите нас.
+  ziggeoaudioplayer.audio-access-error: >-
+    Звук је тренутно под модерирањем. Можете да кликнете да бисте покушали
+    поново.
+  ziggeoimageviewer.image-not-found: Нисмо могли да пронађемо наведену датотеку слике.
+  ziggeoimageviewer.image-access-forbidden: Није вам дозвољен приступ овој датотеци слике.
+  ziggeoimageviewer.image-unknown-error: Тренутно не можемо приступити овој слици. Покушајте поново касније.
+  ziggeoimageviewer.image-rejected: Слика је одбијена.
+  ziggeoimageviewer.image-processing: Слика се обрађује - пратите нас.
+  ziggeoimageviewer.image-access-error: >-
+    Слика је тренутно под модерирањем. Можете да кликнете да бисте покушали
+    поново.

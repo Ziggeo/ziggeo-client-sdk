@@ -1,14 +1,31 @@
 'language:sk':
-  application.error_503: Túto službu práve vylepšujeme. Možnosť nahrania videoživotopisu bude dostupná už onedlho. Túto službu práve vylepšujeme. Možnosť nahrania videoživotopisu bude opätovne spustená už onedlho.
+  application.error_503: >-
+    Túto službu práve vylepšujeme. Možnosť nahrania videoživotopisu bude
+    dostupná už onedlho. Túto službu práve vylepšujeme. Možnosť nahrania
+    videoživotopisu bude opätovne spustená už onedlho.
   application.error_404: >-
-    Nedarí sa nám rozpoznať Váš API kľúč. Uistite sa, prosím, či ho máte v hlavičke Vášho webu.
+    Nedarí sa nám rozpoznať Váš API kľúč. Uistite sa, prosím, či ho máte v
+    hlavičke Vášho webu.
   application.error_401: Nemáte prístup k aplikácii na tejto stránke.
   application.error_412: Musíte potvrdiť / aktualizovať svoj účet.
   application.error_unknown: >-
-    Vyskytla sa neznáma chyba. Náš tím bol upozornený a bude tento problém riešiť.
+    Vyskytla sa neznáma chyba. Náš tím bol upozornený a bude tento problém
+    riešiť.
   ziggeoplayer.video-not-found: Nepodarilo sa nám nájsť zadaný video súbor.
   ziggeoplayer.video-access-forbidden: K tomuto video súboru nemáte povolený prístup.
   ziggeoplayer.video-unknown-error: K tomuto videu nemáme momentálne prístup. Skúste neskôr prosím.
   ziggeoplayer.video-rejected: Video bolo zamietnuté.
   ziggeoplayer.video-processing: Video sa spracováva.
   ziggeoplayer.video-access-error: Video je momentálne používané. Kliknutím skúste znova.
+  ziggeoaudioplayer.audio-not-found: Zadaný zvukový súbor sa nám nepodarilo nájsť.
+  ziggeoaudioplayer.audio-access-forbidden: K tomuto zvukovému súboru nemáte prístup.
+  ziggeoaudioplayer.audio-unknown-error: Momentálne nemáme prístup k tomuto zvuku. Skúste neskôr prosím.
+  ziggeoaudioplayer.audio-rejected: Zvuk bol odmietnutý.
+  ziggeoaudioplayer.audio-processing: Zvuk sa spracováva - zostaňte naladení.
+  ziggeoaudioplayer.audio-access-error: Zvuk je momentálne v moderovaní. Kliknutím to môžete skúsiť znova.
+  ziggeoimageviewer.image-not-found: Nepodarilo sa nám nájsť zadaný obrazový súbor.
+  ziggeoimageviewer.image-access-forbidden: K tomuto súboru obrázka nemáte prístup.
+  ziggeoimageviewer.image-unknown-error: Momentálne nemáme prístup k tomuto obrázku. Skúste neskôr prosím.
+  ziggeoimageviewer.image-rejected: Obrázok bol odmietnutý.
+  ziggeoimageviewer.image-processing: Obrázok sa spracováva - zostaňte naladení.
+  ziggeoimageviewer.image-access-error: Obrázok je momentálne v moderovaní. Kliknutím to môžete skúsiť znova.

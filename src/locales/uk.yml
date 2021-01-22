@@ -1,0 +1,34 @@
+'language:uk':
+  application.error_503: Ми підтримуємо наш сервіс. Ми скоро повернемось.
+  application.error_404: >-
+    Ми не можемо розпізнати ваш ключ API. Будь ласка, обов’язково вкажіть це у
+    заголовку веб-сайту.
+  application.error_401: Ви не маєте доступу до програми з цього веб-сайту.
+  application.error_412: Вам потрібно підтвердити / оновити свій рахунок.
+  application.error_unknown: >-
+    Сталася невідома помилка. Наша команда отримала повідомлення та вирішить
+    проблему.
+  ziggeoaudioplayer.audio-not-found: Не вдалося знайти вказаний аудіофайл.
+  ziggeoaudioplayer.audio-access-forbidden: Ви не маєте доступу до цього аудіофайлу.
+  ziggeoaudioplayer.audio-unknown-error: >-
+    На даний момент ми не можемо отримати доступ до цього аудіо. Будь-ласка
+    спробуйте пізніше.
+  ziggeoaudioplayer.audio-rejected: Аудіо відхилено.
+  ziggeoaudioplayer.audio-processing: Аудіо обробляється - стежте за оновленнями.
+  ziggeoaudioplayer.audio-access-error: 'Наразі аудіо модерується. Ви можете натиснути, щоб повторити спробу.'
+  ziggeoimageviewer.image-not-found: Не вдалося знайти вказаний файл зображення.
+  ziggeoimageviewer.image-access-forbidden: Ви не маєте доступу до цього файлу зображення.
+  ziggeoimageviewer.image-unknown-error: >-
+    На даний момент ми не можемо отримати доступ до цього зображення. Будь-ласка
+    спробуйте пізніше.
+  ziggeoimageviewer.image-rejected: Зображення відхилено.
+  ziggeoimageviewer.image-processing: Зображення обробляється - стежте за оновленнями.
+  ziggeoimageviewer.image-access-error: 'Наразі зображення модерується. Ви можете натиснути, щоб повторити спробу.'
+  ziggeoplayer.video-not-found: Не вдалося знайти вказаний відеофайл.
+  ziggeoplayer.video-access-forbidden: Ви не маєте доступу до цього відеофайлу.
+  ziggeoplayer.video-unknown-error: >-
+    На даний момент ми не можемо отримати доступ до цього відео. Будь-ласка
+    спробуйте пізніше.
+  ziggeoplayer.video-rejected: Відео відхилено.
+  ziggeoplayer.video-processing: Відео обробляється - стежте за оновленнями.
+  ziggeoplayer.video-access-error: 'Наразі відео модерується. Ви можете натиснути, щоб повторити спробу.'

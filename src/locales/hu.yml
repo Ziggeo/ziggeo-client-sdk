@@ -12,3 +12,15 @@
   ziggeoplayer.video-rejected: A videó elutasításra került.
   ziggeoplayer.video-processing: A videó feldolgozás - a híradásokat.
   ziggeoplayer.video-access-error: A videó jelenleg a moderálás. Lehet kattintással újra.
+  ziggeoaudioplayer.audio-not-found: Nem található a megadott hangfájl.
+  ziggeoaudioplayer.audio-access-forbidden: Ön nem férhet hozzá ehhez az audio fájlhoz.
+  ziggeoaudioplayer.audio-unknown-error: 'Jelenleg nem érhetjük el ezt a hanganyagot. Kérlek, próbáld újra később.'
+  ziggeoaudioplayer.audio-rejected: A hangot elutasították.
+  ziggeoaudioplayer.audio-processing: A hang feldolgozása folyamatban van - maradjon velünk.
+  ziggeoaudioplayer.audio-access-error: A hang jelenleg moderálás alatt áll. Kattintson az újrapróbálkozáshoz.
+  ziggeoimageviewer.image-not-found: Nem található a megadott képfájl.
+  ziggeoimageviewer.image-access-forbidden: Ön nem férhet hozzá ehhez a képfájlhoz.
+  ziggeoimageviewer.image-unknown-error: 'Jelenleg nem tudunk hozzáférni ehhez a képhez. Kérlek, próbáld újra később.'
+  ziggeoimageviewer.image-rejected: A képet elutasították.
+  ziggeoimageviewer.image-processing: A kép feldolgozása folyamatban van - maradjon velünk.
+  ziggeoimageviewer.image-access-error: A kép jelenleg moderálás alatt áll. Kattintson az újrapróbálkozáshoz.

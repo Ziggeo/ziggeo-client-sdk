@@ -1,14 +1,38 @@
 'language:pt':
   application.error_503: O nosso serviço está em manutenção. Os vídeos voltarão em breve.
   application.error_404: >-
-    Não reconhecemos sua chave de API. Certifique-se de especificá-la no cabeçalho de seu site.
+    Não reconhecemos sua chave de API. Certifique-se de especificá-la no
+    cabeçalho de seu site.
   application.error_401: Não tem permissões para aceder a esta aplicação.
   application.error_412: Tem de confirmar / atualizar a sua conta.
   application.error_unknown: >-
-    Ocorreu um erro desconhecido. A nossa equipa foi notificada e irá resolver o problema.
+    Ocorreu um erro desconhecido. A nossa equipa foi notificada e irá resolver o
+    problema.
   ziggeoplayer.video-not-found: Não foi possível encontrar o vídeo especificado.
   ziggeoplayer.video-access-forbidden: Não tem permissões para aceder a este vídeo.
-  ziggeoplayer.video-unknown-error: Não conseguimos aceder a este vídeo neste momento. Por favor, tente de novo mais tarde.
+  ziggeoplayer.video-unknown-error: >-
+    Não conseguimos aceder a este vídeo neste momento. Por favor, tente de novo
+    mais tarde.
   ziggeoplayer.video-rejected: O vídeo foi rejeitado.
   ziggeoplayer.video-processing: O vídeo está em processamento - fique atento.
   ziggeoplayer.video-access-error: O vídeo está atualmente sob moderação. Pode clicar para tentar novamente.
+  ziggeoaudioplayer.audio-not-found: Não foi possível encontrar o arquivo de áudio especificado.
+  ziggeoaudioplayer.audio-access-forbidden: Você não tem permissão para acessar este arquivo de áudio.
+  ziggeoaudioplayer.audio-unknown-error: >-
+    Não podemos acessar este áudio no momento. Por favor, tente novamente mais
+    tarde.
+  ziggeoaudioplayer.audio-rejected: O áudio foi rejeitado.
+  ziggeoaudioplayer.audio-processing: O áudio está sendo processado - fique ligado.
+  ziggeoaudioplayer.audio-access-error: >-
+    O áudio está atualmente sob moderação. Você pode clicar para tentar
+    novamente.
+  ziggeoimageviewer.image-not-found: Não foi possível encontrar o arquivo de imagem especificado.
+  ziggeoimageviewer.image-access-forbidden: Você não tem permissão para acessar este arquivo de imagem.
+  ziggeoimageviewer.image-unknown-error: >-
+    Não podemos acessar esta imagem no momento. Por favor, tente novamente mais
+    tarde.
+  ziggeoimageviewer.image-rejected: A imagem foi rejeitada.
+  ziggeoimageviewer.image-processing: A imagem está sendo processada - fique atento.
+  ziggeoimageviewer.image-access-error: >-
+    A imagem está atualmente sob moderação. Você pode clicar para tentar
+    novamente.

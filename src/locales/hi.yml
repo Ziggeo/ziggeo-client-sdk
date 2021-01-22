@@ -16,3 +16,19 @@
   ziggeoplayer.video-access-error: >-
     वीडियो वर्तमान में मॉडरेशन के अंतर्गत है आप फिर से प्रयास करने के लिए क्लिक
     कर सकते हैं।
+  ziggeoaudioplayer.audio-not-found: हमें निर्दिष्ट ऑडियो फ़ाइल नहीं मिली।
+  ziggeoaudioplayer.audio-access-forbidden: आपको इस ऑडियो फ़ाइल तक पहुँचने की अनुमति नहीं है।
+  ziggeoaudioplayer.audio-unknown-error: 'हम इस ऑडियो को इस समय एक्सेस नहीं कर सकते। बाद में पुन: प्रयास करें।'
+  ziggeoaudioplayer.audio-rejected: ऑडियो को खारिज कर दिया गया है।
+  ziggeoaudioplayer.audio-processing: ऑडियो प्रसंस्करण है - देखते रहें।
+  ziggeoaudioplayer.audio-access-error: >-
+    वर्तमान में ऑडियो मॉडरेशन के अंतर्गत है। आप पुन: प्रयास करने के लिए क्लिक कर
+    सकते हैं।
+  ziggeoimageviewer.image-not-found: हमें निर्दिष्ट छवि फ़ाइल नहीं मिली।
+  ziggeoimageviewer.image-access-forbidden: आपको इस छवि फ़ाइल तक पहुँचने की अनुमति नहीं है।
+  ziggeoimageviewer.image-unknown-error: 'हम इस समय इस छवि तक नहीं पहुंच सकते हैं। बाद में पुन: प्रयास करें।'
+  ziggeoimageviewer.image-rejected: छवि को अस्वीकार कर दिया गया है।
+  ziggeoimageviewer.image-processing: छवि प्रसंस्करण है - देखते रहें।
+  ziggeoimageviewer.image-access-error: >-
+    वर्तमान में छवि मॉडरेशन के अंतर्गत है। आप पुन: प्रयास करने के लिए क्लिक कर
+    सकते हैं।

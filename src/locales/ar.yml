@@ -14,3 +14,19 @@
   ziggeoplayer.video-rejected: تم رفض الفيديو.
   ziggeoplayer.video-processing: يتم معالجة الفيديو - الرجاء الانتظار.
   ziggeoplayer.video-access-error: الفيديو قيد المراجعة حاليا. يمكنك النقر لإعادة المحاولة.
+  ziggeoaudioplayer.audio-not-found: لم نتمكن من العثور على ملف الصوت المحدد.
+  ziggeoaudioplayer.audio-access-forbidden: لا يسمح لك للوصول إلى هذا الملف الصوتي.
+  ziggeoaudioplayer.audio-unknown-error: >-
+    لا يمكننا الوصول إلى هذا الصوت في الوقت الحالي. الرجاء معاودة المحاولة في
+    وقت لاحق.
+  ziggeoaudioplayer.audio-rejected: تم رفض الصوت.
+  ziggeoaudioplayer.audio-processing: الصوت قيد المعالجة - ترقبوا.
+  ziggeoaudioplayer.audio-access-error: الصوت حاليا تحت الإشراف. يمكنك النقر لإعادة المحاولة.
+  ziggeoimageviewer.image-not-found: لم نتمكن من العثور على ملف الصورة المحدد.
+  ziggeoimageviewer.image-access-forbidden: لا يسمح لك للوصول إلى ملف الصورة هذا.
+  ziggeoimageviewer.image-unknown-error: >-
+    لا يمكننا الوصول إلى هذه الصورة في الوقت الحالي. الرجاء معاودة المحاولة في
+    وقت لاحق.
+  ziggeoimageviewer.image-rejected: تم رفض الصورة.
+  ziggeoimageviewer.image-processing: الصورة قيد المعالجة - ترقبوا.
+  ziggeoimageviewer.image-access-error: الصورة قيد الاعتدال حاليا. يمكنك النقر لإعادة المحاولة.
