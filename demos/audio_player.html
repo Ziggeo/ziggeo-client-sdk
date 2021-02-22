@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" href="../build/ziggeo.css" />
+		<script src="credentials.js"></script>
+		<script src="../build/ziggeo.js"></script>
+		<script src="header.js"></script>
+	</head>
+	<body>
+		<ziggeoaudioplayer ziggeo-audio="{{ZiggeoDemoAudio}}"
+						   ziggeo-width=480
+						   ziggeo-theme="modern"
+						   id="player"
+		></ziggeoaudioplayer>
+		<script>
+			var player;
+			ZiggeoApi.V2.Application.getDefault().once("ready", function () {
+				player = ZiggeoApi.V2.AudioPlayer.findByElement(document.getElementById("player"));
+				player.on("all", function (event_name) {
+					if (event_name.indexOf("change") === 0)
+						return;
+					console.log(event_name);
+				});
+			});
+		</script>
+	</body>
+</html>
