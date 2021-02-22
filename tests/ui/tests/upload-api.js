@@ -1,18 +1,20 @@
-QUnit.test("test upload api", function(assert) {
-    var done = assert.async();
+QUnit.module("Video Upload API");
 
-    var rootElement = document.getElementById('visible-fixture');
-    rootElement.innerHTML = "Please select video file: <input type='file' name='file' />";
+QUnit.test("upload video", function(assert) {
+	var done = assert.async();
 
-    var fileElement = rootElement.querySelector("input");
+	var rootElement = document.getElementById('visible-fixture');
+	rootElement.innerHTML = "Please select video file: <input type='file' name='file' />";
 
-    fileElement.onchange = function () {
-        ZiggeoApi.V2.Application.getDefault().videos.createByUpload({
-            video_data: fileElement
-        }).callback(function (error) {
-            assert.ok(!error);
-            rootElement.innerHTML = "";
-            done();
-        });
-    };
+	var fileElement = rootElement.querySelector("input");
+
+	fileElement.onchange = function () {
+		ZiggeoApi.V2.Application.getDefault().videos.createByUpload({
+			video_data: fileElement
+		}).callback(function (error) {
+			assert.ok(!error);
+			rootElement.innerHTML = "";
+			done();
+		});
+	};
 });
