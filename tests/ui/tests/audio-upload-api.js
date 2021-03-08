@@ -1,16 +1,16 @@
-QUnit.module("Video Upload API");
+QUnit.module("Audio Upload API");
 
-QUnit.test("upload video", function(assert) {
+QUnit.test("upload audio", function(assert) {
 	var done = assert.async();
 
 	var rootElement = document.getElementById('visible-fixture');
-	rootElement.innerHTML = "Please select video file: <input type='file' name='file' />";
+	rootElement.innerHTML = "Please select audio file: <input type='file' name='file' />";
 
 	var fileElement = rootElement.querySelector("input");
 
 	fileElement.onchange = function () {
-		ZiggeoApi.V2.Application.getDefault().videos.createByUpload({
-			video_data: fileElement
+		ZiggeoApi.V2.Application.getDefault().audios.createByUpload({
+			audio_data: fileElement
 		}).callback(function (error) {
 			assert.ok(!error);
 			rootElement.innerHTML = "";
