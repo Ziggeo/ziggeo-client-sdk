@@ -4,7 +4,7 @@ window.ziggeoApi = new ZiggeoApi.V2.Application({
     analytics: false,
     disable_secure_templates: true,
     webrtc_streaming: false,
-    webrtc_on_mobile: false,
+    webrtc_on_mobile: true,
 //    webrtc_streaming_if_necessary: false,
     chrome_extension_id: window.ZiggeoChromeExtensionId,
     chrome_extension_install_link: window.ZiggeoChromeExtensionInstallLink,
