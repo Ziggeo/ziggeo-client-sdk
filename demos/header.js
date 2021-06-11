@@ -1,5 +1,5 @@
 window.ziggeoApi = new ZiggeoApi.V2.Application({
-    token: window.ZiggeoApiToken || "098716ff8c9386e3aa2ec0d402078212",
+    token: window.ZiggeoApiToken,
     auth: false,
     analytics: false,
     disable_secure_templates: true,
