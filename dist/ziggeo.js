@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.38.8 - 2021-06-11
+ziggeo-client-sdk - v2.38.9 - 2021-06-18
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -24871,8 +24871,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.266",
-    "datetime": 1623416708182
+    "version": "0.0.268",
+    "datetime": 1624029720750
 };
 });
 
@@ -29065,7 +29065,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Message", ["dynamics:Dynamic"], ["dyn
         }, function(inherited) {
             return {
 
-                template: "\n<div class=\"{{css}}-message-container\" ba-click=\"{{click()}}\">\n    <div data-selector=\"message-block\" class='{{css}}-message-message'>\n        {{message}}\n    </div>\n</div>\n",
+                template: "\n<div class=\"{{css}}-message-container\" ba-click=\"{{click()}}\">\n    <div data-selector=\"message-block\" class='{{css}}-message-message'>\n        <p> {{message}} </p>\n    </div>\n</div>\n",
 
                 attrs: {
                     "css": "ba-videoplayer",
@@ -32845,7 +32845,7 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RecordPrepare", ["mo
     });
 });
 
-Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time","base:TimeFormat","base:Async"], function(State, Timer, Time, TimeFormat, Async, scoped) {
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module:VideoRecorder.Dynamics.RecorderStates.State","base:Timers.Timer","base:Time","base:TimeFormat","base:Async","browser:Info"], function(State, Timer, Time, TimeFormat, Async, Info, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -32865,9 +32865,12 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module
             this.dyn.set("uploadcovershotvisible", false);
             this._startTime = Time.now();
             this._stopping = false;
+            this.__firedTimes = 0;
+            this.__pauseDelta = 0;
+            this.__timerDelay = 10;
             this._timer = this.auto_destroy(new Timer({
                 immediate: true,
-                delay: 10,
+                delay: this.__timerDelay,
                 context: this,
                 fire: this._timerFire
             }));
@@ -32875,15 +32878,18 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Recording", ["module
         },
 
         _timerFire: function() {
+            this.__firedTimes += 1;
             var limit = this.dyn.get("timelimit");
-            var current = Time.now();
+            var current = (Info.isFirefox() ?
+                this._startTime + (this.__firedTimes * this.__timerDelay) :
+                Time.now()) - this.__pauseDelta;
             var display = Math.max(0, limit ? (this._startTime + limit * 1000 - current) : (current - this._startTime));
-            this.dyn.trigger("recording_progress", current - this._startTime);
+            this.dyn.trigger("recording_progress", current - this._startTime, !!this.dyn.__paused);
             this.dyn.set("controlbarlabel", this.dyn.get("display-timer") ? TimeFormat.format(TimeFormat.ELAPSED_MINUTES_SECONDS, display) : "");
 
             // If recorder paused will slips starting second
             if (this.dyn.__paused)
-                this._startTime += 10;
+                this.__pauseDelta += this.__timerDelay;
 
             if (this.dyn.get("timeminlimit"))
                 this.dyn.set("mintimeindicator", (Time.now() - this._startTime) / 1000 <= this.dyn.get("timeminlimit"));
@@ -37022,7 +37028,7 @@ Scoped.define("module:AudioPlayer.Dynamics.Message", ["dynamics:Dynamic"], ["dyn
         }, function(inherited) {
             return {
 
-                template: "\n<div class=\"{{css}}-message-container\" ba-click=\"{{click()}}\">\n    <div data-selector=\"message-block\" class='{{css}}-message-message'>\n        {{message}}\n    </div>\n</div>\n",
+                template: "\n<div class=\"{{css}}-message-container\" ba-click=\"{{click()}}\">\n    <div data-selector=\"message-block\" class='{{css}}-message-message'>\n        <p> {{message}} </p>\n    </div>\n</div>\n",
 
                 attrs: {
                     "css": "ba-audioplayer",
@@ -37713,11 +37719,10 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             this.set("last_position_change_delta", Time.now() - this.get("last_position_change"));
                             this.set("position", new_position);
                             this.set("buffered", this.player.buffered());
-                            var pld = this.player.duration();
-                            if (0.0 < pld && pld < Infinity)
-                                this.set("duration", this.player.duration());
+                            if (this.get("totalduration") || (this.player.duration() > 0 && this.player.duration() < Infinity))
+                                this.set("duration", this.get("totalduration") || this.player.duration());
                             else
-                                this.set("duration", this.get("totalduration") || new_position);
+                                this.set("duration", new_position);
                         }
                     } catch (e) {}
                     try {
