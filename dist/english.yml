@@ -1,4 +1,4 @@
-language:en:
+'language:en':
   application.error_503: We are maintaining our service. We will be back shortly.
   application.error_404: >-
     We cannot recognize your api key. Please make sure to specify it in your
