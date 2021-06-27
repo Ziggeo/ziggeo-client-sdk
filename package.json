@@ -14,7 +14,7 @@
     "relink": "npm link betajs-scoped && npm link betajs-compile && npm link betajs && npm link betajs-browser && npm link betajs-dynamics && npm link betajs-shims && npm link betajs-media && npm link betajs-media-components",
     "pushtags": "grunt gittag && git push origin --tags --force",
     "reinstall": "rm -f package-lock.json && rm -rf node_modules && npm i && npm run relink",
-    "publish": "git add . && git commit -a -m <%=pkg.version%> && git push origin master && npm publish && npm run pushtags"
+    "deploy": "git add . && git commit -a -m <%=pkg.version%> && git push origin master && npm publish && npm run pushtags"
   },
   "devDependencies": {
     "grunt": "",
