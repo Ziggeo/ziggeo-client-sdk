@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.38.10 - 2021-06-27
+ziggeo-client-sdk - v2.38.11 - 2021-07-14
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
