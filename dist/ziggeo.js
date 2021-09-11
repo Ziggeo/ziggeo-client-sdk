@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.39.3 - 2021-08-22
+ziggeo-client-sdk - v2.39.4 - 2021-09-11
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -14819,13 +14819,14 @@ Scoped.define("module:Upload.FileUploader", ["base:Classes.ConditionalInstance",
             constructor: function(options) {
                 inherited.constructor.call(this, options);
                 // idle, uploading, success, error
+                this._uploaded = 0;
                 this._state = "idle";
             },
 
-            _setState: function(state, triggerdata) {
+            _setState: function(state, triggerdata, xmlhttprequest) {
                 this._state = state;
-                this.trigger(state, triggerdata);
-                this.trigger("state", state, triggerdata);
+                this.trigger(state, triggerdata, xmlhttprequest);
+                this.trigger("state", state, triggerdata, xmlhttprequest);
             },
 
             state: function() {
@@ -14847,8 +14848,9 @@ Scoped.define("module:Upload.FileUploader", ["base:Classes.ConditionalInstance",
                 if (this.state() === "error") {
                     this._setState("idle");
                     delete this._data;
-                    delete this._uploaded;
+                    this._uploaded = 0;
                     delete this._total;
+                    delete this._request;
                 }
             },
 
@@ -14861,8 +14863,8 @@ Scoped.define("module:Upload.FileUploader", ["base:Classes.ConditionalInstance",
             },
 
             __upload: function() {
-                this._options.resilience--;
                 this._upload();
+                this._options.resilience--;
             },
 
             _upload: function() {},
@@ -14879,7 +14881,7 @@ Scoped.define("module:Upload.FileUploader", ["base:Classes.ConditionalInstance",
                 if (this.state() !== "uploading")
                     return;
                 this._data = data;
-                this._setState("success", data);
+                this._setState("success", data, this._request);
             },
 
             _errorCallback: function(data) {
@@ -14904,7 +14906,7 @@ Scoped.define("module:Upload.FileUploader", ["base:Classes.ConditionalInstance",
                     return;
                 }
                 this._data = data;
-                this._setState("error", data);
+                this._setState("error", data, this._request);
             },
 
             uploadedBytes: function() {
@@ -14950,14 +14952,25 @@ Scoped.define("module:Upload.FormDataFileUploader", ["module:Upload.FileUploader
     }, {
 
         _upload: function() {
-            var data = Objs.clone(Types.is_empty(this._options.data) ? {} : this._options.data, 1);
-            data.file = this._options.isBlob ? this._options.source : this._options.source.files[0];
-            return AjaxSupport.execute({
+            var file = this._options.isBlob ? this._options.source : this._options.source.files[0];
+            var params = {
                 method: this._options.method,
                 uri: this._options.url,
-                decodeType: "text",
-                data: data
-            }, this._progressCallback, this).success(this._successCallback, this).error(this._errorCallback, this);
+                decodeType: "text"
+            };
+            if (Types.is_empty(this._options.data)) {
+                Objs.extend(params, {
+                    body: file
+                });
+            } else {
+                var data = Objs.clone(this._options.data, 1);
+                data.file = file;
+                Objs.extend(params, {
+                    data: data
+                });
+            }
+            this._request = AjaxSupport.create();
+            return AjaxSupport.execute(params, this._progressCallback, this, this._request).success(this._successCallback, this).error(this._errorCallback, this);
         }
 
     }, {
@@ -16139,13 +16152,17 @@ Scoped.define("module:Ajax.XmlHttpRequestAjax", ["base:Ajax.Support","base:Net.U
             return true;
         },
 
-        execute: function(options, progress, progressCtx) {
+        create: function() {
+            return new XMLHttpRequest();
+        },
+
+        execute: function(options, progress, progressCtx, xmlhttp) {
             var uri = Uri.appendUriParams(options.uri, options.query || {});
             if (!options.methodSupportsPayload)
                 uri = Uri.appendUriParams(uri, options.data || {});
             var promise = Promise.create();
 
-            var xmlhttp = new XMLHttpRequest();
+            xmlhttp = xmlhttp || this.create();
 
             xmlhttp.onreadystatechange = function() {
                 if (xmlhttp.readyState === 4) {
@@ -16187,8 +16204,10 @@ Scoped.define("module:Ajax.XmlHttpRequestAjax", ["base:Ajax.Support","base:Net.U
             if (parsed.user || parsed.password)
                 xmlhttp.setRequestHeader('Authorization', 'Basic ' + btoa(parsed.user + ':' + parsed.password));
 
-            if (options.methodSupportsPayload && !Types.is_empty(options.data)) {
-                if (options.requireFormData) {
+            if (options.methodSupportsPayload && (options.body || !Types.is_empty(options.data))) {
+                if (options.body) {
+                    xmlhttp.send(options.body);
+                } else if (options.requireFormData) {
                     var formData = new(window.FormData)();
                     Objs.iter(options.data, function(value, key) {
                         formData.append(key, value);
@@ -16363,12 +16382,12 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.175",
-    "datetime": 1629430438178
+    "version": "0.0.176",
+    "datetime": 1631365169924
 };
 });
 
-Scoped.define("module:AudioPlayer.AudioPlayerWrapper", ["base:Classes.OptimisticConditionalInstance","base:Events.EventsMixin","base:Types","base:Objs","base:Strings","browser:Events"], function(OptimisticConditionalInstance, EventsMixin, Types, Objs, Strings, DomEvents, scoped) {
+Scoped.define("module:AudioPlayer.AudioPlayerWrapper", ["base:Classes.OptimisticConditionalInstance","base:Events.EventsMixin","base:Types","base:Objs","base:Promise","base:Strings","browser:Events"], function(OptimisticConditionalInstance, EventsMixin, Types, Objs, Promise, Strings, DomEvents, scoped) {
     return OptimisticConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, function(inherited) {
@@ -16480,7 +16499,8 @@ Scoped.define("module:AudioPlayer.AudioPlayerWrapper", ["base:Classes.Optimistic
                 if (this._reloadonplay)
                     this._element.load();
                 this._reloadonplay = false;
-                this._element.play();
+                var promise = this._element.play();
+                if (promise) return Promise.fromNativePromise(promise);
             },
 
             pause: function() {
@@ -16662,7 +16682,7 @@ Scoped.define("module:AudioPlayer.Html5AudioPlayerWrapper", ["module:AudioPlayer
             },
 
             play: function() {
-                inherited.play.call(this);
+                return inherited.play.call(this);
             },
 
             pause: function() {
@@ -25005,8 +25025,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.278",
-    "datetime": 1629689800352
+    "version": "0.0.280",
+    "datetime": 1631365648350
 };
 });
 
@@ -37290,20 +37310,12 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                 remove_on_destroy: true,
 
                 create: function() {
+                    if (this.get("visualeffectvisible") && (!this.get("height") || this.get("height") < this.get("visualeffectminheight")))
+                        this.set("height", this.get("visualeffectminheight"));
                     // Will set volume initial state
                     this.set("initialoptions", Objs.tree_merge(this.get("initialoptions"), {
                         volumelevel: this.get("volume")
                     }));
-
-                    if ((Info.isMobile() || Info.isChromiumBased()) && (this.get("autoplay") || this.get("playwhenvisible"))) {
-                        this.set("volume", 0.0);
-                        this.set("forciblymuted", true);
-
-                        //if (!(Info.isiOS() && Info.iOSversion().major >= 10)) {
-                        //this.set("autoplay", false);
-                        //this.set("loop", false);
-                        //}
-                    }
 
                     if (this.get("theme") in Assets.audioplayerthemes) {
                         Objs.iter(Assets.audioplayerthemes[this.get("theme")], function(value, key) {
@@ -37758,10 +37770,12 @@ Scoped.define("module:AudioPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             this.set("position", new_position);
                             this.set("buffered", this.player.buffered());
                             var pld = this.player.duration();
-                            if (0.0 < pld && pld < Infinity) {
+                            if (this.get("totalduration")) {
+                                this.set("duration", this.get("totalduration"));
+                            } else if (0.0 < pld && pld < Infinity) {
                                 this.set("duration", this.player.duration());
                             } else {
-                                this.set("duration", this.get("totalduration") || new_position);
+                                this.set("duration", new_position);
                             }
                         }
                     } catch (e) {}
@@ -37868,15 +37882,25 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.LoadAudio", ["module:Aud
                     this.dyn.execute("seek", this.dyn.get("autoseek"));
                 this.next("PlayAudio");
             }, this);
-            if (this.dyn.get("skipinitial") && !this.dyn.get("autoplay")) {
+            if (!this.dyn.get("autoplay")) {
                 this.next("PlayAudio");
             } else {
                 var counter = 10;
                 this.auto_destroy(new Timer({
                     context: this,
                     fire: function() {
-                        if (!this.destroyed() && !this.dyn.destroyed() && this.dyn.player)
-                            this.dyn.player.play();
+                        if (!this.destroyed() && !this.dyn.destroyed() && this.dyn.player) {
+                            try {
+                                var promise = this.dyn.player.play();
+                                if (promise) {
+                                    promise.success(function() {
+                                        this.next("PlayAudio");
+                                    });
+                                }
+                            } catch (e) {
+                                // browsers released before 2019 may not return promise on play()
+                            }
+                        }
                         counter--;
                         if (counter === 0)
                             this.next("PlayAudio");
@@ -37916,8 +37940,6 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.PlayAudio", ["module:Aud
         _started: function() {
             this.dyn.set("autoplay", false);
             // As during loop we will play player after ended event fire, need initial cover will be hidden
-            if (this.dyn.get("loop"))
-                this.dyn.set("skipinitial", true);
             this.listenOn(this.dyn, "ended", function() {
                 this.dyn.set("autoseek", null);
                 this.next("NextAudio");
@@ -40335,7 +40357,7 @@ Scoped.define("private:Application.VideosApiMixin", function(){return{index:func
 
 Scoped.define("private:Application.Videos", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Types","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.VideosApiMixin"], function(e,s,c,d,u,l,t,r,h,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},imageUrl:function(e,t){t=t||{};var i="videos/"+e+"/image";return this.application.urls.httpStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},publicVideoUrl:function(e){return this.application.urls.hostedUrl("/v/"+e)},iframeVideoUrl:function(e){return this.application.urls.hostedUrl("/p/"+e)},iframeRecorderUrl:function(){return this.application.urls.hostedUrl("/r/"+this.application.data.get("token"))},videoUrl:function(e,t){var i="videos/"+e+"/"+((t=t||{}).download?"download_video.mp4":"video.mp4");return this.application.urls.httpStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(u.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=u.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,u.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),o.promises=[],l.is_empty(o.watchers)||((!t||t.equals(r))&&h.deepEqual(i,s,10)||c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a)))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this._create(c.extend(c.clone(a.data,1),{create_stream:!0,image_url:!!a.image_data,audio_url:!!a.audio_data}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.streams.signedDataUploader(e.video.token,e.stream.token,{auth:a.auth,video_data:a.video_data,audio_data:a.audio_data,image_data:a.image_data,url_data:e.url_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.streams._confirm(e.video.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
 
-Scoped.define("private:Application.StreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},_create:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/streams-upload-url",{method:"POST",auth:i,resilience:a,data:t})},accept:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/accept",{method:"POST",auth:i,resilience:a})},_image_attach:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/imageattach",{method:"POST",auth:a,resilience:s,data:i})},_audio_attach:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/audioattach",{method:"POST",auth:a,resilience:s,data:i})},_recorder_submit:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/recordersubmit",{method:"POST",auth:a,resilience:s,data:i})},_uploader_state:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/uploaderstate",{method:"GET",auth:i,resilience:a})},_subtitle_attach:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/subtitleattach",{method:"POST",auth:i,resilience:a})},_confirm:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/confirm-video",{method:"POST",auth:a,resilience:s,data:i})},_confirm_image:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/confirm-image",{method:"POST",auth:a,resilience:s,data:i})},_confirm_audio:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/confirm-audio",{method:"POST",auth:a,resilience:s,data:i})}}});
+Scoped.define("private:Application.StreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},_create:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/streams-upload-url",{method:"POST",auth:i,resilience:a,data:t})},accept:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/accept",{method:"POST",auth:i,resilience:a})},_image_attach:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/imageattach",{method:"POST",auth:a,resilience:s,data:i})},_audio_attach:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/audioattach",{method:"POST",auth:a,resilience:s,data:i})},_recorder_submit:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/recordersubmit",{method:"POST",auth:a,resilience:s,data:i})},_uploader_state:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/uploaderstate",{method:"GET",auth:i,resilience:a})},_subtitle_attach:function(e,t,i,a){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/subtitleattach",{method:"POST",auth:i,resilience:a})},_confirm:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/confirm-video",{method:"POST",auth:a,resilience:s,data:i})},_confirm_image:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/confirm-image",{method:"POST",auth:a,resilience:s,data:i})},_confirm_audio:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/confirm-audio",{method:"POST",auth:a,resilience:s,data:i})},_get_video_upload_urls:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/video-upload-urls",{method:"GET",auth:a,resilience:s,data:i})},_get_image_upload_urls:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/image-upload-urls",{method:"GET",auth:a,resilience:s,data:i})},_get_audio_upload_urls:function(e,t,i,a,s){return this.application.connect.request("/videos/"+e+"/streams/"+t+"/audio-upload-urls",{method:"GET",auth:a,resilience:s,data:i})}}});
 
 Scoped.define("private:Application.Streams", ["base:Class","base:Objs","private:Application.StreamsApiMixin","browser:Upload.MultiUploader"], function(e,t,i,s,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},imageUrl:function(e,t,i){i=i||{};var a="videos/"+e+"/streams/"+t+"/image";return this.application.urls.httpStreamingResourceUrl(a,{auth:i.auth,params:i.params})},videoUrl:function(e,t,i){var a="videos/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_video.mp4":"video.mp4");return this.application.urls.httpStreamingResourceUrl(a,{auth:i.auth,params:i.params})},videoAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/videoattach",{auth:i})},videoAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.videoAttachUrl(e,t,i),a)},videoAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.videoAttachUrl(e,t,i),a)},imageAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/imageattach",{auth:i})},imageAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.imageAttachUrl(e,t,i),a,{nonessential:!1})},imageAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.imageAttachUrl(e,t,i),a,{essential:!1})},audioAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/audioattach",{auth:i})},subtitleAttachUrl:function(e,t,i){return this.application.urls.httpApiResourceUrl("/videos/"+e+"/streams/"+t+"/subtitleattach",{auth:i})},audioAttachUploaderConfig:function(e,t,i,a){return this.application.data.getUploaderConfig(this.audioAttachUrl(e,t,i),a)},subtitleAttachUploaderUrl:function(e,t,i){return this.subtitleAttachUrl(e,t,i)},audioAttachUploader:function(e,t,i,a){return this.application.data.getUploader(this.audioAttachUrl(e,t,i),a)},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___videos___"+e+"___streams___"+t+"___video"},dataUploader:function(e,t,i){var a=new s;return i.video_data&&a.addUploader(this.videoAttachUploader(e,t,i.auth,i.video_data)),i.audio_data&&a.addUploader(this.audioAttachUploader(e,t,i.auth,i.audio_data)),i.image_data&&a.addUploader(this.imageAttachUploader(e,t,i.auth,i.image_data)),a},signedDataUploader:function(e,t,i){var a=new s;return i.video_data&&a.addUploader(this.application.data.getSignedUploader(i.url_data.url,i.url_data.fields,i.video_data)),i.audio_data&&a.addUploader(this.application.data.getSignedUploader(i.audio_url_data.url,i.audio_url_data.fields,i.audio_data)),i.image_data&&a.addUploader(this.application.data.getSignedUploader(i.image_url_data.url,i.image_url_data.fields,i.image_data)),a}}}])});
 
@@ -40343,7 +40365,7 @@ Scoped.define("private:Application.AudiosApiMixin", function(){return{index:func
 
 Scoped.define("private:Application.Audios", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Types","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.AudiosApiMixin"], function(e,s,c,d,u,l,t,r,h,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},audioUrl:function(e,t){var i="audios/"+e+"/"+((t=t||{}).download?"download_audio.aac":"audio.aac");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(u.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=u.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){i=i&&i.audio?i.audio:i,o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,u.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),o.promises=[],l.is_empty(o.watchers)||((!t||t.equals(r))&&h.deepEqual(i,s,10)||c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a)))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.data.getSignedUploader(e.url_data.url,e.url_data.fields,a.audio_data);return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.audio_streams.confirm(e.audio.token,e.audio_stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
 
-Scoped.define("private:Application.AudioStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},confirm:function(e,t,i,a,s){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t+"/confirm",{method:"POST",auth:a,resilience:s,data:i})},submit:function(e,t,i,a,s){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
+Scoped.define("private:Application.AudioStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},confirm:function(e,t,i,a,s){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t+"/confirm",{method:"POST",auth:a,resilience:s,data:i})},submit:function(e,t,i,a,s){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})},_get_audio_upload_urls:function(e,t,i,a,s){return this.application.connect.apiRequest("/audios/"+e+"/streams/"+t+"/audio-upload-urls",{method:"GET",auth:a,resilience:s,data:i})}}});
 
 Scoped.define("private:Application.AudioStreams", ["base:Class","base:Objs","private:Application.AudioStreamsApiMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},audioUrl:function(e,t,i){var a="audios/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_audio.aac":"audio.aac");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___audios___"+e+"___streams___"+t+"___audio"}}}])});
 
@@ -40351,7 +40373,7 @@ Scoped.define("private:Application.ImagesApiMixin", function(){return{index:func
 
 Scoped.define("private:Application.Images", ["base:Class","base:Promise","base:Objs","base:Time","base:Async","base:Net.HttpHeader","base:Ids","base:Comparators","private:Application.ImagesApiMixin"], function(e,s,c,d,u,t,r,l,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__cache={}},imageUrl:function(e,t){var i="images/"+e+"/"+((t=t||{}).download?"download_image.mp4":"image.mp4");return this.application.urls.apiStreamingResourceUrl(i,{auth:t.auth,params:c.extend({refresh:this.refreshToken(e)},t.params)})},refreshToken:function(e){try{var t=this.cache(e,{weak:!0}).value();return t&&t.submission_date!==t.resubmission_date?86400<d.now()/1e3-t.resubmission_date?null:t.resubmission_date:null}catch(i){return null}},__cacheGet:function(e){return this.__cache[e]||(this.__cache[e]={ready:!1,data:null,error:null,last_update:null,auth:null,next_update:null,next_update_timer:null,updating:!1,promises:[],watchers:{}}),this.__cache[e]},__cacheUpdate:function(n,e){var o=this.__cacheGet(n);if(!(o.updating||o.next_update&&o.next_update<=e)){o.next_update&&(u.clearEventually(o.next_update_timer),o.next_update=null);var t=d.now();if(t<e)return o.next_update=e,void(o.next_update_timer=u.eventually(function(){this.__cacheUpdate(n)},this,e-t));o.updating=!0,this.get(n,o.auth).callback(function(t,i){i=i&&i.image?i.image:i,o.ready=!0,o.updating=!1;var e=d.now(),a=o.last_update?e-o.last_update:null;o.last_update=e,o.next_update=null;var s=o.data,r=t;o.data=i,o.error=t,u.clearEventually(o.next_update_timer),c.iter(o.promises,function(e){e.asyncCallback(t,i)},this),(!t||t.equals(r))&&l.deepEqual(i,s,10)||c.iter(o.watchers,function(e){e.callback.call(e.context,t,i)},this),null===a?c.iter(o.watchers,function(e){e.weak||(a=null===a?e.initialage:Math.min(e.initialage,a))},this):a*=2,null!==a&&(c.iter(o.watchers,function(e){!e.weak&&e.maxage&&(a=Math.min(a,e.maxage))},this),this.__cacheUpdate(n,e+a))},this)}},cacheInvalidate:function(e){this.__cacheGet(e).ready=!1},cache:function(e,t){var i=this.__cacheGet(e);if((t=c.extend({auth:null,weak:!1,force:!1,age:null},t)).weak&&!i.ready)return s.error(!0);if(i.ready&&!t.force&&(!t.age||now-i.last_update<t.age))return i.data?s.value(i.data):s.error(i.error);t.auth&&(i.auth=t.auth);var a=s.create();return i.promises.push(a),this.__cacheUpdate(e),a},watch:function(e,t,i,a){var s=this.__cacheGet(e);(t=c.extend({auth:null,weak:!1,maxage:null,initialage:1e3},t)).auth&&(s.auth=t.auth),s.watchers[r.objectId(a)]={context:a,callback:i,weak:t.weak,maxage:t.maxage,age:t.initialage},t.weak||this.__cacheUpdate(e,t.initialage+d.now())},unwatch:function(e,t){delete this.__cacheGet(e).watchers[r.objectId(t)]},createByUpload:function(a){return this.create(c.extend(c.clone(a.data,1),{create_stream:!0}),a.auth).mapSuccess(function(e){var t=s.create(),i=this.application.image_streams.dataUploader(e.image.token,e.stream.token,{auth:a.auth,image_data:a.image_data});return a.progress&&i.on("progress",a.progress,a.context),i.on("error",function(e){t.asyncError(e)},this),i.on("success",function(){this.application.image_streams.submit(e.image.token,e.stream.token,null,a.auth,50).forwardCallback(t)},this),i.upload(),t},this)}}}])});
 
-Scoped.define("private:Application.ImageStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},confirm:function(e,t,i,a,s){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},submit:function(e,t,i,a,s){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})}}});
+Scoped.define("private:Application.ImageStreamsApiMixin", function(){return{index:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/",{method:"GET",auth:i,resilience:a,data:t})},destroy:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t,{method:"DELETE",auth:i,resilience:a})},create:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams",{method:"POST",auth:i,resilience:a,data:t})},confirm:function(e,t,i,a,s){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},submit:function(e,t,i,a,s){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t+"/submit",{method:"POST",auth:a,resilience:s,data:i})},get:function(e,t,i,a){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t,{method:"GET",auth:i,resilience:a})},_get_image_upload_urls:function(e,t,i,a,s){return this.application.connect.apiRequest("/images/"+e+"/streams/"+t+"/image-upload-urls",{method:"GET",auth:a,resilience:s,data:i})}}});
 
 Scoped.define("private:Application.ImageStreams", ["base:Class","base:Objs","private:Application.ImageStreamsApiMixin"], function(e,t,i,a){return e.extend({scoped:a},[i,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e},imageUrl:function(e,t,i){var a="images/"+e+"/streams/"+t+"/"+((i=i||{}).download?"download_image.mp4":"image.mp4");return this.application.urls.apiStreamingResourceUrl(a,{auth:i.auth,params:i.params})},webrtcStreamName:function(e,t,i){return"applications___"+this.application.data.get("token")+"___images___"+e+"___streams___"+t+"___image"},dataUploader:function(e,t,i){return this.imageAttachUploader(e,t,i.auth,i.image_data)}}}])});
 
@@ -40359,7 +40381,7 @@ Scoped.define("private:Application.AnalyticsApiMixin", function(){return{_push:f
 
 Scoped.define("private:Application.Analytics", ["base:Class","base:Events.EventsMixin","base:Objs","base:Time","base:Timers.Timer","browser:Info","private:Application.AnalyticsApiMixin","private:Core","private:Environment","private:Logger"], function(e,t,n,o,i,a,s,c,r,d,u){var l=o.now();return e.extend({scoped:u},[t,s,function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__google_analytics_events={},e.data.get("google_analytics")&&(this.__google_analytics_events=n.objectify(e.data.get("google_analytics_track"))),this.__queue=[],this.__trackFailed=0,this.__trackSuccess=0,this.application.data.get("analytics")&&(this.__timer=this.auto_destroy(new i({context:this,fire:this.__pushEvents,delay:5e3})))},_generateEvent:function(e,t,i,a,s,r){return r=r||o.now(),i=i||{},a=a||{},s=s||{},{tokens:n.extend({application_token:this.application.data.get("token")},i),client:{type:"web",version:"v"+c.revision.version+"-"+c.revision.revision,revision:c.revision.revision,sdk_version:e},environment:{location:document.location.href,time:r-l},device:{navigator_appname:navigator.appName,navigator_appcodename:navigator.appCodeName,navigator_appversion:navigator.appVersion,navigator_cookieenabled:navigator.cookieEnabled,navigator_language:navigator.language||navigator.userLanguage||"",navigator_platform:navigator.platform,navigator_useragent:navigator.userAgent,navigator_window_chrome:"chrome"in window,navigator_window_opera:"opera"in window},event:{time:r,type:t,media_time:a.media_time||null,embed_type:a.embed_type||null,data_size:a.data_size||null,bandwidth:a.bandwidth||null},media:{duration:s.duration||null,width:s.width||null,height:s.height||null,tags:s.tags?s.tags.join(","):null,creation_type:s.creation_type||null,hd:s.width&&s.height&&921600<=s.width*s.height}}},track:function(e,t,i,a,s,r){try{var n=this._generateEvent(e,t,i,a,s,r);this.application.data.get("analytics")&&this.__queue.push(n),this.__google_analytics_events[t]&&ga("send","event","Ziggeo",t,"Ziggeo Campaign",a.media_time||s.duration||a.data_size||undefined),this.trigger("track",n)}catch(o){}},userTrack:function(e){this.track("2",e)},__pushEvents:function(){var e;this.application.data.get("analytics")&&0!==this.__queue.length&&(10<this.__trackFailed&&this.__trackSuccess/this.__trackFailed<.5||(e=this.__queue,this.__queue=[],this._push({events:JSON.stringify(e)}).error(function(){this.__trackFailed++,this.__queue=e.concat(this.__queue)},this).success(function(){this.__trackSuccess++},this)))}}}])});
 
-Scoped.define("module:Application", ["base:Class","base:Objs","base:Events.EventsMixin","base:Events.Events","base:Async","base:Promise","browser:Dom","module:Locale","private:Application.Data","private:Application.Urls","private:Application.Connect","private:Application.Videos","private:Application.Streams","private:Application.Audios","private:Application.AudioStreams","private:Application.Images","private:Application.ImageStreams","private:Application.Analytics","private:Application.Debugger","module:Supplementary"], function(e,i,t,a,s,r,n,o,c,d,u,l,h,p,g,m,_,f,v,y,b){return o.mainLocale.register({error_503:"We are maintaining our service. We will be back shortly.",error_404:"We cannot recognize your api key. Please make sure to specify it in your website's header.",error_401:"You are not allowed to access the application from this site.",error_412:"You need to confirm / upgrade your account.",error_unknown:"An unknown error occurred. Our team has been notified and will resolve the issue."},"application"),e.extend({scoped:b},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.__authCache={},this.data=this.auto_destroy(new c(this,e)),this.data.get("debug")&&(this.debug=this.auto_destroy(new v(this))),this.urls=this.auto_destroy(new d(this)),this.connect=this.auto_destroy(new u(this)),this.videos=this.auto_destroy(new l(this)),this.streams=this.auto_destroy(new h(this)),this.audios=this.auto_destroy(new p(this)),this.audio_streams=this.auto_destroy(new g(this)),this.images=this.auto_destroy(new m(this)),this.image_streams=this.auto_destroy(new _(this)),this.analytics=this.auto_destroy(new f(this)),this.embed_events=this.auto_destroy(new a),this.embed_events._invokeCallback=y.eventInvokeCallback,this._invokeCallback=y.eventInvokeCallback,this.cls.register(this),this.__init()},destroy:function(){this.cls.unregister(this),t.destroy.call(this)},__init:function(){this.connect.request("session",{method:"POST",params:{noauth:!this.data.get("auth")}}).success(function(e){this.data.set("cookie_changed",e.token!==this.data.get("cookie_value")),this.data.set("cookie_value",e.token),this.data.set("testing_application",e.testing_application),this.data.set("ready",!0),this.analytics.track("2","init_application",{}),n.ready(function(){s.eventually(function(){this.persistentTrigger("ready")},this)},this)},this).error(function(e){this.data.set("error",e.status_code());var t=o.mainLocale.get("error_"+e.status_code(),"application");this.data.set("error_message",t||o.mainLocale.get("error_unknown","application")),this.persistentTrigger("error",e.status_code(),this.data.get("error_message"))},this)},authMediaReady:function(e,t,i){if(t&&e){var a=e.client_auth||e.server_auth;if(a&&!this.__authCache[a])return this[i].get(t,{auth:e}).callback(function(){this.__authCache[a]=!0},this)}return r.value(!0)},authVideoReady:function(e,t){return this.authMediaReady(e,t,"videos")},authAudioReady:function(e,t){return this.authMediaReady(e,t,"audios")}}}],{__default:null,__instances:{},__deferred:0,events:new a,setDefault:function(e){this.__default=e,this.events.trigger("set-default",e)},getDefault:function(){return this.__default},getByToken:function(e){return this.__instances[e]},instanceByToken:function(e,t){return this.getByToken(e)||new this(i.extend({token:e},t))},register:function(e){var t=e.data.get("token");if(t in this.__instances)throw"Application Instance already existing for this application token.";this.__instances[t]=e,this.__default||this.setDefault(e)},unregister:function(e){var t=e.data.get("token");this.__instances[t]===e&&delete this.__instances[t],this.getDefault()===e&&this.setDefault(null)},isDeferred:function(){return 0<this.__deferred},defer:function(){this.__deferred++},undefer:function(){this.__deferred--,0===this.__deferred&&this.events.trigger("undefer")},onUndefer:function(e,t){this.isDeferred()?this.events.once("undefer",e,t):e.call(t||this)}})});
+Scoped.define("module:Application", ["base:Class","base:Objs","base:Events.EventsMixin","base:Events.Events","base:Async","base:Promise","browser:Dom","module:Locale","private:Application.Data","private:Application.Urls","private:Application.Connect","private:Application.Videos","private:Application.Streams","private:Application.Audios","private:Application.AudioStreams","private:Application.Images","private:Application.ImageStreams","private:Application.Analytics","private:Application.Debugger","module:Supplementary"], function(e,i,t,a,s,r,n,o,c,d,u,l,h,p,g,m,_,f,v,y,b){o.mainLocale.register({error_503:"We are maintaining our service. We will be back shortly.",error_404:"We cannot recognize your api key. Please make sure to specify it in your website's header.",error_401:"You are not allowed to access the application from this site.",error_412:"You need to confirm / upgrade your account.",error_unknown:"An unknown error occurred. Our team has been notified and will resolve the issue."},"application");var w=e.extend({scoped:b},[t,function(t){return{constructor:function(e){t.constructor.call(this),this.__authCache={},this.data=this.auto_destroy(new c(this,e)),this.data.get("debug")&&(this.debug=this.auto_destroy(new v(this))),this.urls=this.auto_destroy(new d(this)),this.connect=this.auto_destroy(new u(this)),this.videos=this.auto_destroy(new l(this)),this.streams=this.auto_destroy(new h(this)),this.audios=this.auto_destroy(new p(this)),this.audio_streams=this.auto_destroy(new g(this)),this.images=this.auto_destroy(new m(this)),this.image_streams=this.auto_destroy(new _(this)),this.analytics=this.auto_destroy(new f(this)),this.embed_events=this.auto_destroy(new a),this.embed_events._invokeCallback=y.eventInvokeCallback,this._invokeCallback=y.eventInvokeCallback,this.cls.register(this),this.__init()},destroy:function(){this.cls.unregister(this),t.destroy.call(this)},__init:function(){this.connect.request("session",{method:"POST",params:{noauth:!this.data.get("auth")}}).success(function(e){this.data.set("cookie_changed",e.token!==this.data.get("cookie_value")),this.data.set("cookie_value",e.token),this.data.set("testing_application",e.testing_application),this.data.set("ready",!0),this.analytics.track("2","init_application",{}),n.ready(function(){s.eventually(function(){this.persistentTrigger("ready")},this)},this)},this).error(function(e){this.data.set("error",e.status_code());var t=o.mainLocale.get("error_"+e.status_code(),"application");this.data.set("error_message",t||o.mainLocale.get("error_unknown","application")),this.persistentTrigger("error",e.status_code(),this.data.get("error_message"))},this)},authMediaReady:function(e,t,i){if(t&&e){var a=e.client_auth||e.server_auth;if(a&&!this.__authCache[a])return this[i].get(t,{auth:e}).callback(function(){this.__authCache[a]=!0},this)}return r.value(!0)},authVideoReady:function(e,t){return this.authMediaReady(e,t,"videos")},authAudioReady:function(e,t){return this.authMediaReady(e,t,"audios")}}}],{__default:null,__instances:{},__deferred:0,events:new a,setDefault:function(e){this.__default=e,this.events.trigger("set-default",e)},getDefault:function(){return this.__default},getByToken:function(e){return this.__instances[e]},instanceByToken:function(e,t){return this.getByToken(e)||new this(i.extend({token:e},t))},register:function(e){var t=e.data.get("token");if(t in this.__instances)throw"Application Instance already existing for this application token.";this.__instances[t]=e,this.__default||this.setDefault(e)},unregister:function(e){var t=e.data.get("token");this.__instances[t]===e&&delete this.__instances[t],this.getDefault()===e&&this.setDefault(null)},isDeferred:function(){return 0<this.__deferred},defer:function(){this.__deferred++},undefer:function(){this.__deferred--,0===this.__deferred&&this.events.trigger("undefer")},onUndefer:function(e,t){this.isDeferred()?this.events.once("undefer",e,t):e.call(t||this)}});return Scoped.getGlobal("ZiggeoDefer")&&w.__deferred++,w});
 
 Scoped.define("private:Dynamics", ["dynamics:DomObserver","dynamics:Parser","dynamics:Registries","base:Async","browser:Dom","module:Application"], function(e,t,i,a,s,r){t.secureMode=!0;var n=new e({allowed_dynamics:["ziggeoplayer","ziggeorecorder","ziggeoaudioplayer","ziggeoaudiorecorder","ziggeoimageviewer","ziggeoimagecapture","ziggeoiframeplayer","ziggeoiframerecorder"],enabled:!(i.prefixes.ziggeo=!0)});return s.ready(function(){a.eventually(function(){r.onUndefer(function(){n.enable()})})}),{domObserver:n}});
 
