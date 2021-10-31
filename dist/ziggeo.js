@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.39.11 - 2021-10-18
+ziggeo-client-sdk - v2.39.12 - 2021-10-31
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -16382,8 +16382,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.177",
-    "datetime": 1632745536269
+    "version": "0.0.178",
+    "datetime": 1635611387327
 };
 });
 
@@ -20097,6 +20097,7 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 if (this._bound) {
                     this.unbindMedia();
                     this.bindMedia();
+                    this.trigger("rebound");
                 }
             },
 
@@ -20105,6 +20106,7 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 if (this._bound) {
                     this.unbindMedia();
                     this.bindMedia();
+                    this.trigger("rebound");
                 }
             },
 
@@ -20113,6 +20115,7 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
                 if (this._bound) {
                     this.unbindMedia();
                     this.bindMedia();
+                    this.trigger("rebound");
                 }
             },
 
@@ -25051,8 +25054,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.286",
-    "datetime": 1634567169150
+    "version": "0.0.287",
+    "datetime": 1635613187743
 };
 });
 
@@ -29710,6 +29713,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.Initial", ["module:Video
         scoped: scoped
     }, {
 
+
         dynamics: ["loader"],
 
         _started: function() {
@@ -30546,16 +30550,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                 remove_on_destroy: true,
 
                 create: function() {
-                    var fitStrategies = ["crop", "pad", "original"];
-                    if (!fitStrategies.includes(this.get("videofitstrategy"))) {
-                        console.warn("Invalid value for videofitstrategy: " + this.get("videofitstrategy") + "\nPossible values are: " + fitStrategies.slice(0, -1).join(", ") + " or " + fitStrategies.slice(-1));
-                    }
-                    if (!fitStrategies.includes(this.get("posterfitstrategy"))) {
-                        console.warn("Invalid value for posterfitstrategy: " + this.get("posterfitstrategy") + "\nPossible values are: " + fitStrategies.slice(0, -1).join(", ") + " or " + fitStrategies.slice(-1));
-                    }
-                    if (this.get("stretch") || this.get("stretchwidth") || this.get("stretchheight")) {
-                        console.warn("Stretch parameters were removed, please set width and/or height to 100% instead.");
-                    }
+                    this._validateParameters();
                     // Will set volume initial state
                     this.set("initialoptions", Objs.tree_merge(this.get("initialoptions"), {
                         volumelevel: this.get("volume")
@@ -30790,6 +30785,19 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     this.player = null;
                     this.__video = null;
                     this.set("videoelement_active", false);
+                },
+
+                _validateParameters: function() {
+                    var fitStrategies = ["crop", "pad", "original"];
+                    if (!fitStrategies.includes(this.get("videofitstrategy"))) {
+                        console.warn("Invalid value for videofitstrategy: " + this.get("videofitstrategy") + "\nPossible values are: " + fitStrategies.slice(0, -1).join(", ") + " or " + fitStrategies.slice(-1));
+                    }
+                    if (!fitStrategies.includes(this.get("posterfitstrategy"))) {
+                        console.warn("Invalid value for posterfitstrategy: " + this.get("posterfitstrategy") + "\nPossible values are: " + fitStrategies.slice(0, -1).join(", ") + " or " + fitStrategies.slice(-1));
+                    }
+                    if (this.get("stretch") || this.get("stretchwidth") || this.get("stretchheight")) {
+                        console.warn("Stretch parameters were removed, please set width and/or height to 100% instead.");
+                    }
                 },
 
                 getCurrentPosition: function() {
@@ -32374,7 +32382,29 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.State", ["base:State
 
         selectUpload: function(file) {},
 
-        uploadCovershot: function(file) {}
+        uploadCovershot: function(file) {},
+
+        checkOrientation: function(isPortrait, next) {
+            next = next || "FatalError";
+            if (this.dyn.get("mandatoryorientation")) {
+                if (
+                    (this.dyn.get("mandatoryorientation") === "portrait" && !isPortrait) ||
+                    (this.dyn.get("mandatoryorientation") === "landscape" && isPortrait)
+                ) {
+                    this.dyn.set("recordvisible", false);
+                    var message = this.dyn.string("supported-mode")
+                        .replace("%s", isPortrait ? "landscape" : "portrait");
+                    message += " " + this.dyn.string("re-choose-action");
+                    this.next(next, {
+                        message: message,
+                        retry: "Chooser"
+                    });
+                    return false;
+                }
+            }
+            return true;
+        }
+
 
     }]);
 });
@@ -32395,7 +32425,36 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.FatalError", ["modul
                     this.next(this._retry);
             });
         }
+    });
+});
 
+Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.ChooseAlternativeDevice", ["module:VideoRecorder.Dynamics.RecorderStates.State","browser:Info"], function(State, Info, scoped) {
+    return State.extend({
+        scoped: scoped
+    }, {
+
+        dynamics: ["message"],
+        _locals: ["message", "retry"],
+
+
+        _started: function() {
+            this.dyn.set("controlbar_active", true);
+            this.dyn.set("message", this._message || this.dyn.string("recorder-error"));
+            this.dyn.set("shortMessage", this.dyn.get("message").length < 30);
+
+            this.listenOn(this.dyn, "message-click", function() {
+                this.next("Chooser");
+            }, this);
+
+            // source
+            // this.listenOn(this.dyn, "change:selectedcamera", function() {
+            if (typeof this.dyn.recorder._recorder !== "undefined") {
+                this.listenOn(this.dyn.recorder._recorder, "rebound", function() {
+                    if (Info.isChromiumBased())
+                        this.next("CameraHasAccess");
+                }, this);
+            }
+        }
     });
 });
 
@@ -32573,6 +32632,11 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.Chooser", ["module:V
             }
             try {
                 PlayerSupport.videoFileInfo(file.files[0]).success(function(data) {
+
+                    if (typeof data.width !== "undefined" && typeof data.height !== "undefined")
+                        if (!this.checkOrientation((data.width / data.height) > 1))
+                            return;
+
                     if (data.duration && this.dyn.get("enforce-duration")) {
                         if ((this.dyn.get("timeminlimit") && data.duration < this.dyn.get("timeminlimit")) || (this.dyn.get("timelimit") && data.duration > this.dyn.get("timelimit"))) {
                             this.next("FatalError", {
@@ -32864,7 +32928,6 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.RequiredSoftwareChec
                 }, this);
             }
         }
-
     });
 });
 
@@ -32979,6 +33042,8 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.CameraHasAccess", ["
         dynamics: ["topmessage", "controlbar"],
 
         _started: function() {
+            if (!this.checkOrientation(this.dyn.isPortrait(), "ChooseAlternativeDevice"))
+                return;
             this.dyn.trigger("ready_to_record");
             this._preparePromise = null;
             if (this.dyn.get("countdown") > 0 && this.dyn.recorder && this.dyn.recorder.recordDelay(this.dyn.get("uploadoptions")) > this.dyn.get("countdown") * 1000)
@@ -33799,6 +33864,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "custom-covershots": false,
                     "selectfirstcovershotonskip": false,
                     "picksnapshotmandatory": false,
+                    "mandatoryorientation": null, // possible options "landscape", "portrait"
                     "manualsubmit": false,
                     "allowedextensions": null,
                     "filesizelimit": null,
@@ -33999,6 +34065,8 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "showplayersettingsmenu": "boolean",
                     "initialmessages": "array",
                     "screenrecordmandatory": "boolean",
+                    "mandatoryorientation": "string",
+                    "mandatoryresolutions": "array",
                     "pickcovershotframe": "boolean",
                     "allowtrim": "boolean",
                     "trimoverlay": "boolean"
@@ -34029,16 +34097,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                 },
 
                 create: function() {
-                    var fitStrategies = ["crop", "pad", "original"];
-                    if (!fitStrategies.includes(this.get("videofitstrategy"))) {
-                        console.warn("Invalid value for videofitstrategy: " + this.get("videofitstrategy") + "\nPossible values are: " + fitStrategies.slice(0, -1).join(", ") + " or " + fitStrategies.slice(-1));
-                    }
-                    if (!fitStrategies.includes(this.get("posterfitstrategy"))) {
-                        console.warn("Invalid value for posterfitstrategy: " + this.get("posterfitstrategy") + "\nPossible values are: " + fitStrategies.slice(0, -1).join(", ") + " or " + fitStrategies.slice(-1));
-                    }
-                    if (this.get("stretch") || this.get("stretchwidth") || this.get("stretchheight")) {
-                        console.warn("Stretch parameters were removed, please set width and/or height to 100% instead.");
-                    }
+                    this._validateParameters();
                     // Init Audio Context
                     WebRTCSupport.globals();
                     this.set("optionsinitialstate", {
@@ -34145,6 +34204,19 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     this.set("autorecord", this.get("optionsinitialstate").autorecord);
                 },
 
+                _validateParameters: function() {
+                    var fitStrategies = ["crop", "pad", "original"];
+                    if (!fitStrategies.includes(this.get("videofitstrategy"))) {
+                        console.warn("Invalid value for videofitstrategy: " + this.get("videofitstrategy") + "\nPossible values are: " + fitStrategies.slice(0, -1).join(", ") + " or " + fitStrategies.slice(-1));
+                    }
+                    if (!fitStrategies.includes(this.get("posterfitstrategy"))) {
+                        console.warn("Invalid value for posterfitstrategy: " + this.get("posterfitstrategy") + "\nPossible values are: " + fitStrategies.slice(0, -1).join(", ") + " or " + fitStrategies.slice(-1));
+                    }
+                    if (this.get("stretch") || this.get("stretchwidth") || this.get("stretchheight")) {
+                        console.warn("Stretch parameters were removed, please set width and/or height to 100% instead.");
+                    }
+                },
+
                 _videoRecorderWrapperOptions: function() {
                     var _screen = null;
                     var _resizeMode = this.get("resizemode");
@@ -34161,6 +34233,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                             _screen = {};
                         }
                     }
+
                     return {
                         simulate: this.get("simulate"),
                         recordVideo: !this.get("onlyaudio"),
@@ -34420,6 +34493,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     this.__activated = true;
                     if (this.__attachRequested)
                         this._attachRecorder();
+                    this.persistentTrigger("loaded");
                 },
 
                 _showBackgroundSnapshot: function() {
@@ -35037,7 +35111,9 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
             "screen-recorder-is-not-supported": "Screen recorder is not supported on this device",
             "trim-prompt": "Do you want to trim your video?",
             "trim-video": "Move the start and end markers to trim your video",
-            "wait-for-trim": "Waiting for trim command..."
+            "wait-for-trim": "Waiting for trim command...",
+            "supported-mode": "Media resolution should be in '%s' mode.",
+            "re-choose-action": "Please click to choose another input device or retry action."
         });
 });
 
@@ -36896,6 +36972,7 @@ Scoped.define("module:ImageCapture.Dynamics.Recorder", ["dynamics:Dynamic","modu
                     this.__activated = true;
                     if (this.__attachRequested)
                         this._attachRecorder();
+                    this.persistentTrigger("loaded");
                 },
 
                 object_functions: ["record", "rerecord", "reset"],
@@ -38209,6 +38286,7 @@ Scoped.define("module:AudioPlayer.Dynamics.PlayerStates.PlayAudio", ["module:Aud
         dynamics: ["controlbar"],
 
         _started: function() {
+            this.dyn.trigger("loaded");
             this.dyn.set("autoplay", false);
             // As during loop we will play player after ended event fire, need initial cover will be hidden
             this.listenOn(this.dyn, "ended", function() {
@@ -39088,6 +39166,7 @@ Scoped.define("module:AudioRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     this.__activated = true;
                     if (this.__attachRequested)
                         this._attachRecorder();
+                    this.persistentTrigger("loaded");
                 },
 
                 object_functions: [
