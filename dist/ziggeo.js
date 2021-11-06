@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.39.12 - 2021-10-31
+ziggeo-client-sdk - v2.39.13 - 2021-11-06
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2422,8 +2422,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.231",
-    "datetime": 1634565016073
+    "version": "1.0.233",
+    "datetime": 1636237273138
 };
 });
 
@@ -2787,7 +2787,374 @@ Scoped.define("module:Types", function() {
     };
 });
 
-Scoped.define("module:Functions", ["module:Types"], function(Types) {
+Scoped.define("module:Time", [], function() {
+    /**
+     * Time Helper Functions
+     * 
+     * All time routines are based on UTC time.
+     * The optional timezone parameter should be used as follows:
+     *    - undefined or false: UTC
+     *    - true: user's local time zone
+     *    - int value: actual time zone bias in minutes
+     *    
+     * @module BetaJS.Time
+     */
+    return {
+
+        __components: {
+            "year": {
+                "set": function(date, value) {
+                    date.setUTCFullYear(value);
+                },
+                "get": function(date) {
+                    return date.getUTCFullYear();
+                }
+            },
+            "month": {
+                "set": function(date, value) {
+                    date.setUTCMonth(value);
+                },
+                "get": function(date) {
+                    return date.getUTCMonth();
+                }
+            },
+            "day": {
+                "dependencies": {
+                    "weekday": true
+                },
+                "set": function(date, value) {
+                    date.setUTCDate(value + 1);
+                },
+                "get": function(date) {
+                    return date.getUTCDate() - 1;
+                },
+                "milliseconds": 24 * 60 * 60 * 1000
+            },
+            "weekday": {
+                "dependencies": {
+                    "day": true,
+                    "month": true,
+                    "year": true
+                },
+                "set": function(date, value) {
+                    date.setUTCDate(date.getUTCDate() + value - date.getUTCDay());
+                },
+                "get": function(date) {
+                    return date.getUTCDay();
+                }
+            },
+            "hour": {
+                "set": function(date, value) {
+                    date.setUTCHours(value);
+                },
+                "get": function(date) {
+                    return date.getUTCHours();
+                },
+                "max": 23,
+                "milliseconds": 60 * 60 * 1000
+            },
+            "minute": {
+                "set": function(date, value) {
+                    date.setUTCMinutes(value);
+                },
+                "get": function(date) {
+                    return date.getUTCMinutes();
+                },
+                "max": 59,
+                "milliseconds": 60 * 1000
+            },
+            "second": {
+                "set": function(date, value) {
+                    date.setUTCSeconds(value);
+                },
+                "get": function(date) {
+                    return date.getUTCSeconds();
+                },
+                "max": 59,
+                "milliseconds": 1000
+            },
+            "millisecond": {
+                "set": function(date, value) {
+                    date.setUTCMilliseconds(value);
+                },
+                "get": function(date) {
+                    return date.getUTCMilliseconds();
+                },
+                "max": 999,
+                "milliseconds": 1
+            }
+        },
+
+        /**
+         * Reads the current timezone offset.
+         *
+         * @param {int} time time in milliseconds
+         *
+         * @return {int} timezone offset in minutes
+         */
+        getTimezoneOffset: function(time) {
+            if (this.__timezoneOffset !== undefined) {
+                return this.__timezoneOffset;
+            }
+            return time ? (new Date(time).getTimezoneOffset()) : new Date().getTimezoneOffset();
+        },
+
+        /**
+         * Overwrites the current timezone offset.
+         *
+         * @param {int} timezoneOffset timezone offset in minutes (undefined to disable overwrite)
+         */
+        setTimezoneOffset: function(timezoneOffset) {
+            this.__timezoneOffset = timezoneOffset;
+        },
+
+        /**
+         * Computes the timezone bias in milliseconds from UTC
+         * 
+         * @param {int} timezone bias in minutes; can be true to use current time zone; can be undefined to use UTC
+         * @param {int} time time in milliseconds
+         * 
+         * @return {int} timezone bias in milliseconds
+         */
+        timezoneBias: function(timezone, time) {
+            if (timezone === true)
+                timezone = this.getTimezoneOffset(time);
+            if (typeof timezone == "undefined" || timezone === null || timezone === false)
+                timezone = 0;
+            return timezone * 60 * 1000;
+        },
+
+        /**
+         * Given a time in milliseconds, compute a Date object.
+         * 
+         * @param {int} t time in milliseconds
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {object} Date object
+         */
+        timeToDate: function(t, timezone) {
+            return new Date(t + this.timezoneBias(timezone, t));
+        },
+
+        /**
+         * Given a time as a Date object, return UTC time in milliseconds.
+         * 
+         * @param {object} d time as Date object
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {int} UTC time in milliseconds
+         */
+        dateToTime: function(d, timezone) {
+            return d.getTime() - this.timezoneBias(timezone, d.getTime());
+        },
+
+        /**
+         * Given a time in milliseconds, compute a timezone-based Date object.
+         * 
+         * @param {int} t time in milliseconds
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {object} timezone-based Date object
+         */
+        timeToTimezoneBasedDate: function(t, timezone) {
+            return new Date(t - this.timezoneBias(timezone, t));
+        },
+
+        /**
+         * Given a time as a timezone-based Date object, return UTC time in milliseconds.
+         * 
+         * @param {object} d time as a timezone-based Date object
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {int} UTC time in milliseconds
+         */
+        timezoneBasedDateToTime: function(d, timezone) {
+            return d.getTime() + this.timezoneBias(timezone, d.getTime());
+        },
+
+        /**
+         * Decode time into its time components
+         *
+         * @param {int} t time in milliseconds
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {object} decoded time component
+         */
+        decodeTime: function(t, timezone) {
+            var d = this.timeToTimezoneBasedDate(t || this.now(), timezone);
+            var result = {};
+            for (var key in this.__components)
+                result[key] = this.__components[key].get(d);
+            return result;
+        },
+
+        /**
+         * Encode time from components to UTC time
+         * 
+         * @param {object} data component data
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {int} encoded UTC time
+         */
+        encodeTime: function(data, timezone) {
+            return this.updateTime(this.now(), data, timezone);
+        },
+
+        /**
+         * Encode time period data from components to milliseconds
+         * 
+         * @param {object} data component data
+         * 
+         * @return {int} encoded milliseconds
+         */
+        encodePeriod: function(data) {
+            return this.incrementTime(0, data);
+        },
+
+        /**
+         * Updates a given time with respect to provided component data
+         * 
+         * @param {int} t UTC time
+         * @param {object} data component data
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {int} updated UTC time
+         */
+        updateTime: function(t, data, timezone) {
+            var d = this.timeToTimezoneBasedDate(t, timezone);
+            for (var key in data)
+                this.__components[key].set(d, data[key]);
+            return this.timezoneBasedDateToTime(d, timezone);
+        },
+
+        /**
+         * Returns the current time in milliseconds
+         * 
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {int} current time
+         */
+        now: function(timezone) {
+            return this.dateToTime(new Date(), timezone);
+        },
+
+        /**
+         * Returns the earliest time in the future in milliseconds that has not been queried before.
+         *
+         * @param {int} delta delta (optional, default 1)
+         * @param {int} timezone timezone (optional)
+         *
+         * @return {int} earliest time in the future
+         */
+        uniqueAtLeastNow: function(delta, timezone) {
+            var candidate = this.now(timezone);
+            if (this.__unique_at_least_now && this.__unique_at_least_now >= candidate)
+                candidate = this.__unique_at_least_now + (delta || 1);
+            this.__unique_at_least_now = candidate;
+            return candidate;
+        },
+
+        /**
+         * Returns the performance time in millseconds
+         * 
+         * @return {float} performance time
+         */
+        perfNow: function() {
+            return typeof performance === "undefined" ? (new Date()).getTime() : performance.now();
+        },
+
+        /**
+         * Increments a given time with respect to provided component data
+         * 
+         * @param {int} t UTC time
+         * @param {object} data component data
+         * 
+         * @return {int} incremented UTC time
+         */
+        incrementTime: function(t, data) {
+            var d = this.timeToDate(t);
+            for (var key in data)
+                this.__components[key].set(d, this.__components[key].get(d) + data[key]);
+            return this.dateToTime(d);
+        },
+
+        /**
+         * Floors a given time with respect to a component key and all smaller components.
+         * 
+         * @param {int} t time
+         * @param {string} key component key
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {int} floored time
+         */
+        floorTime: function(t, key, timezone) {
+            var d = this.timeToTimezoneBasedDate(t, timezone);
+            var found = false;
+            for (var comp in this.__components) {
+                var c = this.__components[comp];
+                found = found || comp == key;
+                if (found && (!c.dependencies || !c.dependencies[key]))
+                    c.set(d, 0);
+            }
+            return this.timezoneBasedDateToTime(d, timezone);
+        },
+
+        /**
+         * Computes how long a specific time is ago from now.
+         * 
+         * @param {int} t time
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {int} milliseconds ago
+         */
+        ago: function(t, timezone) {
+            return this.now(timezone) - t;
+        },
+
+        /**
+         * Returns the multiplicity of a time component given a time.
+         * 
+         * @param {int} t time
+         * @param {string} key component key
+         * @param {function} rounding function (default is floor)
+         * 
+         * @return {int} multiplicity of time
+         */
+        timeComponent: function(t, key, round) {
+            return Math[round || "floor"](t / this.__components[key].milliseconds);
+        },
+
+        /**
+         * Returns the value of a time component given a time.
+         * 
+         * @param {int} t time
+         * @param {string} key component key
+         * @param {int} timezone timezone (optional)
+         * 
+         * @return {int} value of time
+         */
+        timeComponentGet: function(t, key, timezone) {
+            return this.__components[key].get(this.timeToTimezoneBasedDate(t, timezone));
+        },
+
+        /**
+         * Returns the remainder of a time component given a time.
+         * 
+         * @param {int} t time
+         * @param {string} key component key
+         * @param {function} rounding function (default is floor)
+         * 
+         * @return {int} remainder of time
+         */
+        timeModulo: function(t, key, round) {
+            return this.timeComponent(t, key, round) % (this.__components[key].max + 1);
+        }
+
+    };
+
+});
+
+Scoped.define("module:Functions", ["module:Time","module:Types"], function(Time, Types) {
 
     /**
      * Function and Function Argument Support
@@ -2945,6 +3312,64 @@ Scoped.define("module:Functions", ["module:Types"], function(Types) {
             if (Types.is_string(method))
                 method = context[method];
             return method.apply(context, this.getArguments(arguments, 2));
+        },
+
+        /**
+         * Takes an argument function and returns a new function. The returned function will trigger the argument function at most once every 'wait' ms, no matter how many times it's called.
+         *
+         * @param {function} func - the argument function
+         * @param {number} wait - delay (in ms) between each call to argument function
+         * @return {function} the returned function
+         */
+        throttle: function(func, wait) {
+            var args, context, previous = 0;
+
+            var throttled = function() {
+                var now = Time.now();
+                var nextCall = previous + wait - now;
+                context = this;
+                args = arguments;
+                if (nextCall <= 0) {
+                    previous = now;
+                    return func.apply(context, args);
+                }
+            };
+
+            return throttled;
+        },
+
+        /**
+         * Takes an argument function and returns a new function. If the returned function is called multiple times in sequence, the argument function will only be triggered once.
+         *
+         * @param {function} func - argument function
+         * @param {number} wait - time delay (in ms) that defines the end of a sequence
+         * @param {boolean} immediate - should trigger argument function immediately instead of waiting until the end of the sequence
+         * @return {function} returned function
+         */
+        debounce: function(func, wait, immediate) {
+            var args, context, timeout;
+
+            var later = function() {
+                var delay = Time.now() - lastCall;
+                if (delay < wait) {
+                    timeout = setTimeout(later, wait - delay);
+                    return;
+                }
+                timeout = null;
+                if (!immediate) func.apply(context, args);
+            };
+
+            var debounced = function() {
+                context = this;
+                args = arguments;
+                lastCall = Time.now();
+                if (!timeout) {
+                    timeout = setTimeout(later, wait);
+                    if (immediate) func.apply(this, arguments);
+                }
+            };
+
+            return debounced;
         }
 
     };
@@ -4481,373 +4906,6 @@ Scoped.define("module:Class", ["module:Types","module:Objs","module:Functions","
     };
 
     return Class;
-
-});
-
-Scoped.define("module:Time", [], function() {
-    /**
-     * Time Helper Functions
-     * 
-     * All time routines are based on UTC time.
-     * The optional timezone parameter should be used as follows:
-     *    - undefined or false: UTC
-     *    - true: user's local time zone
-     *    - int value: actual time zone bias in minutes
-     *    
-     * @module BetaJS.Time
-     */
-    return {
-
-        __components: {
-            "year": {
-                "set": function(date, value) {
-                    date.setUTCFullYear(value);
-                },
-                "get": function(date) {
-                    return date.getUTCFullYear();
-                }
-            },
-            "month": {
-                "set": function(date, value) {
-                    date.setUTCMonth(value);
-                },
-                "get": function(date) {
-                    return date.getUTCMonth();
-                }
-            },
-            "day": {
-                "dependencies": {
-                    "weekday": true
-                },
-                "set": function(date, value) {
-                    date.setUTCDate(value + 1);
-                },
-                "get": function(date) {
-                    return date.getUTCDate() - 1;
-                },
-                "milliseconds": 24 * 60 * 60 * 1000
-            },
-            "weekday": {
-                "dependencies": {
-                    "day": true,
-                    "month": true,
-                    "year": true
-                },
-                "set": function(date, value) {
-                    date.setUTCDate(date.getUTCDate() + value - date.getUTCDay());
-                },
-                "get": function(date) {
-                    return date.getUTCDay();
-                }
-            },
-            "hour": {
-                "set": function(date, value) {
-                    date.setUTCHours(value);
-                },
-                "get": function(date) {
-                    return date.getUTCHours();
-                },
-                "max": 23,
-                "milliseconds": 60 * 60 * 1000
-            },
-            "minute": {
-                "set": function(date, value) {
-                    date.setUTCMinutes(value);
-                },
-                "get": function(date) {
-                    return date.getUTCMinutes();
-                },
-                "max": 59,
-                "milliseconds": 60 * 1000
-            },
-            "second": {
-                "set": function(date, value) {
-                    date.setUTCSeconds(value);
-                },
-                "get": function(date) {
-                    return date.getUTCSeconds();
-                },
-                "max": 59,
-                "milliseconds": 1000
-            },
-            "millisecond": {
-                "set": function(date, value) {
-                    date.setUTCMilliseconds(value);
-                },
-                "get": function(date) {
-                    return date.getUTCMilliseconds();
-                },
-                "max": 999,
-                "milliseconds": 1
-            }
-        },
-
-        /**
-         * Reads the current timezone offset.
-         *
-         * @param {int} time time in milliseconds
-         *
-         * @return {int} timezone offset in minutes
-         */
-        getTimezoneOffset: function(time) {
-            if (this.__timezoneOffset !== undefined) {
-                return this.__timezoneOffset;
-            }
-            return time ? (new Date(time).getTimezoneOffset()) : new Date().getTimezoneOffset();
-        },
-
-        /**
-         * Overwrites the current timezone offset.
-         *
-         * @param {int} timezoneOffset timezone offset in minutes (undefined to disable overwrite)
-         */
-        setTimezoneOffset: function(timezoneOffset) {
-            this.__timezoneOffset = timezoneOffset;
-        },
-
-        /**
-         * Computes the timezone bias in milliseconds from UTC
-         * 
-         * @param {int} timezone bias in minutes; can be true to use current time zone; can be undefined to use UTC
-         * @param {int} time time in milliseconds
-         * 
-         * @return {int} timezone bias in milliseconds
-         */
-        timezoneBias: function(timezone, time) {
-            if (timezone === true)
-                timezone = this.getTimezoneOffset(time);
-            if (typeof timezone == "undefined" || timezone === null || timezone === false)
-                timezone = 0;
-            return timezone * 60 * 1000;
-        },
-
-        /**
-         * Given a time in milliseconds, compute a Date object.
-         * 
-         * @param {int} t time in milliseconds
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {object} Date object
-         */
-        timeToDate: function(t, timezone) {
-            return new Date(t + this.timezoneBias(timezone, t));
-        },
-
-        /**
-         * Given a time as a Date object, return UTC time in milliseconds.
-         * 
-         * @param {object} d time as Date object
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {int} UTC time in milliseconds
-         */
-        dateToTime: function(d, timezone) {
-            return d.getTime() - this.timezoneBias(timezone, d.getTime());
-        },
-
-        /**
-         * Given a time in milliseconds, compute a timezone-based Date object.
-         * 
-         * @param {int} t time in milliseconds
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {object} timezone-based Date object
-         */
-        timeToTimezoneBasedDate: function(t, timezone) {
-            return new Date(t - this.timezoneBias(timezone, t));
-        },
-
-        /**
-         * Given a time as a timezone-based Date object, return UTC time in milliseconds.
-         * 
-         * @param {object} d time as a timezone-based Date object
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {int} UTC time in milliseconds
-         */
-        timezoneBasedDateToTime: function(d, timezone) {
-            return d.getTime() + this.timezoneBias(timezone, d.getTime());
-        },
-
-        /**
-         * Decode time into its time components
-         *
-         * @param {int} t time in milliseconds
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {object} decoded time component
-         */
-        decodeTime: function(t, timezone) {
-            var d = this.timeToTimezoneBasedDate(t || this.now(), timezone);
-            var result = {};
-            for (var key in this.__components)
-                result[key] = this.__components[key].get(d);
-            return result;
-        },
-
-        /**
-         * Encode time from components to UTC time
-         * 
-         * @param {object} data component data
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {int} encoded UTC time
-         */
-        encodeTime: function(data, timezone) {
-            return this.updateTime(this.now(), data, timezone);
-        },
-
-        /**
-         * Encode time period data from components to milliseconds
-         * 
-         * @param {object} data component data
-         * 
-         * @return {int} encoded milliseconds
-         */
-        encodePeriod: function(data) {
-            return this.incrementTime(0, data);
-        },
-
-        /**
-         * Updates a given time with respect to provided component data
-         * 
-         * @param {int} t UTC time
-         * @param {object} data component data
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {int} updated UTC time
-         */
-        updateTime: function(t, data, timezone) {
-            var d = this.timeToTimezoneBasedDate(t, timezone);
-            for (var key in data)
-                this.__components[key].set(d, data[key]);
-            return this.timezoneBasedDateToTime(d, timezone);
-        },
-
-        /**
-         * Returns the current time in milliseconds
-         * 
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {int} current time
-         */
-        now: function(timezone) {
-            return this.dateToTime(new Date(), timezone);
-        },
-
-        /**
-         * Returns the earliest time in the future in milliseconds that has not been queried before.
-         *
-         * @param {int} delta delta (optional, default 1)
-         * @param {int} timezone timezone (optional)
-         *
-         * @return {int} earliest time in the future
-         */
-        uniqueAtLeastNow: function(delta, timezone) {
-            var candidate = this.now(timezone);
-            if (this.__unique_at_least_now && this.__unique_at_least_now >= candidate)
-                candidate = this.__unique_at_least_now + (delta || 1);
-            this.__unique_at_least_now = candidate;
-            return candidate;
-        },
-
-        /**
-         * Returns the performance time in millseconds
-         * 
-         * @return {float} performance time
-         */
-        perfNow: function() {
-            return typeof performance === "undefined" ? (new Date()).getTime() : performance.now();
-        },
-
-        /**
-         * Increments a given time with respect to provided component data
-         * 
-         * @param {int} t UTC time
-         * @param {object} data component data
-         * 
-         * @return {int} incremented UTC time
-         */
-        incrementTime: function(t, data) {
-            var d = this.timeToDate(t);
-            for (var key in data)
-                this.__components[key].set(d, this.__components[key].get(d) + data[key]);
-            return this.dateToTime(d);
-        },
-
-        /**
-         * Floors a given time with respect to a component key and all smaller components.
-         * 
-         * @param {int} t time
-         * @param {string} key component key
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {int} floored time
-         */
-        floorTime: function(t, key, timezone) {
-            var d = this.timeToTimezoneBasedDate(t, timezone);
-            var found = false;
-            for (var comp in this.__components) {
-                var c = this.__components[comp];
-                found = found || comp == key;
-                if (found && (!c.dependencies || !c.dependencies[key]))
-                    c.set(d, 0);
-            }
-            return this.timezoneBasedDateToTime(d, timezone);
-        },
-
-        /**
-         * Computes how long a specific time is ago from now.
-         * 
-         * @param {int} t time
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {int} milliseconds ago
-         */
-        ago: function(t, timezone) {
-            return this.now(timezone) - t;
-        },
-
-        /**
-         * Returns the multiplicity of a time component given a time.
-         * 
-         * @param {int} t time
-         * @param {string} key component key
-         * @param {function} rounding function (default is floor)
-         * 
-         * @return {int} multiplicity of time
-         */
-        timeComponent: function(t, key, round) {
-            return Math[round || "floor"](t / this.__components[key].milliseconds);
-        },
-
-        /**
-         * Returns the value of a time component given a time.
-         * 
-         * @param {int} t time
-         * @param {string} key component key
-         * @param {int} timezone timezone (optional)
-         * 
-         * @return {int} value of time
-         */
-        timeComponentGet: function(t, key, timezone) {
-            return this.__components[key].get(this.timeToTimezoneBasedDate(t, timezone));
-        },
-
-        /**
-         * Returns the remainder of a time component given a time.
-         * 
-         * @param {int} t time
-         * @param {string} key component key
-         * @param {function} rounding function (default is floor)
-         * 
-         * @return {int} remainder of time
-         */
-        timeModulo: function(t, key, round) {
-            return this.timeComponent(t, key, round) % (this.__components[key].max + 1);
-        }
-
-    };
 
 });
 
@@ -16382,8 +16440,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.178",
-    "datetime": 1635611387327
+    "version": "0.0.179",
+    "datetime": 1636237490231
 };
 });
 
@@ -19489,7 +19547,7 @@ Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMi
                             mediaRecorderOptions = {
                                 mimeType: 'video/webm;codecs=vp9'
                             };
-                        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8') && (Info.isFirefox() && Info.firefoxVersion() < 71)) {
+                        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
                             // https://bugzilla.mozilla.org/show_bug.cgi?id=1594466
                             // firefox71 + fixed
                             mediaRecorderOptions = {
@@ -25054,8 +25112,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.287",
-    "datetime": 1635613187743
+    "version": "0.0.288",
+    "datetime": 1636237628539
 };
 });
 
@@ -32386,10 +32444,10 @@ Scoped.define("module:VideoRecorder.Dynamics.RecorderStates.State", ["base:State
 
         checkOrientation: function(isPortrait, next) {
             next = next || "FatalError";
-            if (this.dyn.get("mandatoryorientation")) {
+            if (this.dyn.get("media-orientation")) {
                 if (
-                    (this.dyn.get("mandatoryorientation") === "portrait" && !isPortrait) ||
-                    (this.dyn.get("mandatoryorientation") === "landscape" && isPortrait)
+                    (this.dyn.get("media-orientation") === "portrait" && !isPortrait) ||
+                    (this.dyn.get("media-orientation") === "landscape" && isPortrait)
                 ) {
                     this.dyn.set("recordvisible", false);
                     var message = this.dyn.string("supported-mode")
@@ -33864,7 +33922,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "custom-covershots": false,
                     "selectfirstcovershotonskip": false,
                     "picksnapshotmandatory": false,
-                    "mandatoryorientation": null, // possible options "landscape", "portrait"
+                    "media-orientation": null, // possible options "landscape", "portrait"
                     "manualsubmit": false,
                     "allowedextensions": null,
                     "filesizelimit": null,
@@ -34065,7 +34123,7 @@ Scoped.define("module:VideoRecorder.Dynamics.Recorder", ["dynamics:Dynamic","mod
                     "showplayersettingsmenu": "boolean",
                     "initialmessages": "array",
                     "screenrecordmandatory": "boolean",
-                    "mandatoryorientation": "string",
+                    "media-orientation": "string",
                     "mandatoryresolutions": "array",
                     "pickcovershotframe": "boolean",
                     "allowtrim": "boolean",
