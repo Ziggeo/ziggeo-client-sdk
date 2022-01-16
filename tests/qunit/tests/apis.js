@@ -131,28 +131,40 @@ test("create-client-tags-find-client", function() {
 
 
 
-test("uploader-test", function () {
+test("uploader-test-1", function () {
+	var count = 100;
 	stop();
     ziggeoApp.videos.createByUpload({
         video_data: new window.Blob([require('fs').readFileSync(TestResources.video_file)], {
-        	type: "video/mp4"
+            type: "video/mp4"
         })
-    }).error(function (e) {
+    }).error(function () {
         start();
         ok(false);
     }).success(function (result) {
 		start();
 		ok(result != null);
-		ok(result.video != null);
-		ok(result.stream != null);
+		ok(result.token != null);
+		ok(result.video_token != null);
 		stop();
-		ziggeoApp.streams._uploader_state(result.video.token, result.stream.token).success(function () {
-			start();
-			ok(true);
-		}).error(function () {
-			start();
-			ok(false);
-		});
+		var f = function () {
+            ziggeoApp.streams._uploader_state(result.video_token, result.token).success(function () {
+				start();
+				ok(true);
+			}).error(function (error) {
+				count--;
+				start();
+				if (error.status_code() == 412 && count >= 0) {
+					stop();
+					setTimeout(function () {
+						f();
+					}, 1000);
+					return;
+				}
+				ok(false, error);
+			});
+		};
+		f();
 	});
 });
 
@@ -170,11 +182,11 @@ test("uploader-test-2", function () {
     }).success(function (result) {
 		start();
 		ok(result != null);
-		ok(result.video != null);
-		ok(result.stream != null);
+		ok(result.token != null);
+		ok(result.video_token != null);
 		stop();
 		var f = function () {
-            ziggeoApp.streams._uploader_state(result.video.token, result.stream.token).success(function () {
+            ziggeoApp.streams._uploader_state(result.video_token, result.token).success(function () {
 				start();
 				ok(true);
 			}).error(function (error) {
