@@ -4,7 +4,7 @@ These demos showcase some of the SDK features.
 
 ## Configuration
 - Create a `credentials.js` file inside the demos folder
-- The file should contain the following variables (please replace the string with the correct one):
+- The file should contain the following variables (please replace the strings with the correct values):
 ```js
 window.ZiggeoApiToken = "APP_TOKEN";
 window.ZiggeoDemoVideo = "YOUR_DEMO_VIDEO_TOKEN";
@@ -17,7 +17,7 @@ window.SourceDemoVideo = "https://file-examples-com.github.io/uploads/2017/04/fi
 ```
 With these you should be able to run most of the demos.
 
-Some browsers don't allow accessing the camera directly from the file system or from insecure locations, though, so in some cases you'll need to access the pages from an https server.
+Some browsers don't allow accessing the camera directly from the file system or from insecure locations. In such cases you'll need to access the pages from the https server.
 There is an example on the file `server.js`. If you have npm installed and an SSL certificate (it can be self signed) you can run it with the following steps:
 - Create a `config.js` file inside the demos folder
 - The file should contain the following:
