@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="../build/ziggeo.css" />
+        <script src="credentials.js"></script>
+        <script src="../build/ziggeo.js"></script>
+        <script src="header.js"></script>
+    </head>
+    <body>
+        Please select video file: <input type="file" name="file"/>
+        <div id="player"></div>
+        <div id="uploading" style="display:none">Uploading...</div>
+        <div id="error" style="display:none">Error!</div>
+        <script>
+            ziggeoApi.on("ready", function() {
+                var inputElement = document.querySelector("input");
+                inputElement.onchange = function() {
+                    document.querySelector("#uploading").style.display = "block";
+                    document.querySelector("#error").style.display = "none";
+                    ziggeoApi.videos.createByUpload({
+                        video_data: inputElement
+                    }).success(function(data) {
+                        document.querySelector("#uploading").style.display = "none";
+                        console.log(data);
+                        var player = new ZiggeoApi.V2.Player({
+                            element: document.querySelector("#player"),
+                            attrs: {
+                                video: data.video_token
+                            }
+                        });
+                        player.activate();
+                    }).error(function(err) {
+                        document.querySelector("#uploading").style.display = "none";
+                        document.querySelector("#error").style.display = "block";
+                        throw err;
+                    });
+                };
+            });
+        </script>
+    </body>
+</html>

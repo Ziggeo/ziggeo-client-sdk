@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="../build/ziggeo.css" />
+        <script src="credentials.js"></script>
+        <script src="../build/ziggeo.js"></script>
+        <script src="header.js"></script>
+    </head>
+    <body>
+        <label for="gallerysnapshots">Number of snapshots on gallery:</label>
+        <input type="number" min="1" max="99" name="gallerysnapshots" value="1"></input>
+
+        <div id="recorder"></div>
+        
+        <script>
+            ZiggeoApi.V2.Application.getDefault().once("ready", function () {
+                var recorder = new ZiggeoApi.V2.Recorder({
+                    element: document.querySelector("#recorder"),
+                    attrs: {
+                        gallerysnapshots: document.querySelector("input").value,
+                        theme: "modern"
+                    }
+                });
+
+                recorder.activate();
+
+                document.querySelector("input").addEventListener("change", function(e) {
+                    recorder.set("gallerysnapshots", e.target.value);
+                    recorder.reset();
+                });
+
+                recorder.on("all", function (event_name) {
+                    if (event_name.indexOf("change") === 0)
+                        return;
+                    console.log(event_name);
+                });
+            });
+        </script>
+    </body>
+</html>
