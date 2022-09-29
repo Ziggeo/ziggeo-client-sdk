@@ -5,6 +5,7 @@ var path = require('path');
 var config;
 try { config = require('./config'); } catch(e) {}
 var express = require('express');
+var serveIndex = require('serve-index');
 var app = express();
 
 var privateKey  = config && fs.readFileSync(config.key_path);
@@ -35,6 +36,7 @@ app.use(function(req, res, next) {
 });
 
 app.use(express.static(__dirname));
+app.use(serveIndex(__dirname, { icons: true }));
 app.use(express.static(path.join(__dirname, '..')));
 
 var httpsServer = https.createServer(credentials, app);
