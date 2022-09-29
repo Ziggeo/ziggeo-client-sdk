@@ -27,13 +27,9 @@ module.exports = {
     file_path: "YOUR_FILE_PATH"
 };
 ```
-- Go to demos folder and install dependencies
-```bash
-cd demos/
-npm install express
-```
 
 ## Running the server
 ```bash
+cd demos/
 node server.js
 ```
