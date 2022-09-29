@@ -2,12 +2,13 @@ var fs = require('fs');
 var http = require('http');
 var https = require('https');
 var path = require('path');
-var config = require('./config');
+var config;
+try { config = require('./config'); } catch(e) {}
 var express = require('express');
 var app = express();
 
-var privateKey  = fs.readFileSync(config.key_path);
-var certificate = fs.readFileSync(config.cert_path);
+var privateKey  = config && fs.readFileSync(config.key_path);
+var certificate = config && fs.readFileSync(config.cert_path);
 var credentials = {key: privateKey, cert: certificate};
 var publicdir = __dirname;
 
@@ -40,11 +41,12 @@ var httpsServer = https.createServer(credentials, app);
 
 var httpServer = http.createServer(app);
 
-// httpServer.listen(8000, () => {
-// 	console.log("Listening on port 8000 (http)");
-// })
+httpServer.listen(8001, () => {
+	console.log("Listening on port 8001 (http)");
+	console.log("http://localhost:8001/");
+})
 
-httpsServer.listen(443, () => {
+if (config) httpsServer.listen(443, () => {
 	console.log("Listening on port 443 (https)");
 	console.log("https://localhost:443/");
 });
