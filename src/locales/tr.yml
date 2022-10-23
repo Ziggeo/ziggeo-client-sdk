@@ -1,26 +1,24 @@
 'language:tr':
-  application.error_503: Biz hizmetimizi sürdürmekteyiz. Videolar geri yakında olacak.
-  application.error_404: >-
-    Biz API anahtarını tanıyamaz. Web sitenizin başlığında bunu belirtmek için
-    emin olun.
-  application.error_401: Bu siteden uygulamaya erişmek için izin verilmez.
-  application.error_412: Sen / onaylamak hesabınızı yükseltmeniz gerekir.
-  application.error_unknown: Bilinmeyen bir hata oluştu. Ekibimiz tebliğ edilmiş ve sorunu çözecektir.
-  ziggeoplayer.video-not-found: Biz Belirtilen video dosyasını bulamadı.
-  ziggeoplayer.video-access-forbidden: Bu görüntülü dosyaya erişmek için izin verilmez.
-  ziggeoplayer.video-unknown-error: Biz şu anda bu videoyu erişemiyor. Lütfen daha sonra tekrar deneyiniz.
-  ziggeoplayer.video-rejected: Video reddedildi.
-  ziggeoplayer.video-processing: Video işleme - bizi izlemeye devam edin.
-  ziggeoplayer.video-access-error: Video ılımlılık aşamasındadır. Tekrar denemek için tıklayabilirsiniz.
-  ziggeoaudioplayer.audio-not-found: Belirtilen ses dosyasını bulamadık.
-  ziggeoaudioplayer.audio-access-forbidden: Bu ses dosyasına erişim izniniz yok.
+  application.error_503: Bakımdayız. En kısa zamanda geri döneceğiz.
+  application.error_404: API anahtarı bulunamadı. Lütfen tekrar kontrol ediniz.    
+  application.error_401: Uygulamaya erişmenize izin verilmemektedir.
+  application.error_412: Hesabınızı onaylamanız veya yükseltmeniz gerekmektedir.
+  application.error_unknown: Bilinmeyen bir hata oluştu. Sorunla ilgili ekibimizi bilgilendirdik.
+  ziggeoaudioplayer.audio-not-found: Belirtilen ses bulunamadı.
+  ziggeoaudioplayer.audio-access-forbidden: Bu sese erişmenize izin verilmemektedir.
   ziggeoaudioplayer.audio-unknown-error: Şu anda bu sese erişemiyoruz. Lütfen daha sonra tekrar deneyiniz.
   ziggeoaudioplayer.audio-rejected: Ses reddedildi.
-  ziggeoaudioplayer.audio-processing: Ses işleniyor - bizi izlemeye devam edin.
+  ziggeoaudioplayer.audio-processing: Ses işleniyor, lütfen bekleyiniz.
   ziggeoaudioplayer.audio-access-error: Ses şu anda denetleniyor. Yeniden denemek için tıklayabilirsiniz.
-  ziggeoimageviewer.image-not-found: Belirtilen görüntü dosyasını bulamadık.
-  ziggeoimageviewer.image-access-forbidden: Bu görüntü dosyasına erişim izniniz yok.
-  ziggeoimageviewer.image-unknown-error: Bu resme şu anda erişemiyoruz. Lütfen daha sonra tekrar deneyiniz.
-  ziggeoimageviewer.image-rejected: Görüntü reddedildi.
-  ziggeoimageviewer.image-processing: Görüntü işleniyor - bizi izlemeye devam edin.
-  ziggeoimageviewer.image-access-error: Görüntü şu anda denetleniyor. Yeniden denemek için tıklayabilirsiniz.
+  ziggeoimageviewer.image-not-found: Belirtilen görsel bulunamadı.
+  ziggeoimageviewer.image-access-forbidden: Bu görsele erişme izniniz yok.
+  ziggeoimageviewer.image-unknown-error: Şu anda bu görsele erişemiyoruz. Lütfen daha sonra tekrar deneyiniz.
+  ziggeoimageviewer.image-rejected: Görsel reddedildi.
+  ziggeoimageviewer.image-processing: Görsel işleniyor, lütfen bekleyiniz.
+  ziggeoimageviewer.image-access-error: Görsel şu anda denetleniyor. Yeniden denemek için tıklayabilirsiniz.
+  ziggeoplayer.video-not-found: Belirtilen videoyu bulamadık.
+  ziggeoplayer.video-access-forbidden: Bu videoya erişme izniniz yok.
+  ziggeoplayer.video-unknown-error: Şu anda bu videoya erişemiyoruz. Lütfen daha sonra tekrar deneyiniz.
+  ziggeoplayer.video-rejected: Video reddedildi.
+  ziggeoplayer.video-processing: Video işleniyor, lütfen bekleyiniz.
+  ziggeoplayer.video-access-error: Video şu anda denetleniyor. Yeniden denemek için tıklayabilirsiniz.
