@@ -26,3 +26,4 @@
   ziggeoplayer.video-rejected: The video has been rejected.
   ziggeoplayer.video-processing: The video is processing - stay tuned.
   ziggeoplayer.video-access-error: The video is currently under moderation. You may click to retry.
+  ziggeoplayer.video-effect-profile-not-found: Video is unavailable at the moment
