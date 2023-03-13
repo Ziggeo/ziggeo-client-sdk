@@ -1,5 +1,5 @@
 /*!
-ziggeo-client-sdk - v2.42.1 - 2023-02-16
+ziggeo-client-sdk - v2.42.2 - 2023-03-13
 Copyright (c) Ziggeo
 Closed Source Software License.
 */
@@ -2422,8 +2422,8 @@ Scoped.binding('module', 'root:BetaJS');
 Scoped.define("module:", function () {
 	return {
     "guid": "71366f7a-7da3-4e55-9a0b-ea0e4e2a9e79",
-    "version": "1.0.239",
-    "datetime": 1675795941005
+    "version": "1.0.242",
+    "datetime": 1678722143014
 };
 });
 
@@ -7063,6 +7063,21 @@ Scoped.define("module:Strings", ["module:Objs"], function(Objs) {
         },
 
         /**
+         * Pads a string from the right with characters if necessary.
+         *
+         * @param {string} s string that should be padded
+         * @param {string} padding padding string that should be used (e.g. whitespace)
+         * @param {int} length minimum length of result string
+         *
+         * @return {string} padded string
+         */
+        padRight: function(s, padding, length) {
+            while (s.length < length)
+                s = s + padding;
+            return s;
+        },
+
+        /**
          * Pads a string from the left with zeros ('0') if necessary.
          *
          * @param {string} s string that should be padded
@@ -9754,6 +9769,21 @@ Scoped.define("module:Maths", [], function () {
                 current += step;
             }
             return array;
+        },
+        /**
+         * Generates random integer between min and max
+         *
+         * @param {int} min minimum value for random integer
+         * @param {int} max maximum value for random integer
+         *
+         * @return {int} the random integer
+         */
+        randomInt: function (min, max) {
+            if (!max) {
+                max = min;
+                min = 0;
+            }
+            return Math.floor(Math.random() * (max - min + 1) + min);
         }
     };
 });
@@ -12135,10 +12165,10 @@ Scoped.define("module:TimeFormat", ["module:Time","module:Strings","module:Objs"
                 return t.getTime();
             },
             "l": function(t) {
-                return Time.timeComponentGet(t, "millisecond");
+                return Strings.padZeros(Time.timeComponentGet(t, "millisecond"), 3);
             },
             "L": function(t) {
-                return Math.floor(Time.timeComponentGet(t, "millisecond") / 10);
+                return Strings.padZeros(Math.floor(Time.timeComponentGet(t, "millisecond") / 10), 2);
             },
             "tt": function(t) {
                 return Time.timeModulo(t, "hour", "floor") < 12 ? 'am' : 'pm';
@@ -12178,7 +12208,7 @@ Scoped.define("module:TimeFormat", ["module:Time","module:Strings","module:Objs"
          * 
          */
         format: function(timeFormat, time, timezone) {
-            time = time || Time.now();
+            time = time === 0 ? time : time || Time.now();
             var timezoneTime = Time.timeToTimezoneBasedDate(time, timezone);
             var bias = Time.timezoneBias(timezone, time);
             var result = timeFormat;
@@ -14156,7 +14186,7 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
         });
     };
 
-    return {
+    var Dom = {
 
         ready: function(callback, context) {
             if (document.readyState === "complete" || (document.readyState !== "loading" && !document.documentElement.doScroll)) {
@@ -14835,9 +14865,25 @@ Scoped.define("module:Dom", ["base:Types","base:Objs","module:Info","base:Async"
                 return document.execCommand("copy");
             }
             return false;
+        },
+
+        onScrollIntoView: function(element, visibilityFraction, callback, context) {
+            if (this.isElementVisible(element, visibilityFraction)) {
+                callback.call(context);
+                return;
+            }
+            var cb = function() {
+                if (Dom.isElementVisible(element, visibilityFraction)) {
+                    callback.call(context);
+                    document.removeEventListener("scroll", cb);
+                }
+            };
+            document.addEventListener("scroll", cb);
         }
 
     };
+
+    return Dom;
 });
 
 Scoped.define("module:Events", ["base:Class","base:Objs","base:Functions","module:Dom"], function(Class, Objs, Functions, Dom, scoped) {
@@ -16688,8 +16734,8 @@ Scoped.binding('module', 'root:BetaJS.Media');
 Scoped.define("module:", function () {
 	return {
     "guid": "8475efdb-dd7e-402e-9f50-36c76945a692",
-    "version": "0.0.193",
-    "datetime": 1674677775399
+    "version": "0.0.196",
+    "datetime": 1678722347606
 };
 });
 
@@ -17122,6 +17168,145 @@ Scoped.define("module:AudioRecorder.AudioRecorderWrapper", ["base:Classes.Condit
         }
 
     });
+});
+
+Scoped.define("module:Common.Video.PixelSampler", ["base:Class","base:Maths"], function(Class, Maths, scoped) {
+    return Class.extend({
+        scoped: scoped
+    }, function(inherited) {
+        return {
+            constructor: function(video, options) {
+                inherited.constructor.call(this);
+                this._video = video;
+                this._areas = options && options.areas || [
+                    [
+                        [0, 1], // x0, x1
+                        [0, 1] // y0, y1
+                    ]
+                ];
+                this._samples = options && options.samples || 100;
+            },
+            _prepareCanvas: function() {
+                if (!this._video.videoWidth) return;
+                if (!this._canvas) {
+                    this._canvas = document.createElement("canvas");
+                    this._canvas.width = this._video.videoWidth;
+                    this._canvas.height = this._video.videoHeight;
+                }
+                this._getCanvasCtx().drawImage(this._video, 0, 0, this._video.videoWidth, this._video.videoHeight);
+            },
+            _getCanvasCtx: function() {
+                if (!this._canvas) return;
+                return this._canvas.getContext("2d", {
+                    willReadFrequently: true
+                });
+            },
+            _pixelSample: function(samples, area, callback, context) {
+                var ctx = this._getCanvasCtx();
+                if (!ctx) {
+                    callback.call(context || this, 0, 0, 0);
+                    return;
+                }
+                samples = samples || this._samples;
+                area = area || this._areas[0];
+                var w = this._video.videoWidth;
+                var h = this._video.videoHeight;
+                for (var i = 0; i < samples; i++) {
+                    var x = Maths.randomInt(area[0][0] * w, Math.min(area[0][1] * w, w - 1));
+                    var y = Maths.randomInt(area[1][0] * h, Math.min(area[1][1] * h, h - 1));
+                    data = ctx.getImageData(x, y, 1, 1).data;
+                    callback.call(context || this, data[0], data[1], data[2]);
+                }
+            },
+            _materializePixelSample: function(samples, area) {
+                var result = [];
+                this._pixelSample(samples, area, function(r, g, b) {
+                    result.push([r, g, b]);
+                });
+                return result;
+            },
+            lightLevel: function(samples, areas) {
+                this._prepareCanvas();
+                areas = areas || this._areas;
+                if (areas.length === 1) return this._singleLightLevel(samples, areas[0]);
+                var result = [];
+                for (var i = 0; i < areas.length; i++) {
+                    result.push(this._singleLightLevel(samples, areas[i]));
+                }
+                return result;
+            },
+            _singleLightLevel: function(samples, area) {
+                var total_light = 0.0;
+                samples = samples || this._samples;
+                this._pixelSample(samples, area, function(r, g, b) {
+                    total_light += r + g + b;
+                });
+                return total_light / (3 * samples);
+            },
+            blankLevel: function(samples, areas) {
+                this._prepareCanvas();
+                areas = areas || this._areas;
+                if (areas.length === 1) return this._singleBlankLevel(samples, areas[0]);
+                var result = [];
+                for (var i = 0; i < areas.length; i++) {
+                    result.push(this._singleBlankLevel(samples, areas[i]));
+                }
+                return result;
+            },
+            _singleBlankLevel: function(samples, area) {
+                var total_light = 0.0;
+                samples = samples || this._samples;
+                this._pixelSample(samples, area, function(r, g, b) {
+                    total_light += Math.pow(r, 2) + Math.pow(g, 2) + Math.pow(b, 2);
+                });
+                return Math.sqrt(total_light / (3 * samples));
+            },
+            deltaCoefficient: function(samples, areas) {
+                this._prepareCanvas();
+                areas = areas || this._areas;
+                if (areas.length === 1) return this._singleDeltaCoefficient(samples, areas[0]);
+                var result = [];
+                for (var i = 0; i < areas.length; i++) {
+                    result.push(this._singleDeltaCoefficient(samples, areas[i]));
+                }
+                return result;
+            },
+            _singleDeltaCoefficient: function(samples, area) {
+                samples = samples || this._samples;
+                var current = this._materializePixelSample(samples, area);
+                if (!this.__deltaSample) {
+                    this.__deltaSample = current;
+                    return null;
+                }
+                var delta_total = 0.0;
+                for (var i = 0; i < current.length; i++)
+                    for (var j = 0; j < 3; j++)
+                        delta_total += Math.pow(current[i][j] - this.__deltaSample[i][j], 2);
+                this.__deltaSample = current;
+                return Math.sqrt(delta_total / (3 * samples));
+            }
+        };
+    });
+});
+
+Scoped.define("module:Common.Video.PixelSampleMixin", ["module:Common.Video.PixelSampler"], function(PixelSampler) {
+    return {
+        _createPixelSampler: function() {
+            return this.__pixelSampler = this.auto_destroy(new PixelSampler(this._video || this._element, this._options.pixelSamplerOptions));
+        },
+        _getPixelSampler: function() {
+            return this.__pixelSampler || this._createPixelSampler();
+        },
+        lightLevel: function(samples, areas) {
+            return this._getPixelSampler().lightLevel(samples, areas);
+        },
+        blankLevel: function(samples, areas) {
+            return this._getPixelSampler().blankLevel(samples, areas);
+        },
+        deltaCoefficient: function(samples, areas) {
+            return this._getPixelSampler().deltaCoefficient(samples, areas);
+        }
+    };
 });
 
 Scoped.define("module:Encoding.WaveEncoder.Support", ["base:Promise","base:Scheduling.Helper"], function(Promise, SchedulingHelper) {
@@ -18433,10 +18618,10 @@ Scoped.define("module:Player.VideoPlayerWrapper", ["base:Classes.OptimisticCondi
     });
 });
 
-Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:HlsSupportMixin","module:Player.VideoPlayerWrapper","browser:Info","base:Promise","base:Objs","base:Timers.Timer","base:Strings","base:Async","browser:Dom","browser:Events"], function(HlsSupportMixin, VideoPlayerWrapper, Info, Promise, Objs, Timer, Strings, Async, Dom, DomEvents, scoped) {
+Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:HlsSupportMixin","module:Common.Video.PixelSampleMixin","module:Player.VideoPlayerWrapper","browser:Info","base:Promise","base:Objs","base:Timers.Timer","base:Strings","base:Async","browser:Dom","browser:Events"], function(HlsSupportMixin, PixelSampleMixin, VideoPlayerWrapper, Info, Promise, Objs, Timer, Strings, Async, Dom, DomEvents, scoped) {
     return VideoPlayerWrapper.extend({
         scoped: scoped
-    }, [HlsSupportMixin, function(inherited) {
+    }, [HlsSupportMixin, PixelSampleMixin, function(inherited) {
         return {
 
             _initialize: function() {
@@ -18813,53 +18998,6 @@ Scoped.define("module:Player.Html5VideoPlayerWrapper", ["module:HlsSupportMixin"
 Scoped.extend("module:Player.VideoPlayerWrapper", ["module:Player.VideoPlayerWrapper","module:Player.Html5VideoPlayerWrapper"], function(VideoPlayerWrapper, Html5VideoPlayerWrapper) {
     VideoPlayerWrapper.register(Html5VideoPlayerWrapper, 2);
     return {};
-});
-
-Scoped.define("module:Recorder.PixelSampleMixin", [], function() {
-    return {
-
-        lightLevel: function(samples) {
-            samples = samples || 100;
-            var total_light = 0.0;
-            this._pixelSample(samples, function(r, g, b) {
-                total_light += r + g + b;
-            });
-            return total_light / (3 * samples);
-        },
-
-        blankLevel: function(samples) {
-            samples = samples || 100;
-            var total_light = 0.0;
-            this._pixelSample(samples, function(r, g, b) {
-                total_light += Math.pow(r, 2) + Math.pow(g, 2) + Math.pow(b, 2);
-            });
-            return Math.sqrt(total_light / (3 * samples));
-        },
-
-        _materializePixelSample: function(sample) {
-            var result = [];
-            this._pixelSample(sample, function(r, g, b) {
-                result.push([r, g, b]);
-            });
-            return result;
-        },
-
-        deltaCoefficient: function(samples) {
-            samples = samples || 100;
-            var current = this._materializePixelSample(samples);
-            if (!this.__deltaSample) {
-                this.__deltaSample = current;
-                return null;
-            }
-            var delta_total = 0.0;
-            for (var i = 0; i < current.length; ++i)
-                for (var j = 0; j < 3; ++j)
-                    delta_total += Math.pow(current[i][j] - this.__deltaSample[i][j], 2);
-            this.__deltaSample = current;
-            return Math.sqrt(delta_total / (3 * samples));
-        }
-
-    };
 });
 
 Scoped.define("module:Recorder.VideoRecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Promise"], function(ConditionalInstance, EventsMixin, Objs, Promise, scoped) {
@@ -20195,9 +20333,20 @@ Scoped.define("module:WebRTC.MediaRecorder", ["base:Class","base:Events.EventsMi
             stop: function() {
                 if (!this._started)
                     return;
-                this._started = false;
-                this._mediaRecorder.stop();
-                this.trigger("stopped");
+                try {
+                    this._mediaRecorder.stop();
+                    this._started = false;
+                    this.trigger("stopped");
+                } catch (err) {
+                    // "inactive", raise a DOM InvalidState error and terminate these steps.
+                    if ((err.message && err.message.indexOf('inactive') !== -1) && this._mediaRecorder.state !== 'inactive') {
+                        this._mediaRecorder.state = 'inactive';
+                        this.stop();
+                    } else {
+                        // console.log("Error when try to stop the recorder. Details: ", e);
+                        this.trigger("error", err.message);
+                    }
+                }
             },
 
             _dataAvailable: function(e) {
@@ -20494,7 +20643,7 @@ Scoped.define("module:WebRTC.PeerRecorder", ["base:Class","base:Events.EventsMix
     });
 });
 
-Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Async","base:Promise","base:Time","module:WebRTC.Support","module:Recorder.Support","module:Recorder.PixelSampleMixin","browser:Events"], function(ConditionalInstance, EventsMixin, Objs, Async, Promise, Time, Support, RecorderSupport, PixelSampleMixin, DomEvents, scoped) {
+Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstance","base:Events.EventsMixin","base:Objs","base:Async","base:Promise","base:Time","module:WebRTC.Support","module:Recorder.Support","module:Common.Video.PixelSampleMixin","browser:Events"], function(ConditionalInstance, EventsMixin, Objs, Async, Promise, Time, Support, RecorderSupport, PixelSampleMixin, DomEvents, scoped) {
     return ConditionalInstance.extend({
         scoped: scoped
     }, [EventsMixin, PixelSampleMixin, function(inherited) {
@@ -20793,29 +20942,6 @@ Scoped.define("module:WebRTC.RecorderWrapper", ["base:Classes.ConditionalInstanc
 
             createSnapshot: function(type) {
                 return RecorderSupport.createSnapshot(type, this._video);
-            },
-
-            _pixelSample: function(samples, callback, context) {
-                if (!this._video.videoWidth) {
-                    callback.call(context || this, 0, 0, 0);
-                    return;
-                }
-                samples = samples || 100;
-                var w = this._video.videoWidth;
-                var h = this._video.videoHeight;
-                var wc = Math.ceil(Math.sqrt(w / h * samples));
-                var hc = Math.ceil(Math.sqrt(h / w * samples));
-                var canvas = document.createElement('canvas');
-                canvas.width = wc;
-                canvas.height = hc;
-                var ctx = canvas.getContext('2d');
-                ctx.drawImage(this._video, 0, 0, wc, hc);
-                for (var i = 0; i < samples; ++i) {
-                    var x = i % wc;
-                    var y = Math.floor(i / wc);
-                    var data = ctx.getImageData(x, y, 1, 1).data;
-                    callback.call(context || this, data[0], data[1], data[2]);
-                }
             },
 
             /**
@@ -25682,8 +25808,8 @@ Scoped.binding('module', 'root:BetaJS.MediaComponents');
 Scoped.define("module:", function () {
 	return {
     "guid": "7a20804e-be62-4982-91c6-98eb096d2e70",
-    "version": "0.0.351",
-    "datetime": 1676323041067
+    "version": "0.0.355",
+    "datetime": 1678722672813
 };
 });
 
@@ -25706,7 +25832,7 @@ Scoped.define("module:Ads.IMALoader", ["base:Promise","browser:Loader"], functio
                         promise.asyncSuccess(this.adsLoader(options));
                     }, this);
                 } else {
-                    // Just in case check if google is relate IMA SDK not other google service
+                    // Just in case, check if Google is relating IMA SDK, not another Google service
                     if (typeof google.ima === "undefined") {
                         Loader.loadScript('https://imasdk.googleapis.com/js/sdkloader/ima3.js', function() {
                             promise.asyncSuccess(this.adsLoader(options));
@@ -25744,175 +25870,6 @@ Scoped.define("module:Ads.IMALoader", ["base:Promise","browser:Loader"], functio
             return new google.ima.AdsLoader(this.adContainer(options));
         }
     };
-});
-
-Scoped.define("module:Ads.AbstractPrerollAd", ["base:Class","base:Events.EventsMixin"], function(Class, EventsMixin, scoped) {
-    return Class.extend({
-        scoped: scoped
-    }, [EventsMixin, function(inherited) {
-        return {
-
-            constructor: function(provider, options) {
-                inherited.constructor.call(this);
-                this._provider = provider;
-                this._options = options;
-            },
-
-            /**
-             * Case when SDK loaded and ready to start for manage ads
-             */
-            adsManagerLoaded: function() {
-                this.trigger('ad-loaded');
-            },
-
-            /**
-             * Case when any error occurred when try to load ad
-             */
-            adError: function() {
-                this._options.adElement.style.display = "none";
-                this.trigger('ad-error');
-            },
-
-            /**
-             * When new ad is starting and need pause main player
-             */
-            pauseContentPlayer: function() {
-
-            },
-
-            /**
-             * When ad completed and need play the main video player
-             */
-            resumeContentPlayer: function() {
-
-            },
-
-            /**
-             * When all ads which should be shows was completed
-             */
-            allAdsCompleted: function() {
-
-            },
-
-            executeAd: function(options) {
-                this._options.adElement.style.display = "";
-                this._executeAd(options);
-            },
-
-            _adFinished: function() {
-                this._options.adElement.style.display = "none";
-                this.trigger("adfinished");
-            },
-
-            _adSkipped: function() {
-                this._options.adElement.style.display = "none";
-                this.trigger("adskipped");
-            }
-
-        };
-    }]);
-});
-
-Scoped.define("module:Ads.AdSensePrerollAd", ["module:Ads.AbstractPrerollAd","browser:Loader"], function(AbstractVideoPrerollAd, Loader, scoped) {
-    return AbstractVideoPrerollAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-
-            constructor: function(provider, options) {
-                inherited.constructor.call(this, provider, options);
-
-                // https://developers.google.com/interactive-media-ads/docs/sdks/html5/client-side/architecture
-                // If google script nor loaded
-                if (typeof google === "undefined") {
-                    Loader.loadScript('https://imasdk.googleapis.com/js/sdkloader/ima3.js', function() {
-                        this.init();
-                    }, this);
-                } else {
-                    // Just in case check if google is relate IMA SDK not other google service
-                    if (typeof google.ima === "undefined") {
-                        Loader.loadScript('https://imasdk.googleapis.com/js/sdkloader/ima3.js', function() {
-                            this.init();
-                        }, this);
-                    } else {
-                        this.init();
-                    }
-                }
-            },
-
-            init: function() {
-                this._adDisplayContainer = new google.ima.AdDisplayContainer(this._options.adContainer, this._options.videoElement);
-                // Must be done as the result of a user action on mobile
-                this._adDisplayContainer.initialize();
-                //Re-use this AdsLoader instance for the entire lifecycle of your page.
-                this._adsLoader = new google.ima.AdsLoader(this._adDisplayContainer);
-
-                var self = this;
-                this._adsLoader.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, function() {
-                    self._adError();
-                }, false);
-                this._adsLoader.addEventListener(google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED, function() {
-                    self._isLoaded.apply(self, arguments);
-                }, false);
-
-                this._adsRequest = new google.ima.AdsRequest();
-                this._adsRequest.adTagUrl = this._provider.options().adTagUrl;
-            },
-
-            _executeAd: function(options) {
-                // Specify the linear and nonlinear slot sizes. This helps the SDK to
-                // select the correct creative if multiple are returned.
-                this._adsRequest.linearAdSlotWidth = options.width;
-                this._adsRequest.linearAdSlotHeight = options.height;
-                // adsRequest.nonLinearAdSlotWidth = 640;
-                // adsRequest.nonLinearAdSlotHeight = 150;
-
-                this._adsLoader.requestAds(this._adsRequest);
-            },
-
-            _adError: function() {
-                if (this._adsManager) {
-                    this._adsManager.destroy();
-                    this._adsManager = undefined;
-                }
-                this._adFinished();
-            },
-
-            _adLoaded: function(adsManagerLoadedEvent) {
-                // Get the ads manager.
-                this._adsManager = adsManagerLoadedEvent.getAdsManager(this._options.videoElement);
-                // See API reference for contentPlayback
-
-                try {
-                    // Initialize the ads manager. Ad rules playlist will start at this time.
-                    this._adsManager.init(this._adsRequest.linearAdSlotWidth, this._adsRequest.linearAdSlotHeight, google.ima.ViewMode.NORMAL);
-                    // Call start to show ads. Single video and overlay ads will
-                    // start at this time; this call will be ignored for ad rules, as ad rules
-                    // ads start when the adsManager is initialized.
-                    this._adsManager.start();
-                } catch (adError) {
-                    // An error may be thrown if there was a problem with the VAST response.
-                }
-
-                var self = this;
-                // Add listeners to the required events.
-                this._adsManager.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, function() {
-                    self._adError();
-                }, false);
-
-                //this._adsManager.addEventListener(google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED, function () {});
-                this._adsManager.addEventListener(google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED, function() {
-                    self._adFinished();
-                });
-
-                //this._adsManager.addEventListener(google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED, function () {});
-                this._adsManager.addEventListener(google.ima.AdEvent.Type.SKIPPED, function() {
-                    self._adSkipped();
-                });
-            }
-
-        };
-    });
 });
 
 Scoped.define("module:Ads.AbstractVideoAdProvider", ["base:Class"], function(Class, scoped) {
@@ -25969,1744 +25926,6 @@ Scoped.define("module:Ads.AbstractVideoAdProvider", ["base:Class"], function(Cla
 
     });
 });
-
-Scoped.define("module:Ads.AdSenseVideoAdProvider", ["module:Ads.AbstractVideoAdProvider","module:Ads.AdSensePrerollAd"], function(AbstractVideoAdProvider, AdSensePrerollAd, scoped) {
-    return AbstractVideoAdProvider.extend({
-        scoped: scoped
-    }, {
-
-        _newPrerollAd: function(options) {
-            return new AdSensePrerollAd(this, options);
-        }
-
-    });
-});
-
-Scoped.define("module:Ads.VAST.Ad", ["base:Class","base:Objs","base:Events.EventsMixin"], function(Class, Objs, EventsMixin, scoped) {
-    return Class.extend({
-        scoped: scoped
-    }, [EventsMixin, function(inherited) {
-        return {
-            constructor: function() {
-                inherited.constructor.call(this);
-                this.id = null;
-                this.sequence = null;
-                this.system = null;
-                this.title = null;
-                this.description = null;
-                this.advertiser = null;
-                this.pricing = null;
-                this.survey = null;
-                this.errorURLTemplates = [];
-                this.impressionURLTemplates = [];
-                this.creatives = [];
-                this.extensions = [];
-
-                this.trackingEvents = {};
-                this.availableTrackingEvents = ['creativeView', 'start', 'firstQuartile', 'midpoint', 'thirdQuartile', 'complete', 'rewind', 'skip', 'closeLinear', 'close', 'mute', 'unmute', 'pause', 'resume', 'playerExpand', 'playerCollapse', 'acceptInvitationLinear', 'timeSpentViewing', 'otherAdInteraction', 'progress', 'acceptInvitation', 'adExpand', 'adCollapse', 'minimize', 'overlayViewDuration', 'fullscreen', 'exitFullscreen', 'clickthrough'];
-
-                Objs.iter(this.availableTrackingEvents, function(_event) {
-                    this.trackingEvents[_event] = null;
-                }, this);
-
-            }
-        };
-    }], {
-        isNumeric: function(n) {
-            return !isNaN(parseFloat(n)) && isFinite(n);
-        },
-
-        trackAd: function(URLTemplates, variables) {
-            var URL, URLs, i, j, len, results;
-            URLs = this.resolveURLTemplates(URLTemplates, variables);
-            results = [];
-            for (j = 0, len = URLs.length; j < len; j++) {
-                URL = URLs[j];
-                if (typeof window !== "undefined" && window !== null) {
-                    i = new Image();
-                    results.push(i.src = URL);
-                } else {
-
-                }
-            }
-            return results;
-        },
-
-        resolveURLTemplates: function(URLTemplates, variables) {
-            var URLTemplate, URLs, j, key, len, macro1, macro2, resolveURL, value;
-            if (!variables) {
-                variables = {};
-            }
-            URLs = [];
-            if (variables.ASSETURI) {
-                variables.ASSETURI = this.encodeURIComponentRFC3986(variables.ASSETURI);
-            }
-            if (variables.CONTENTPLAYHEAD) {
-                variables.CONTENTPLAYHEAD = this.encodeURIComponentRFC3986(variables.CONTENTPLAYHEAD);
-            }
-            if ((variables.ERRORCODE) && !/^[0-9]{3}$/.test(variables.ERRORCODE)) {
-                variables.ERRORCODE = 900;
-            }
-            variables.CACHEBUSTING = this.leftpad(Math.round(Math.random() * 1.0e+8).toString());
-            variables.TIMESTAMP = this.encodeURIComponentRFC3986((new Date()).toISOString());
-            variables.RANDOM = variables.random = variables.CACHEBUSTING;
-            for (j = 0, len = URLTemplates.length; j < len; j++) {
-                URLTemplate = URLTemplates[j];
-                resolveURL = URLTemplate;
-                if (!resolveURL) {
-                    continue;
-                }
-                for (key in variables) {
-                    value = variables[key];
-                    macro1 = "[" + key + "]";
-                    macro2 = "%%" + key + "%%";
-                    resolveURL = resolveURL.replace(macro1, value);
-                    resolveURL = resolveURL.replace(macro2, value);
-                }
-                URLs.push(resolveURL);
-            }
-            return URLs;
-        },
-
-        leftpad: function(str) {
-            if (str.length < 8) {
-                return ((function() {
-                    var j, ref, results;
-                    results = [];
-                    for (j = 0, ref = 8 - str.length; 0 <= ref ? j < ref : j > ref; 0 <= ref ? j++ : j--) {
-                        results.push('0');
-                    }
-                    return results;
-                })()).join('') + str;
-            } else {
-                return str;
-            }
-        },
-
-        encodeURIComponentRFC3986: function(str) {
-            return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
-                return '%' + c.charCodeAt(0).toString(16);
-            });
-        },
-
-        storage: (function() {
-            var data, isDisabled, storage, storageError;
-            try {
-                storage = typeof window !== "undefined" && window !== null ? window.localStorage || window.sessionStorage : null;
-            } catch (error) {
-                storageError = error;
-                storage = null;
-            }
-            isDisabled = function(store) {
-                var e, testValue, storeValue;
-                try {
-                    testValue = '__VAST__';
-                    storeValue = store.getItem(testValue);
-                    store.setItem(testValue, testValue);
-                    if (store.getItem(testValue) !== testValue) {
-                        return true;
-                    }
-                    if (storeValue) store.setItem(testValue, storeValue);
-                    else store.removeItem(testValue);
-                } catch (error) {
-                    e = error;
-                    return true;
-                }
-                return false;
-            };
-            if ((storage === null) || isDisabled(storage)) {
-                data = {};
-                storage = {
-                    length: 0,
-                    getItem: function(key) {
-                        return data[key];
-                    },
-                    setItem: function(key, value) {
-                        data[key] = value;
-                        this.length = Object.keys(data).length;
-                    },
-                    removeItem: function(key) {
-                        delete data[key];
-                        this.length = Object.keys(data).length;
-                    },
-                    clear: function() {
-                        data = {};
-                        this.length = 0;
-                    }
-                };
-            }
-            return storage;
-        })()
-    });
-});
-
-Scoped.define("module:Ads.VAST.Response", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function() {
-                this.ads = [];
-                this.errorURLTemplates = [];
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.CompanionAd", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function() {
-                inherited.constructor.call(this);
-                this.id = null;
-                this.width = 0;
-                this.height = 0;
-                this.type = null;
-                this.staticResource = null;
-                this.htmlRecource = null;
-                this.iframeResource = null;
-                this.altText = null;
-                this.companionClickThroughURLTemplate = null;
-                this.companionClickTrackingURLTemplates = [];
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.Creative", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function(creativeAttributes) {
-                inherited.constructor.call(this);
-
-                if (creativeAttributes === null) {
-                    creativeAttributes = {};
-                }
-
-                this.id = creativeAttributes.id || null;
-                this.adId = creativeAttributes.adId || null;
-                this.sequence = creativeAttributes.sequence || null;
-                this.apiFramework = creativeAttributes.apiFramework || null;
-
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.CreativeLinear", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function() {
-                inherited.constructor.call(this);
-                this.type = "linear";
-                this.duration = 0;
-                this.skipDelay = null;
-                this.mediaFiles = [];
-                this.videoClickThroughURLTemplate = null;
-                this.videoClickTrackingURLTemplates = [];
-                this.videoCustomClickURLTemplates = [];
-                this.adParameters = null;
-                this.icons = [];
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.CreativeNonLinear", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function() {
-                inherited.constructor.call(this);
-                this.type = "nonlinear";
-                this.variations = [];
-
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.AdExtension", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function() {
-                inherited.constructor.call(this);
-                this.attributes = {};
-                this.children = [];
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.AdExtensionChild", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function() {
-                inherited.constructor.call(this);
-                this.name = null;
-                this.value = null;
-                this.attributes = {};
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.Icon", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function() {
-                inherited.constructor.call(this);
-                this.program = null;
-                this.height = 0;
-                this.width = 0;
-                this.xPosition = 0;
-                this.yPosition = 0;
-                this.apiFramework = null;
-                this.offset = null;
-                this.duration = 0;
-                this.type = null;
-                this.staticResource = null;
-                this.htmlResource = null;
-                this.iframeResource = null;
-                this.iconClickThroughURLTemplate = null;
-                this.iconClickTrackingURLTemplates = [];
-                this.iconViewTrackingURLTemplate = null;
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.MediaFile", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function(inherited) {
-                this.id = null;
-                this.fileURL = null;
-                this.deliveryType = "progressive";
-                this.mimeType = null;
-                this.codec = null;
-                this.bitrate = 0;
-                this.minBitrate = 0;
-                this.maxBitrate = 0;
-                this.width = 0;
-                this.height = 0;
-                this.apiFramework = null;
-                this.scalable = null;
-                this.maintainAspectRatio = null;
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.CreativeCompanion", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function(inherited) {
-                inherited.constructor.call(this);
-                this.type = "companion";
-                this.variations = [];
-
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.NonLinear", ["module:Ads.VAST.Ad"], function(VASTAd, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function() {
-                inherited.constructor.call(this);
-                this.id = null;
-                this.width = 0;
-                this.height = 0;
-                this.expandedWidth = 0;
-                this.expandedHeight = 0;
-                this.scalable = true;
-                this.maintainAspectRatio = true;
-                this.minSuggestedDuration = 0;
-                this.apiFramework = "static";
-                this.type = null;
-                this.staticResource = null;
-                this.htmlResource = null;
-                this.iframeResource = null;
-                this.nonlinearClickThroughURLTemplate = null;
-                this.nonlinearClickTrackingURLTemplates = [];
-                this.adParameters = null;
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.Parser", ["module:Ads.VAST.Ad","base:Ajax.Support","module:Ads.VAST.Response","module:Ads.VAST.CreativeLinear","module:Ads.VAST.MediaFile","module:Ads.VAST.CreativeCompanion","module:Ads.VAST.CreativeNonLinear","module:Ads.VAST.CompanionAd","module:Ads.VAST.AdExtension","module:Ads.VAST.AdExtensionChild","module:Ads.VAST.NonLinear"], function(VASTAd, AjaxSupport, VASTResponse, VASTCreativeLinear, VASTMediaFile, VASTCreativeCompanion, VASTCreativeNonLinear, VASTCompanionAd, VASTAdExtension, VASTAdExtensionChild, VASTNonLinear, scoped) {
-        return VASTAd.extend({
-            scoped: scoped
-        }, function(inherited) {
-            return {
-                constructor: function() {
-                    inherited.constructor.call(this);
-                    this.URLTemplateFilters = [];
-                },
-
-                _indexOf: function(item) {
-                    for (var i = 0, l = this.length; i < l; i++) {
-                        if (i in this && this[i] === item) return i;
-                    }
-                    return -1;
-                },
-
-                addURLTemplateFilter: function(func) {
-                    if (typeof func === 'function') {
-                        URLTemplateFilters.push(func);
-                    }
-                },
-
-                removeURLTemplateFilter: function() {
-                    return URLTemplateFilters.pop();
-                },
-
-                countURLTemplateFilters: function() {
-                    return URLTemplateFilters.length;
-                },
-
-                clearUrlTemplateFilters: function() {
-                    URLTemplateFilters = [];
-                    return URLTemplateFilters;
-                },
-
-                parse: function(url, options, cb) {
-                    if (!cb) {
-                        if (typeof options === 'function') {
-                            cb = options;
-                        }
-                        options = {};
-                    }
-                    return this._parse(url, null, options, function(err, response) {
-                        return cb(err, response);
-                    });
-                },
-
-                track: function(templates, errorCode) {
-                    return VASTAd.trackAd(templates, errorCode);
-                },
-
-                _parse: function(url, parentURLs, options, cb) {
-                    var filter, i, len;
-
-                    if (!cb) {
-                        if (typeof options === 'function') {
-                            cb = options;
-                        }
-                        options = {};
-                    }
-
-                    for (i = 0, len = this.URLTemplateFilters.length; i < len; i++) {
-                        filter = URLTemplateFilters[i];
-                        url = filter(url);
-                    }
-
-                    if (parentURLs === null) {
-                        parentURLs = [];
-                    }
-                    parentURLs.push(url);
-
-                    return AjaxSupport.execute({
-                        uri: url,
-                        contentType: "xml",
-                        decodeType: "xml"
-                    }).error(function(err) {
-                        cb(err, null);
-                    }).success(function(xml) {
-                        return this.parseXmlDocument(url, parentURLs, options, xml, cb);
-                    }, this);
-                },
-
-                __indexOf: [].indexOf || function(item) {
-                    for (var i = 0, l = this.length; i < l; i++) {
-                        if (i in this && this[i] === item) return i;
-                    }
-                    return -1;
-                },
-
-                parseXmlDocument: function(url, parentURLs, options, xml, cb) {
-                    var ad, complete, i, j, len, len1, loopIndex, node, ref, ref1, response, _self;
-                    _self = this;
-                    response = new VASTResponse();
-                    if (!(((xml !== null ? xml.documentElement : void 0) !== null) && xml.documentElement.nodeName === "VAST")) {
-                        return cb(new Error('Invalid VAST XMLDocument'));
-                    }
-
-                    ref = xml.documentElement.childNodes;
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        node = ref[i];
-                        if (node.nodeName === 'Error') {
-                            response.errorURLTemplates.push(this.parseNodeText(node));
-                        }
-                    }
-
-                    ref1 = xml.documentElement.childNodes;
-                    for (j = 0, len1 = ref1.length; j < len1; j++) {
-                        node = ref1[j];
-                        if (node.nodeName === 'Ad') {
-                            ad = this.parseAdElement(node);
-                            if (ad !== null) {
-                                response.ads.push(ad);
-                            } else {
-                                this.track(response.errorURLTemplates, {
-                                    ERRORCODE: 101,
-                                    ERRORMESSAGE: 'VAST schema validation error.'
-                                });
-                            }
-                        }
-                    }
-
-                    complete = function(error, errorAlreadyRaised) {
-                        var k, len2, noCreatives, ref2;
-                        if (error === null) {
-                            error = null;
-                        }
-                        if (errorAlreadyRaised === null) {
-                            errorAlreadyRaised = false;
-                        }
-                        if (!response) {
-                            return;
-                        }
-                        noCreatives = true;
-                        ref2 = response.ads;
-                        for (k = 0, len2 = ref2.length; k < len2; k++) {
-                            ad = ref2[k];
-                            if (ad.nextWrapperURL) {
-                                return;
-                            }
-                            if (ad.creatives.length > 0) {
-                                noCreatives = false;
-                            }
-                        }
-                        if (noCreatives) {
-                            if (!errorAlreadyRaised) {
-                                _self.track(response.errorURLTemplates, {
-                                    ERRORCODE: 303,
-                                    ERRORMESSAGE: 'No VAST response after one or more Wrappers (No creatives)'
-                                });
-                            }
-                        }
-                        if (response.ads.length === 0) {
-                            response = null;
-                        }
-                        return cb(error, response);
-                    };
-
-                    loopIndex = response.ads.length;
-                    while (loopIndex--) {
-                        ad = response.ads[loopIndex];
-                        if (!ad.nextWrapperURL) {
-                            continue;
-                        }
-                        this._handleComplete.call(this, ad, url, response, parentURLs, options, complete);
-                    }
-                    return complete();
-                },
-
-
-                _handleComplete: function(ad, url, response, parentURLs, options, complete) {
-                    var _ref2;
-                    if (parentURLs.length > (options.wrapperLimit ? options.wrapperLimit : 9) || (_ref2 = ad.nextWrapperURL, this.__indexOf.call(parentURLs, _ref2) >= 0)) {
-                        this.track(ad.errorURLTemplates, {
-                            ERRORCODE: 302,
-                            ERRORMESSAGE: 'Wrapper limit reached, as defined by the video player. Too many Wrapper responses have been received with no InLine response.'
-                        });
-                        response.ads.splice(response.ads.indexOf(ad), 1);
-                        complete(new Error("Wrapper limit reached, as defined by the video player"));
-                        return;
-                    }
-
-                    if (url) {
-                        ad.nextWrapperURL = this.resolveVastAdTagURI(ad.nextWrapperURL, url);
-                    }
-
-                    return this._parse(ad.nextWrapperURL, parentURLs, options, function(err, wrappedResponse) {
-                        var _errorAlreadyRaised, _index, _k, _len2, _ref3, _wrappedAd;
-                        _errorAlreadyRaised = false;
-                        if (err) {
-                            this.track(ad.errorURLTemplates, {
-                                ERRORCODE: 301,
-                                ERRORMESSAGE: 'Timeout of VAST URI provided in Wrapper element, or of VAST URI provided in a subsequent Wrapper element. (URI was either unavailable or reached a timeout as defined by the video player.)'
-                            });
-                            response.ads.splice(response.ads.indexOf(ad), 1);
-                            _errorAlreadyRaised = true;
-                        } else if (!wrappedResponse) {
-                            this.track(ad.errorURLTemplates, {
-                                ERRORCODE: 303,
-                                ERRORMESSAGE: 'No VAST response after one or more Wrappers'
-                            });
-                            response.ads.splice(response.ads.indexOf(ad), 1);
-                            _errorAlreadyRaised = true;
-                        } else {
-                            response.errorURLTemplates = response.errorURLTemplates.concat(wrappedResponse.errorURLTemplates);
-                            _index = response.ads.indexOf(ad);
-                            response.ads.splice(_index, 1);
-                            _ref3 = wrappedResponse.ads;
-                            for (_k = 0, _len2 = _ref3.length; _k < _len2; _k++) {
-                                _wrappedAd = _ref3[_k];
-                                this.mergeWrapperAdData(_wrappedAd, ad);
-                                response.ads.splice(++_index, 0, _wrappedAd);
-                            }
-                        }
-                        delete ad.nextWrapperURL;
-                        return complete(err, _errorAlreadyRaised);
-                    });
-                },
-
-                resolveVastAdTagURI: function(vastAdTagUrl, originalUrl) {
-                    var baseURL, protocol;
-                    if (vastAdTagUrl.indexOf('//') === 0) {
-                        protocol = location.protocol;
-                        return "" + protocol + vastAdTagUrl;
-                    }
-                    if (vastAdTagUrl.indexOf('://') === -1) {
-                        baseURL = originalUrl.slice(0, originalUrl.lastIndexOf('/'));
-                        return baseURL + "/" + vastAdTagUrl;
-                    }
-                    return vastAdTagUrl;
-                },
-
-                mergeWrapperAdData: function(wrappedAd, ad) {
-                    var base, creative, eventName, i, j, k, l, len, len1, len2, len3, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, results, urls;
-                    wrappedAd.errorURLTemplates = ad.errorURLTemplates.concat(wrappedAd.errorURLTemplates);
-                    wrappedAd.impressionURLTemplates = ad.impressionURLTemplates.concat(wrappedAd.impressionURLTemplates);
-                    wrappedAd.extensions = ad.extensions.concat(wrappedAd.extensions);
-                    ref = wrappedAd.creatives;
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        creative = ref[i];
-                        if (((ref1 = ad.trackingEvents) !== null ? ref1[creative.type] : void 0) !== null) {
-                            ref2 = ad.trackingEvents[creative.type];
-                            for (eventName in ref2) {
-                                urls = ref2[eventName];
-                                if (creative.trackingEvents[eventName]) {
-                                    base[eventName] = creative.trackingEvents[eventName];
-                                } else {
-                                    base[eventName] = [];
-                                }
-                                creative.trackingEvents[eventName] = creative.trackingEvents[eventName].concat(urls);
-                            }
-                        }
-                    }
-                    if ((ref3 = ad.videoClickTrackingURLTemplates) !== null ? ref3.length : void 0) {
-                        ref4 = wrappedAd.creatives;
-                        for (j = 0, len1 = ref4.length; j < len1; j++) {
-                            creative = ref4[j];
-                            if (creative.type === 'linear') {
-                                creative.videoClickTrackingURLTemplates = creative.videoClickTrackingURLTemplates.concat(ad.videoClickTrackingURLTemplates);
-                            }
-                        }
-                    }
-                    if ((ref5 = ad.videoCustomClickURLTemplates) ? ref5.length : void 0) {
-                        ref6 = wrappedAd.creatives;
-                        for (k = 0, len2 = ref6.length; k < len2; k++) {
-                            creative = ref6[k];
-                            if (creative.type === 'linear') {
-                                creative.videoCustomClickURLTemplates = creative.videoCustomClickURLTemplates.concat(ad.videoCustomClickURLTemplates);
-                            }
-                        }
-                    }
-                    if (ad.videoClickThroughURLTemplate) {
-                        ref7 = wrappedAd.creatives;
-                        results = [];
-                        for (l = 0, len3 = ref7.length; l < len3; l++) {
-                            creative = ref7[l];
-                            if (creative.type === 'linear' && (creative.videoClickThroughURLTemplate === null)) {
-                                results.push(creative.videoClickThroughURLTemplate = ad.videoClickThroughURLTemplate);
-                            } else {
-                                results.push(void 0);
-                            }
-                        }
-                        return results;
-                    }
-                },
-
-                childByName: function(node, name) {
-                    var child, i, len, ref;
-                    ref = node.childNodes;
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        child = ref[i];
-                        if (child.nodeName === name) {
-                            return child;
-                        }
-                    }
-                },
-
-                childsByName: function(node, name) {
-                    var child, childs, i, len, ref;
-                    childs = [];
-                    ref = node.childNodes;
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        child = ref[i];
-                        if (child.nodeName === name) {
-                            childs.push(child);
-                        }
-                    }
-                    return childs;
-                },
-
-                parseAdElement: function(adElement) {
-                    var adTypeElement, i, len, ref, ref1;
-                    ref = adElement.childNodes;
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        adTypeElement = ref[i];
-                        if ((ref1 = adTypeElement.nodeName) !== "Wrapper" && ref1 !== "InLine") {
-                            continue;
-                        }
-                        this.copyNodeAttribute("id", adElement, adTypeElement);
-                        this.copyNodeAttribute("sequence", adElement, adTypeElement);
-                        if (adTypeElement.nodeName === "Wrapper") {
-                            return this.parseWrapperElement(adTypeElement);
-                        } else if (adTypeElement.nodeName === "InLine") {
-                            return this.parseInLineElement(adTypeElement);
-                        }
-                    }
-                },
-
-                parseWrapperElement: function(wrapperElement) {
-                    var ad, base, base1, eventName, i, item, j, k, l, len, len1, len2, len3, name1, ref, ref1, ref2, ref3, ref4, url, urls, wrapperCreativeElement, wrapperURLElement;
-                    ad = this.parseInLineElement(wrapperElement);
-                    wrapperURLElement = this.childByName(wrapperElement, "VASTAdTagURI");
-                    if (wrapperURLElement) {
-                        ad.nextWrapperURL = this.parseNodeText(wrapperURLElement);
-                    } else {
-                        wrapperURLElement = this.childByName(wrapperElement, "VASTAdTagURL");
-                        if (wrapperURLElement) {
-                            ad.nextWrapperURL = this.parseNodeText(this.childByName(wrapperURLElement, "URL"));
-                        }
-                    }
-                    ref = ad.creatives;
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        wrapperCreativeElement = ref[i];
-                        if ((ref1 = wrapperCreativeElement.type) === 'linear' || ref1 === 'nonlinear') {
-                            if (wrapperCreativeElement.trackingEvents) {
-                                ad.trackingEvents = ad.trackingEvents ? ad.trackingEvents : {};
-                                name1 = wrapperCreativeElement.type;
-                                base[name1] = ad.trackingEvents[name1] ? ad.trackingEvents[name1] : {};
-                                ref2 = wrapperCreativeElement.trackingEvents;
-                                for (eventName in ref2) {
-                                    urls = ref2[eventName];
-                                    if (urls !== null) {
-                                        base1[eventName] = ad.trackingEvents[wrapperCreativeElement.type][eventName] ? ad.trackingEvents[wrapperCreativeElement.type][eventName] : [];
-                                        for (j = 0, len1 = urls.length; j < len1; j++) {
-                                            url = urls[j];
-                                            ad.trackingEvents[wrapperCreativeElement.type][eventName].push(url);
-                                        }
-                                    }
-                                }
-                            }
-                            if (wrapperCreativeElement.videoClickTrackingURLTemplates) {
-                                ad.videoClickTrackingURLTemplates = ad.videoClickTrackingURLTemplates || [];
-                                ref3 = wrapperCreativeElement.videoClickTrackingURLTemplates;
-                                for (k = 0, len2 = ref3.length; k < len2; k++) {
-                                    item = ref3[k];
-                                    ad.videoClickTrackingURLTemplates.push(item);
-                                }
-                            }
-                            if (wrapperCreativeElement.videoClickThroughURLTemplate) {
-                                ad.videoClickThroughURLTemplate = wrapperCreativeElement.videoClickThroughURLTemplate;
-                            }
-                            if (wrapperCreativeElement.videoCustomClickURLTemplates) {
-                                ad.videoCustomClickURLTemplates = ad.videoCustomClickURLTemplates || [];
-                                ref4 = wrapperCreativeElement.videoCustomClickURLTemplates;
-                                for (l = 0, len3 = ref4.length; l < len3; l++) {
-                                    item = ref4[l];
-                                    ad.videoCustomClickURLTemplates.push(item);
-                                }
-                            }
-                        }
-                    }
-                    if (ad.nextWrapperURL) {
-                        return ad;
-                    }
-                },
-
-                parseInLineElement: function(inLineElement) {
-                    var ad, creative, creativeAttributes, creativeElement, creativeTypeElement, i, j, k, len, len1, len2, node, ref, ref1, ref2;
-                    ad = new VASTAd();
-                    ad.id = inLineElement.getAttribute("id") || null;
-                    ad.sequence = inLineElement.getAttribute("sequence") || null;
-                    ref = inLineElement.childNodes;
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        node = ref[i];
-                        switch (node.nodeName) {
-                            case "Error":
-                                ad.errorURLTemplates.push(this.parseNodeText(node));
-                                break;
-                            case "Impression":
-                                ad.impressionURLTemplates.push(this.parseNodeText(node));
-                                break;
-                            case "Creatives":
-                                ref1 = this.childsByName(node, "Creative");
-                                for (j = 0, len1 = ref1.length; j < len1; j++) {
-                                    creativeElement = ref1[j];
-                                    creativeAttributes = {
-                                        id: creativeElement.getAttribute('id') || null,
-                                        adId: this.parseCreativeAdIdAttribute(creativeElement),
-                                        sequence: creativeElement.getAttribute('sequence') || null,
-                                        apiFramework: creativeElement.getAttribute('apiFramework') || null
-                                    };
-                                    ref2 = creativeElement.childNodes;
-                                    for (k = 0, len2 = ref2.length; k < len2; k++) {
-                                        creativeTypeElement = ref2[k];
-                                        switch (creativeTypeElement.nodeName) {
-                                            case "Linear":
-                                                creative = this.parseCreativeLinearElement(creativeTypeElement, creativeAttributes);
-                                                if (creative) {
-                                                    ad.creatives.push(creative);
-                                                }
-                                                break;
-                                            case "NonLinearAds":
-                                                creative = this.parseNonLinear(creativeTypeElement, creativeAttributes);
-                                                if (creative) {
-                                                    ad.creatives.push(creative);
-                                                }
-                                                break;
-                                            case "CompanionAds":
-                                                creative = this.parseCompanionAd(creativeTypeElement, creativeAttributes);
-                                                if (creative) {
-                                                    ad.creatives.push(creative);
-                                                }
-                                        }
-                                    }
-                                }
-                                break;
-                            case "Extensions":
-                                this.parseExtension(ad.extensions, this.childsByName(node, "Extension"));
-                                break;
-                            case "AdSystem":
-                                ad.system = {
-                                    value: this.parseNodeText(node),
-                                    version: node.getAttribute("version") || null
-                                };
-                                break;
-                            case "AdTitle":
-                                ad.title = this.parseNodeText(node);
-                                break;
-                            case "Description":
-                                ad.description = this.parseNodeText(node);
-                                break;
-                            case "Advertiser":
-                                ad.advertiser = this.parseNodeText(node);
-                                break;
-                            case "Pricing":
-                                ad.pricing = {
-                                    value: this.parseNodeText(node),
-                                    model: node.getAttribute("model") || null,
-                                    currency: node.getAttribute("currency") || null
-                                };
-                                break;
-                            case "Survey":
-                                ad.survey = this.parseNodeText(node);
-                        }
-                    }
-                    return ad;
-                },
-
-                parseExtension: function(collection, extensions) {
-                    var childNode, ext, extChild, extChildNodeAttr, extNode, extNodeAttr, i, j, k, l, len, len1, len2, len3, ref, ref1, ref2, results, txt;
-                    results = [];
-                    for (i = 0, len = extensions.length; i < len; i++) {
-                        extNode = extensions[i];
-                        ext = new VASTAdExtension();
-                        if (extNode.attributes) {
-                            ref = extNode.attributes;
-                            for (j = 0, len1 = ref.length; j < len1; j++) {
-                                extNodeAttr = ref[j];
-                                ext.attributes[extNodeAttr.nodeName] = extNodeAttr.nodeValue;
-                            }
-                        }
-                        ref1 = extNode.childNodes;
-                        for (k = 0, len2 = ref1.length; k < len2; k++) {
-                            childNode = ref1[k];
-                            txt = this.parseNodeText(childNode);
-                            if (childNode.nodeName !== '#comment' && txt !== '') {
-                                extChild = new VASTAdExtensionChild();
-                                extChild.name = childNode.nodeName;
-                                extChild.value = txt;
-                                if (childNode.attributes) {
-                                    ref2 = childNode.attributes;
-                                    for (l = 0, len3 = ref2.length; l < len3; l++) {
-                                        extChildNodeAttr = ref2[l];
-                                        extChild.attributes[extChildNodeAttr.nodeName] = extChildNodeAttr.nodeValue;
-                                    }
-                                }
-                                ext.children.push(extChild);
-                            }
-                        }
-                        results.push(collection.push(ext));
-                    }
-                    return results;
-                },
-
-                parseCreativeLinearElement: function(creativeElement, creativeAttributes) {
-                    var adParamsElement, base, clickTrackingElement, creative, customClickElement, eventName, htmlElement, i, icon, iconClickTrackingElement, iconClicksElement, iconElement, iconsElement, iframeElement, j, k, l, len, len1, len10, len2, len3, len4, len5, len6, len7, len8, len9, m, maintainAspectRatio, mediaFile, mediaFileElement, mediaFilesElement, n, o, offset, p, percent, q, r, ref, ref1, ref10, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, s, scalable, skipOffset, staticElement, trackingElement, trackingEventsElement, trackingURLTemplate, videoClicksElement;
-                    creative = new VASTCreativeLinear(creativeAttributes);
-                    creative.duration = this.parseDuration(this.parseNodeText(this.childByName(creativeElement, "Duration")));
-                    if (creative.duration === -1 && creativeElement.parentNode.parentNode.parentNode.nodeName !== 'Wrapper') {
-                        return null;
-                    }
-                    skipOffset = creativeElement.getAttribute("skipoffset");
-                    if (skipOffset === null) {
-                        creative.skipDelay = null;
-                    } else if (skipOffset.charAt(skipOffset.length - 1) === "%") {
-                        percent = parseInt(skipOffset, 10);
-                        creative.skipDelay = creative.duration * (percent / 100);
-                    } else {
-                        creative.skipDelay = this.parseDuration(skipOffset);
-                    }
-                    videoClicksElement = this.childByName(creativeElement, "VideoClicks");
-                    if (videoClicksElement) {
-                        creative.videoClickThroughURLTemplate = this.parseNodeText(this.childByName(videoClicksElement, "ClickThrough"));
-                        ref = this.childsByName(videoClicksElement, "ClickTracking");
-                        for (i = 0, len = ref.length; i < len; i++) {
-                            clickTrackingElement = ref[i];
-                            creative.videoClickTrackingURLTemplates.push(this.parseNodeText(clickTrackingElement));
-                        }
-                        ref1 = this.childsByName(videoClicksElement, "CustomClick");
-                        for (j = 0, len1 = ref1.length; j < len1; j++) {
-                            customClickElement = ref1[j];
-                            creative.videoCustomClickURLTemplates.push(this.parseNodeText(customClickElement));
-                        }
-                    }
-                    adParamsElement = this.childByName(creativeElement, "AdParameters");
-                    if (adParamsElement) {
-                        creative.adParameters = this.parseNodeText(adParamsElement);
-                    }
-                    ref2 = this.childsByName(creativeElement, "TrackingEvents");
-                    for (k = 0, len2 = ref2.length; k < len2; k++) {
-                        trackingEventsElement = ref2[k];
-                        ref3 = this.childsByName(trackingEventsElement, "Tracking");
-                        for (l = 0, len3 = ref3.length; l < len3; l++) {
-                            trackingElement = ref3[l];
-                            eventName = trackingElement.getAttribute("event");
-                            trackingURLTemplate = this.parseNodeText(trackingElement);
-                            if (eventName && trackingURLTemplate) {
-                                if (eventName === "progress") {
-                                    offset = trackingElement.getAttribute("offset");
-                                    if (!offset) {
-                                        continue;
-                                    }
-                                    if (offset.charAt(offset.length - 1) === '%') {
-                                        eventName = "progress-" + offset;
-                                    } else {
-                                        eventName = "progress-" + (Math.round(this.parseDuration(offset)));
-                                    }
-                                }
-                                if ((base = creative.trackingEvents)[eventName] === null) {
-                                    base[eventName] = [];
-                                }
-
-                                if (creative.trackingEvents[eventName]) {
-                                    creative.trackingEvents[eventName].push(trackingURLTemplate);
-                                }
-
-                            }
-                        }
-                    }
-                    ref4 = this.childsByName(creativeElement, "MediaFiles");
-                    for (m = 0, len4 = ref4.length; m < len4; m++) {
-                        mediaFilesElement = ref4[m];
-                        ref5 = this.childsByName(mediaFilesElement, "MediaFile");
-                        for (n = 0, len5 = ref5.length; n < len5; n++) {
-                            mediaFileElement = ref5[n];
-                            mediaFile = new VASTMediaFile();
-                            mediaFile.id = mediaFileElement.getAttribute("id");
-                            mediaFile.fileURL = this.parseNodeText(mediaFileElement);
-                            mediaFile.deliveryType = mediaFileElement.getAttribute("delivery");
-                            mediaFile.codec = mediaFileElement.getAttribute("codec");
-                            mediaFile.mimeType = mediaFileElement.getAttribute("type");
-                            mediaFile.apiFramework = mediaFileElement.getAttribute("apiFramework");
-                            mediaFile.bitrate = parseInt(mediaFileElement.getAttribute("bitrate") || 0, 10);
-                            mediaFile.minBitrate = parseInt(mediaFileElement.getAttribute("minBitrate") || 0, 10);
-                            mediaFile.maxBitrate = parseInt(mediaFileElement.getAttribute("maxBitrate") || 0, 10);
-                            mediaFile.width = parseInt(mediaFileElement.getAttribute("width") || 0, 10);
-                            mediaFile.height = parseInt(mediaFileElement.getAttribute("height") || 0, 10);
-                            scalable = mediaFileElement.getAttribute("scalable");
-                            if (scalable && typeof scalable === "string") {
-                                scalable = scalable.toLowerCase();
-                                if (scalable === "true") {
-                                    mediaFile.scalable = true;
-                                } else if (scalable === "false") {
-                                    mediaFile.scalable = false;
-                                }
-                            }
-                            maintainAspectRatio = mediaFileElement.getAttribute("maintainAspectRatio");
-                            if (maintainAspectRatio && typeof maintainAspectRatio === "string") {
-                                maintainAspectRatio = maintainAspectRatio.toLowerCase();
-                                if (maintainAspectRatio === "true") {
-                                    mediaFile.maintainAspectRatio = true;
-                                } else if (maintainAspectRatio === "false") {
-                                    mediaFile.maintainAspectRatio = false;
-                                }
-                            }
-                            creative.mediaFiles.push(mediaFile);
-                        }
-                    }
-                    iconsElement = this.childByName(creativeElement, "Icons");
-                    if (iconsElement) {
-                        ref6 = this.childsByName(iconsElement, "Icon");
-                        for (o = 0, len6 = ref6.length; o < len6; o++) {
-                            iconElement = ref6[o];
-                            icon = new VASTIcon();
-                            icon.program = iconElement.getAttribute("program");
-                            icon.height = parseInt(iconElement.getAttribute("height") || 0, 10);
-                            icon.width = parseInt(iconElement.getAttribute("width") || 0, 10);
-                            icon.xPosition = this.parseXPosition(iconElement.getAttribute("xPosition"));
-                            icon.yPosition = this.parseYPosition(iconElement.getAttribute("yPosition"));
-                            icon.apiFramework = iconElement.getAttribute("apiFramework");
-                            icon.offset = this.parseDuration(iconElement.getAttribute("offset"));
-                            icon.duration = this.parseDuration(iconElement.getAttribute("duration"));
-                            ref7 = this.childsByName(iconElement, "HTMLResource");
-                            for (p = 0, len7 = ref7.length; p < len7; p++) {
-                                htmlElement = ref7[p];
-                                icon.type = htmlElement.getAttribute("creativeType") || 'text/html';
-                                icon.htmlResource = this.parseNodeText(htmlElement);
-                            }
-                            ref8 = this.childsByName(iconElement, "IFrameResource");
-                            for (q = 0, len8 = ref8.length; q < len8; q++) {
-                                iframeElement = ref8[q];
-                                icon.type = iframeElement.getAttribute("creativeType") || 0;
-                                icon.iframeResource = this.parseNodeText(iframeElement);
-                            }
-                            ref9 = this.childsByName(iconElement, "StaticResource");
-                            for (r = 0, len9 = ref9.length; r < len9; r++) {
-                                staticElement = ref9[r];
-                                icon.type = staticElement.getAttribute("creativeType") || 0;
-                                icon.staticResource = this.parseNodeText(staticElement);
-                            }
-                            iconClicksElement = this.childByName(iconElement, "IconClicks");
-                            if (iconClicksElement) {
-                                icon.iconClickThroughURLTemplate = this.parseNodeText(this.childByName(iconClicksElement, "IconClickThrough"));
-                                ref10 = this.childsByName(iconClicksElement, "IconClickTracking");
-                                for (s = 0, len10 = ref10.length; s < len10; s++) {
-                                    iconClickTrackingElement = ref10[s];
-                                    icon.iconClickTrackingURLTemplates.push(this.parseNodeText(iconClickTrackingElement));
-                                }
-                            }
-                            icon.iconViewTrackingURLTemplate = this.parseNodeText(this.childByName(iconElement, "IconViewTracking"));
-                            creative.icons.push(icon);
-                        }
-                    }
-                    return creative;
-                },
-
-                parseNonLinear: function(creativeElement, creativeAttributes) {
-                    var adParamsElement, base, clickTrackingElement, creative, eventName, htmlElement, i, iframeElement, j, k, l, len, len1, len2, len3, len4, len5, len6, m, n, nonlinearAd, nonlinearResource, o, ref, ref1, ref2, ref3, ref4, ref5, ref6, staticElement, trackingElement, trackingEventsElement, trackingURLTemplate;
-                    creative = new VASTCreativeNonLinear(creativeAttributes);
-                    ref = this.childsByName(creativeElement, "TrackingEvents");
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        trackingEventsElement = ref[i];
-                        ref1 = this.childsByName(trackingEventsElement, "Tracking");
-                        for (j = 0, len1 = ref1.length; j < len1; j++) {
-                            trackingElement = ref1[j];
-                            eventName = trackingElement.getAttribute("event");
-                            trackingURLTemplate = this.parseNodeText(trackingElement);
-                            if (eventName && trackingURLTemplate) {
-                                if ((base = creative.trackingEvents)[eventName] === null) {
-                                    base[eventName] = [];
-                                }
-
-                                if (creative.trackingEvents[eventName] && trackingURLTemplate !== null) {
-                                    creative.trackingEvents[eventName].push(trackingURLTemplate);
-                                }
-                            }
-                        }
-                    }
-                    ref2 = this.childsByName(creativeElement, "NonLinear");
-                    for (k = 0, len2 = ref2.length; k < len2; k++) {
-                        nonlinearResource = ref2[k];
-                        nonlinearAd = new VASTNonLinear();
-                        nonlinearAd.id = nonlinearResource.getAttribute("id") || null;
-                        nonlinearAd.width = nonlinearResource.getAttribute("width");
-                        nonlinearAd.height = nonlinearResource.getAttribute("height");
-                        nonlinearAd.expandedWidth = nonlinearResource.getAttribute("expandedWidth");
-                        nonlinearAd.expandedHeight = nonlinearResource.getAttribute("expandedHeight");
-                        nonlinearAd.scalable = this.parseBoolean(nonlinearResource.getAttribute("scalable"));
-                        nonlinearAd.maintainAspectRatio = this.parseBoolean(nonlinearResource.getAttribute("maintainAspectRatio"));
-                        nonlinearAd.minSuggestedDuration = this.parseDuration(nonlinearResource.getAttribute("minSuggestedDuration"));
-                        nonlinearAd.apiFramework = nonlinearResource.getAttribute("apiFramework");
-                        ref3 = this.childsByName(nonlinearResource, "HTMLResource");
-                        for (l = 0, len3 = ref3.length; l < len3; l++) {
-                            htmlElement = ref3[l];
-                            nonlinearAd.type = htmlElement.getAttribute("creativeType") || 'text/html';
-                            nonlinearAd.htmlResource = this.parseNodeText(htmlElement);
-                        }
-                        ref4 = this.childsByName(nonlinearResource, "IFrameResource");
-                        for (m = 0, len4 = ref4.length; m < len4; m++) {
-                            iframeElement = ref4[m];
-                            nonlinearAd.type = iframeElement.getAttribute("creativeType") || 0;
-                            nonlinearAd.iframeResource = this.parseNodeText(iframeElement);
-                        }
-                        ref5 = this.childsByName(nonlinearResource, "StaticResource");
-                        for (n = 0, len5 = ref5.length; n < len5; n++) {
-                            staticElement = ref5[n];
-                            nonlinearAd.type = staticElement.getAttribute("creativeType") || 0;
-                            nonlinearAd.staticResource = this.parseNodeText(staticElement);
-                        }
-                        adParamsElement = this.childByName(nonlinearResource, "AdParameters");
-                        if (adParamsElement) {
-                            nonlinearAd.adParameters = this.parseNodeText(adParamsElement);
-                        }
-                        nonlinearAd.nonlinearClickThroughURLTemplate = this.parseNodeText(this.childByName(nonlinearResource, "NonLinearClickThrough"));
-                        ref6 = this.childsByName(nonlinearResource, "NonLinearClickTracking");
-                        for (o = 0, len6 = ref6.length; o < len6; o++) {
-                            clickTrackingElement = ref6[o];
-                            nonlinearAd.nonlinearClickTrackingURLTemplates.push(this.parseNodeText(clickTrackingElement));
-                        }
-                        creative.variations.push(nonlinearAd);
-                    }
-                    return creative;
-                },
-
-                parseCompanionAd: function(creativeElement, creativeAttributes) {
-                    var base, child, clickTrackingElement, companionAd, companionResource, creative, eventName, htmlElement, i, iframeElement, j, k, l, len, len1, len2, len3, len4, len5, len6, len7, m, n, o, p, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, staticElement, trackingElement, trackingEventsElement, trackingURLTemplate;
-                    creative = new VASTCreativeCompanion(creativeAttributes);
-                    ref = this.childsByName(creativeElement, "Companion");
-                    for (i = 0, len = ref.length; i < len; i++) {
-                        companionResource = ref[i];
-                        companionAd = new VASTCompanionAd();
-                        companionAd.id = companionResource.getAttribute("id") || null;
-                        companionAd.width = companionResource.getAttribute("width");
-                        companionAd.height = companionResource.getAttribute("height");
-                        companionAd.companionClickTrackingURLTemplates = [];
-                        ref1 = this.childsByName(companionResource, "HTMLResource");
-                        for (j = 0, len1 = ref1.length; j < len1; j++) {
-                            htmlElement = ref1[j];
-                            companionAd.type = htmlElement.getAttribute("creativeType") || 'text/html';
-                            companionAd.htmlResource = this.parseNodeText(htmlElement);
-                        }
-                        ref2 = this.childsByName(companionResource, "IFrameResource");
-                        for (k = 0, len2 = ref2.length; k < len2; k++) {
-                            iframeElement = ref2[k];
-                            companionAd.type = iframeElement.getAttribute("creativeType") || 0;
-                            companionAd.iframeResource = this.parseNodeText(iframeElement);
-                        }
-                        ref3 = this.childsByName(companionResource, "StaticResource");
-                        for (l = 0, len3 = ref3.length; l < len3; l++) {
-                            staticElement = ref3[l];
-                            companionAd.type = staticElement.getAttribute("creativeType") || 0;
-                            ref4 = this.childsByName(companionResource, "AltText");
-                            for (m = 0, len4 = ref4.length; m < len4; m++) {
-                                child = ref4[m];
-                                companionAd.altText = this.parseNodeText(child);
-                            }
-                            companionAd.staticResource = this.parseNodeText(staticElement);
-                        }
-                        ref5 = this.childsByName(companionResource, "TrackingEvents");
-                        for (n = 0, len5 = ref5.length; n < len5; n++) {
-                            trackingEventsElement = ref5[n];
-                            ref6 = this.childsByName(trackingEventsElement, "Tracking");
-                            for (o = 0, len6 = ref6.length; o < len6; o++) {
-                                trackingElement = ref6[o];
-                                eventName = trackingElement.getAttribute("event");
-                                trackingURLTemplate = this.parseNodeText(trackingElement);
-                                if (eventName && trackingURLTemplate) {
-                                    if ((base = companionAd.trackingEvents)[eventName] === null) {
-                                        base[eventName] = [];
-                                    }
-                                    companionAd.trackingEvents[eventName].push(trackingURLTemplate);
-                                }
-                            }
-                        }
-                        ref7 = this.childsByName(companionResource, "CompanionClickTracking");
-                        for (p = 0, len7 = ref7.length; p < len7; p++) {
-                            clickTrackingElement = ref7[p];
-                            companionAd.companionClickTrackingURLTemplates.push(this.parseNodeText(clickTrackingElement));
-                        }
-                        companionAd.companionClickThroughURLTemplate = this.parseNodeText(this.childByName(companionResource, "CompanionClickThrough"));
-                        companionAd.companionClickTrackingURLTemplate = this.parseNodeText(this.childByName(companionResource, "CompanionClickTracking"));
-                        creative.variations.push(companionAd);
-                    }
-                    return creative;
-                },
-
-                parseDuration: function(durationString) {
-                    var durationComponents, hours, minutes, seconds, secondsAndMS;
-                    if (!(durationString)) {
-                        return -1;
-                    }
-                    if (VASTAd.isNumeric(durationString)) {
-                        return parseInt(durationString, 10);
-                    }
-                    durationComponents = durationString.split(":");
-                    if (durationComponents.length !== 3) {
-                        return -1;
-                    }
-                    secondsAndMS = durationComponents[2].split(".");
-                    seconds = parseInt(secondsAndMS[0], 10);
-                    if (secondsAndMS.length === 2) {
-                        seconds += parseFloat("0." + secondsAndMS[1]);
-                    }
-                    minutes = parseInt(durationComponents[1] * 60, 10);
-                    hours = parseInt(durationComponents[0] * 60 * 60, 10);
-                    if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) || minutes > 60 * 60 || seconds > 60) {
-                        return -1;
-                    }
-                    return hours + minutes + seconds;
-                },
-
-                parseXPosition: function(xPosition) {
-                    if (xPosition === "left" || xPosition === "right") {
-                        return xPosition;
-                    }
-                    return parseInt(xPosition || 0, 10);
-                },
-
-                parseYPosition: function(yPosition) {
-                    if (yPosition === "top" || yPosition === "bottom") {
-                        return yPosition;
-                    }
-                    return parseInt(yPosition || 0, 10);
-                },
-
-                parseBoolean: function(booleanString) {
-                    return booleanString === 'true' || booleanString === 'TRUE' || booleanString === '1';
-                },
-
-                parseNodeText: function(node) {
-                    return node && (node.textContent || node.text || '').trim();
-                },
-
-                copyNodeAttribute: function(attributeName, nodeSource, nodeDestination) {
-                    var attributeValue;
-                    attributeValue = nodeSource.getAttribute(attributeName);
-                    if (attributeValue) {
-                        return nodeDestination.setAttribute(attributeName, attributeValue);
-                    }
-                },
-
-                parseCreativeAdIdAttribute: function(creativeElement) {
-                    return creativeElement.getAttribute('AdID') || creativeElement.getAttribute('adID') || creativeElement.getAttribute('adId') || null;
-                }
-            };
-        });
-    });
-
-Scoped.define("module:Ads.VAST.Client", ["module:Ads.VAST.Ad","module:Ads.VAST.Parser","base:Objs"], function(VASTAd, VASTParser, Objs, scoped) {
-    return VASTAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-            constructor: function(parameters) {
-                inherited.constructor.call(this);
-                var defineProperty;
-                this.cappingFreeLunch = 0;
-                this.cappingMinimumTimeInterval = 60 * 1000; // don't allow ad request before 1 minute
-                this.lastSuccessfullAd = +new Date();
-                this.options = {
-                    withCredentials: false,
-                    timeout: 1000
-                };
-
-                defineProperty = Object.defineProperty;
-
-                Objs.iter(['lastSuccessfullAd', 'totalCalls', 'totalCallsTimeout'], function(property) {
-                    defineProperty(this, property, {
-                        get: function() {
-                            return VASTAd.storage.getItem(property);
-                        },
-                        set: function(value) {
-                            return VASTAd.storage.setItem(property, value);
-                        },
-                        configurable: false,
-                        enumerable: true
-                    });
-                }, this);
-
-                if (this.lastSuccessfullAd === null)
-                    this.lastSuccessfullAd = 0;
-
-                if (this.totalCalls === null)
-                    this.totalCalls = 0;
-
-                if (this.totalCallsTimeout === null)
-                    this.totalCallsTimeout = 0;
-
-            },
-
-            getAd: function(url, opts, cb) {
-                var now, options, timeSinceLastCall;
-                now = +new Date();
-
-                if (!cb)
-                    if (typeof opts === 'function')
-                        cb = opts;
-                options = {};
-
-                options = Objs.extend(this.options, opts);
-
-                var parser = new VASTParser();
-
-                if (this.totalCallsTimeout < now) {
-                    this.totalCalls = 1;
-                    this.totalCallsTimeout = now + (60 * 60 * 1000);
-                } else {
-                    this.totalCalls++;
-                }
-
-                if (this.cappingFreeLunch >= this.totalCalls) {
-                    cb(new Error("VAST call canceled - FreeLunch capping not reached yet " + this.totalCalls), null);
-                    return;
-                }
-
-                timeSinceLastCall = now - this.lastSuccessfullAd;
-                if (timeSinceLastCall < 0) {
-                    this.lastSuccessfullAd = 0;
-                } else if (now - this.lastSuccessfullAd < this.cappingMinimumTimeInterval) {
-                    cb(new Error("VAST call cancelled - (" + this.cappingMinimumTimeInterval + ")ms minimum interval reached"), null);
-                    return;
-                }
-
-                return parser.parse(url, options, (function(_this) {
-                    return function(err, response) {
-                        if (err)
-                            cb(err, null);
-                        else {
-                            return cb(null, response);
-                        }
-                    };
-                })(this));
-            }
-        };
-    });
-});
-
-Scoped.define("module:Ads.VAST.Tracker", ["module:Ads.VAST.Ad","module:Ads.VAST.CreativeLinear","module:Ads.VAST.NonLinear","module:Ads.VAST.CompanionAd","module:Ads.VAST.Client","base:Events.ListenMixin"], function(VASTAd, VASTCreativeLinear, VASTNonLinear, VASTCompanionAd, VASTClient, ListenMixin, scoped) {
-        return VASTAd.extend({
-            scoped: scoped
-        }, [ListenMixin, function(inherited) {
-            return {
-                constructor: function(ad, creative, variation) {
-                    inherited.constructor.call(this, ad, creative, variation);
-                    var eventName, events, trackingEvents;
-                    this.ad = ad;
-                    this.creative = creative;
-                    this.variation = variation || null;
-                    this.muted = false;
-                    this.impressed = false;
-                    this.skipable = false;
-                    this.skipDelayDefault = -1;
-
-                    this.emitAlwaysEvents = ['creativeView', 'start', 'firstQuartile', 'midpoint', 'thirdQuartile', 'complete', 'rewind', 'skip', 'closeLinear', 'close'];
-                    trackingEvents = creative ? creative.trackingEvents : {};
-
-                    for (eventName in trackingEvents) {
-                        events = trackingEvents[eventName];
-                        if (events)
-                            this.trackingEvents[eventName] = events.slice(0);
-                    }
-
-                    if (creative instanceof VASTCreativeLinear) {
-                        this.setAdDuration(this.creative.duration);
-                        this.skipDelay = creative.skipDelay;
-                        this.linear = true;
-                        this.clickThroughURLTemplate = creative.videoClickThroughURLTemplate;
-                        this.clickTrackingURLTemplate = creative.videoClickTrackingURLTemplate;
-                    } else {
-                        this.skipDelay = -1;
-                        this.linear = false;
-                        if (this.variation) {
-                            if (this.variation instanceof VASTNonLinear) {
-                                this.clickThroughURLTemplate = this.variation.nonlinearClickThroughURLTemplate;
-                                this.clickTrackingURLTemplates = this.variation.nonlinearClickTrackingURLTemplates;
-                            } else if (this.variation instanceof VASTCompanionAd) {
-                                this.clickThroughURLTemplate = this.variation.companionClickThroughURLTemplate;
-                                this.clickTrackingURLTemplates = this.variation.companionClickTrackingURLTemplates;
-                            }
-                        }
-                    }
-
-                    this.on('adstart', function() {
-                        VASTClient.lastSuccessfullAd = +new Date();
-                    });
-
-
-                },
-
-                setAdDuration: function(duration) {
-                    this.assetDuration = duration;
-                    this.quartiles = {
-                        'firstQuartile': Math.round(25 * this.assetDuration) / 100,
-                        'midpoint': Math.round(50 * this.assetDuration) / 100,
-                        'thirdQuartile': Math.round(75 * this.assetDuration) / 100
-                    };
-                    return this.quartiles;
-                },
-
-                setAdProgress: function(progress) {
-                    var eventName, events, i, len, percent, quartile, ref, skipDelay, time;
-                    skipDelay = this.skipDelay === null ? this.skipDelayDefault : this.skipDelay;
-                    if (skipDelay !== -1 && !this.skipable) {
-                        if (skipDelay > progress) {
-                            this.trigger('adskip-countdown', skipDelay - progress);
-                        } else {
-                            this.skipable = true;
-                            this.trigger('adskip-countdown', 0);
-                        }
-                    }
-                    if (this.linear && this.assetDuration > 0) {
-                        events = [];
-                        if (progress > 0) {
-                            events.push("start");
-                            percent = Math.round(progress / this.assetDuration * 100);
-                            events.push("progress-" + percent + "%");
-                            events.push("progress-" + (Math.round(progress)));
-                            ref = this.quartiles;
-                            for (quartile in ref) {
-                                time = ref[quartile];
-                                if ((time <= progress && progress <= (time + 1))) {
-                                    events.push(quartile);
-                                }
-                            }
-                        }
-                        for (i = 0, len = events.length; i < len; i++) {
-                            eventName = events[i];
-                            if (eventName !== null)
-                                this.track(eventName, true);
-                        }
-                        if (progress < this.progress) {
-                            this.track("rewind");
-                        }
-                    }
-                    this.progress = progress;
-                    return progress;
-                },
-
-                setAdMuted: function(muted) {
-                    if (this.muted !== muted) {
-                        this.track(muted ? "mute" : "unmute");
-                    }
-                    this.muted = muted;
-                    return muted;
-                },
-
-                setAdPaused: function(paused) {
-                    if (this.paused !== paused) {
-                        this.track(paused ? "pause" : "resume");
-                    }
-                    this.paused = paused;
-                    return paused;
-                },
-
-                setAdFullscreen: function(fullscreen) {
-                    if (this.fullscreen !== fullscreen) {
-                        this.track(fullscreen ? "fullscreen" : "exitFullscreen");
-                    }
-                    this.fullscreen = fullscreen;
-                    return fullscreen;
-                },
-
-                setAdExpand: function(expanded) {
-                    if (this.expanded !== expanded) {
-                        this.track(expanded ? "expand" : "collapse");
-                    }
-                    this.expanded = expanded;
-                    return expanded;
-                },
-
-                setAdSkipDelay: function(duration) {
-                    if (typeof duration === 'number') {
-                        this.skipDelay = duration;
-                        return duration;
-                    }
-                },
-
-                loadAd: function() {
-                    if (!this.impressed) {
-                        this.impressed = true;
-                        this.trackAdURLs(this.ad.impressionURLTemplates);
-                        return this.track("creativeView");
-                    }
-                },
-
-                errorAdWithCode: function(errorCode) {
-                    return this.trackAdURLs(this.ad.errorURLTemplates, {
-                        ERRORCODE: errorCode
-                    });
-                },
-
-                errorAdWithCodeAndMessage: function(errorCode, errorMessage) {
-                    return this.trackAdURLs(this.ad.errorURLTemplates, {
-                        ERRORCODE: errorCode,
-                        ERRORMESSAGE: errorMessage
-                    });
-                },
-
-                completeAd: function() {
-                    return this.track("complete");
-                },
-
-                closeAd: function() {
-                    return this.track(this.linear ? "closeLinear" : "close");
-                },
-
-                stopAd: function() {},
-
-                skipAd: function() {
-                    this.track("skip");
-                    this.trackingEvents = [];
-                    return this.trackingEvents;
-                },
-
-                clickAd: function() {
-                    var clickThroughURL, ref, variables;
-                    if ((ref = this.clickTrackingURLTemplates) !== null ? ref.length : void 0) {
-                        this.trackAdURLs(this.clickTrackingURLTemplates);
-                    }
-                    if (this.clickThroughURLTemplate !== null) {
-                        if (this.linear) {
-                            variables = {
-                                CONTENTPLAYHEAD: this.adProgressFormated()
-                            };
-                        }
-                        clickThroughURL = VASTAd.resolveURLTemplates([this.clickThroughURLTemplate], variables)[0];
-                        return this.trigger("clickthrough", clickThroughURL);
-                    }
-                },
-
-                track: function(eventName, once) {
-                    var idx, trackingURLTemplates;
-                    if (!once) {
-                        once = false;
-                    }
-                    if (eventName === 'closeLinear' && ((!this.trackingEvents[eventName]) && (this.trackingEvents.close))) {
-                        eventName = 'close';
-                    }
-                    trackingURLTemplates = this.trackingEvents[eventName];
-                    idx = this.emitAlwaysEvents.indexOf(eventName);
-                    if (trackingURLTemplates) {
-                        this.trigger(eventName, '');
-                        this.trackAdURLs(trackingURLTemplates);
-                    } else if (idx !== -1) {
-                        this.trigger(eventName, '');
-                    }
-                    if (once === true) {
-                        delete this.trackingEvents[eventName];
-                        delete this.trackingEvents[eventName];
-                        if (idx > -1) {
-                            this.emitAlwaysEvents.splice(idx, 1);
-                        }
-                    }
-                },
-
-                trackAdURLs: function(URLTemplates, variables) {
-                    var _ref;
-                    if (!variables) {
-                        variables = {};
-                    }
-                    if (this.linear) {
-                        if (((_ref = this.creative.mediaFiles[0]) !== null ? _ref.fileURL : void 0) !== null) {
-                            variables.ASSETURI = this.creative.mediaFiles[0].fileURL;
-                        }
-                        variables.CONTENTPLAYHEAD = this.adProgressFormated();
-                    }
-                    return VASTAd.trackAd(URLTemplates, variables);
-                },
-
-                adProgressFormated: function() {
-                    var h, m, ms, s, seconds;
-                    seconds = parseInt(this.progress, 10);
-                    h = seconds / (60 * 60);
-                    if (h.length < 2) {
-                        h = "0" + h;
-                    }
-                    m = seconds / 60 % 60;
-                    if (m.length < 2) {
-                        m = "0" + m;
-                    }
-                    s = seconds % 60;
-                    if (s.length < 2) {
-                        s = "0" + m;
-                    }
-                    ms = parseInt((this.progress - seconds) * 100, 10);
-                    return h + ":" + m + ":" + s + "." + ms;
-                }
-            };
-        }]);
-    });
-
-Scoped.define("module:Ads.VAST.VAST", ["base:Class","module:Ads.VAST.Client","module:Ads.VAST.Tracker","module:Ads.VAST.Ad","base:Objs","base:Promise","base:Events.EventsMixin","base:Types"], function(Class, VASTClient, VASTTracker, VASTAd, Objs, Promise, EventsMixin, Types, scoped) {
-        return Class.extend({
-            scoped: scoped
-        }, [EventsMixin, function(inherited) {
-            return {
-                constructor: function(options, requestOptions) {
-                    inherited.constructor.call(this);
-                    options = Types.is_array(options) ? options : [options];
-                    var vastClient, _promise, _self;
-                    this.vastServerResponses = [];
-                    this.timeout = 5000;
-                    this.adPodTimeout = 100;
-                    this.companion = undefined;
-                    this.sources = [];
-                    this.companion = {};
-
-                    _self = this;
-                    _promise = Promise.create();
-
-                    vastClient = this.auto_destroy(new VASTClient(options));
-
-                    Objs.iter(options, function(vast) {
-                        if (vast.adServer) {
-                            if (vast.skipAfter) {
-                                _self.skipAdAfter = vast.skipAfter;
-                            }
-                            vastClient.getAd(vast.adServer, requestOptions, function(err, response) {
-                                if (err) {
-                                    var _errorMessage = 'Error occurred during loading provided link. ' + err;
-                                    _promise.asyncError({
-                                        message: _errorMessage
-                                    });
-                                } else {
-                                    _self.vastServerResponses.push(response);
-                                    _promise.asyncSuccess(_self.vastServerResponses);
-                                }
-                            });
-                        } else {
-                            _promise.asyncError({
-                                message: 'Video Ad options are not correct, asServer are required'
-                            });
-                        }
-                    }, this);
-
-                    _promise.success(function(responses) {
-                        this.executeAd(responses[0]);
-                    }, this);
-
-                    _promise.error(function(error) {
-                        this.trigger("adresponseerror", error);
-                    }, this);
-                },
-
-                executeAd: function(response) {
-                    var _ad, _adIds, _crIds, _creative, _foundCreative, _foundCompanion, _self;
-                    _self = this;
-                    if (response)
-                        for (_adIds = 0; _adIds < response.ads.length; _adIds++) {
-                            _ad = response.ads[_adIds];
-                            for (_crIds = 0; _crIds < _ad.creatives.length; _crIds++) {
-                                _creative = _ad.creatives[_crIds];
-                                _foundCreative = false;
-                                _foundCompanion = false;
-
-                                if (_creative.type === 'linear' && !_foundCreative) {
-                                    if (_creative.skipDelay > 0)
-                                        this.skipAdAfter = _creative.skipDelay;
-
-                                    if (_creative.mediaFiles.length) {
-
-                                        this.sources = this.createSourceObjects(_creative.mediaFiles);
-
-                                        if (!this.sources.length) {
-                                            _self.trigger("adcanceled");
-                                            return;
-                                        }
-
-                                        this.vastTracker = new VASTTracker(_ad, _creative);
-                                        _foundCreative = true;
-                                    }
-                                }
-
-                                if (_creative.type === 'companion' && !_foundCompanion) {
-                                    this.companion = _creative;
-                                    _foundCompanion = true;
-                                }
-                            }
-                            if (this.vastTracker) {
-                                this.persistentTrigger("vastready");
-                                break;
-                            } else {
-                                VASTAd.trackAd(_ad.errorURLTemplates, {
-                                    ERRORCODE: 403
-                                });
-                            }
-                        }
-
-                    if (!this.vastTracker) {
-                        this.persistentTrigger("adcanceled");
-                    }
-                },
-
-                createSourceObjects: function(mediaFiles) {
-                    var _sources, _mediaFile, _source;
-                    _sources = [];
-                    for (var i = 0, j = mediaFiles.length; i < j; i++) {
-                        _mediaFile = mediaFiles[i];
-                        _source = {
-                            type: _mediaFile.mimeType,
-                            src: _mediaFile.fileURL
-                        };
-
-                        if (this._canPlaySource(_source)) {
-                            _sources[i] = ({
-                                type: _mediaFile.mimeType,
-                                src: _mediaFile.fileURL,
-                                width: _mediaFile.width,
-                                height: _mediaFile.height
-                            });
-                        }
-                    }
-
-                    return _sources;
-                },
-
-                _canPlaySource: function(source) {
-                    var _ext, _mimeType, _allowedMimeTypes;
-                    _allowedMimeTypes = [
-                        "application/vnd.apple.mpegurl",
-                        "video/3gpp",
-                        "video/mp4",
-                        "video/mpeg",
-                        "video/ogg",
-                        "video/quicktime",
-                        "video/webm",
-                        "video/x-m4v",
-                        "video/ms-asf",
-                        "video/x-ms-wmv",
-                        "video/x-msvideo"
-                    ];
-
-                    if (source.type) {
-                        _mimeType = source.type;
-                    } else if (source.src) {
-                        _ext = this._ext(source.src);
-                        _mimeType = 'video/' + _ext;
-                    } else {
-                        return false;
-                    }
-
-                    return Objs.contains_value(_allowedMimeTypes, _mimeType);
-                },
-
-                _ext: function(url) {
-                    return (url = url.substr(1 + url.lastIndexOf("/")).split('?')[0]).split('#')[0].substr(url.lastIndexOf("."));
-                }
-
-            };
-        }]);
-    });
 
 Scoped.define("module:Assets", ["base:Classes.LocaleTable","browser:Info"], function(LocaleTable, Info) {
 
@@ -27938,6 +26157,7 @@ Scoped.define("module:Ads.IMA.Controlbar", ["dynamics:Dynamic","browser:Dom","br
                     clickthroughurl: null,
                     fullscreened: false,
                     supportsfullscreen: false,
+                    inlineadplayer: false,
                     hidebarafter: 5000,
                     // if controlbar is hidden, touch on screen should make it visible,
                     // and not handle click trough action, as user may want to use controlbar options
@@ -27956,6 +26176,10 @@ Scoped.define("module:Ads.IMA.Controlbar", ["dynamics:Dynamic","browser:Dom","br
                     this._adsManager = this._adsRequester._adsManager;
                     this._ads = this._adsManager && this._adsManager.getCurrentAd ? this._adsManager.getCurrentAd() : undefined;
                     this._element = this._adsRequester._options.adContainer;
+                    // On skipinitial w/o autoplay with inline video dyn controlbar will be ad controlbar as well
+                    this.set("inlineadplayer", this._adsRequester._isInlinePlayer &&
+                        (this._contentPlayer.get("skipinitial") && !this._contentPlayer.get("autoplay"))
+                    );
                     this.set("last_activity", Time.now());
 
                     if (this._ads) {
@@ -28219,6 +26443,8 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                 this._allAdsCompelted = false;
                 this._isLinear = null;
                 this._isPlaying = false;
+                // When only one video used for ad and content
+                this._isInlinePlayer = this._options.adContainer && (this._options.adContainer.querySelector('video') === null);
                 this._linearExpected = position !== provider.__IMA_AD_TYPE_NON_LINEAR;
 
                 this._adsRequest = new google.ima.AdsRequest();
@@ -28227,7 +26453,7 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                 // DISABLED == 0 - VPAID ads will not play, and an error will be returned.
                 // ENABLED == 1 - VPAID ads are enabled using a cross-domain iframe
                 // INSECURE == 2 - This allows the ad access to the site via JavaScript.
-                if (this._providerOptions.vpaidMode && [
+                if (typeof this._providerOptions.vpaidMode === "number" && [
                         google.ima.ImaSdkSettings.VpaidMode.DISABLED,
                         google.ima.ImaSdkSettings.VpaidMode.ENABLED,
                         google.ima.ImaSdkSettings.VpaidMode.INSECURE
@@ -28246,9 +26472,13 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                 // setAutoPlayAdBreaks(boolean)
                 // google.ima.settings.setVpaidAllowed(true); // true will cause an issue
 
-                // For IOS skip able
-                if (Info.isiOS() && Info.safariVersion() >= 10)
-                    google.ima.settings.setDisableCustomPlaybackForIOS10Plus(true);
+                // For IOS, make mobile Safari only skip able in the fullscreen
+                // As we're not providing a fullscreen mode in the iOS ads, disable it.
+                // Setting is as a true, will replace a Dynamics video element source via ad source.
+                // if (Info.isiOS() && Info.safariVersion() >= 10) {
+                //     this._isCustomPlayback;
+                //     google.ima.settings.setDisableCustomPlaybackForIOS10Plus(true);
+                // }
 
                 this._adsRequest = new google.ima.AdsRequest();
                 this._adsRequest.adsResponse = this._providerOptions.inlineVASTXML;
@@ -28364,9 +26594,11 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                     case google.ima.AdEvent.Type.LOADED:
                         this._isLinear = ad.isLinear();
                         this._allAdsCompelted = false;
+                        this.__togglePlayerControlBar(false, player, this._isLinear);
                         this.trigger('adloaded', ad);
                         break;
                     case google.ima.AdEvent.Type.ALL_ADS_COMPLETED:
+                        this.__togglePlayerControlBar(true, player, this._isLinear);
                         if (this._adControlbar) {
                             this._adControlbar.weakDestroy();
                             this._adControlbar = undefined;
@@ -28385,15 +26617,20 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                         break;
                     case google.ima.AdEvent.Type.STARTED:
                         this._allAdsCompelted = false;
+                        this._isLinear = ad && ad.isLinear();
+                        this.__togglePlayerControlBar(false, player, this._isLinear);
+                        if (this._adControlbar && !this._isLinear) {
+                            this._adControlbar.weakDestroy();
+                            this._adControlbar = undefined;
+                        }
                         if (this._dyn) {
+                            this._dyn.set("linearadplayer", this._isLinear);
                             // Don't show NonLinear on post-roll
                             if (this._adsPosition !== this._adsProvider.__IMA_POST_ROLL && !ad.isLinear()) {
                                 this._options.adElement.style.display = "";
-                                this._dyn.set("linearadplayer", false);
 
                                 this._leftSuggesstedDuration = ad.getMinSuggestedDuration() || this._providerOptions.nonLinearDuration || 10;
                                 if (this._leftSuggesstedDuration > 0) {
-
                                     this._timer = this._auto_destroy(new Timers.Timer({
                                         context: this,
                                         fire: function() {
@@ -28424,6 +26661,7 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                         break;
                     case google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED:
                         if (ad.isLinear()) this._dyn.pause();
+                        this.__togglePlayerControlBar(false, player, this._isLinear);
                         if ((ad.isLinear() && this._linearExpected) || (!ad.isLinear() && !this._linearExpected)) {
                             this._options.adElement.style.display = "";
                             if (!this._adControlbar) this._showIMAAdController(ad);
@@ -28435,6 +26673,8 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                         if (this._options)
                             this._options.adElement.style.display = "none";
                         if (this._dyn && ad.isLinear()) {
+                            this.__togglePlayerControlBar(true, player, this._isLinear);
+                            this._isLinear = true;
                             if (!this._dyn.get("playing") && this._adsPosition !== this._adsProvider.__IMA_POST_ROLL) {
                                 if (!this._dyn.videoAttached()) {
                                     this._dyn.on("attached", function(player) {
@@ -28449,8 +26689,8 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                         break;
                     case google.ima.AdEvent.Type.AD_PROGRESS:
                         // be sure player will not run in the background on linear ad
-                        if (this._dyn && this._isLinear && this._dyn.get("playing"))
-                            this._dyn.pause();
+                        // if (this._dyn && this._isLinear && this._dyn.get("playing"))
+                        //     this._dyn.pause();
                         break;
                     case google.ima.AdEvent.Type.PAUSED:
                         this._isPlaying = false;
@@ -28483,6 +26723,7 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                     this._adControlbar.weakDestroy();
                     this._adControlbar = undefined;
                 }
+                this.__togglePlayerControlBar(true);
                 if (typeof type.getError === "function") {
                     var error = type.getError();
                     if (error) {
@@ -28543,8 +26784,8 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                     this._adsManager.init(initWidth, initHeight, google.ima.ViewMode.NORMAL);
                     // Play if browser allows playing without sound
                     // this._adsRequest.setAdWillPlayMuted(true);
-                    if (dyn.get("autoplay-requires-muted") && dyn.get("autoplay-allowed") && dyn.get("autoplay")) {
-                        this._adsManager.setVolume(0);
+                    if (dyn.get("autoplay-requires-muted") && dyn.get("autoplay")) {
+                        this._adsManager.setVolume((dyn.get("autoplay-allowed") && dyn.get("user-has-interaction")) ? 1 : 0);
                     }
                     this._adsManager.start();
                 } catch (e) {
@@ -28675,6 +26916,30 @@ Scoped.define("module:Ads.IMARequester", ["base:Class","base:Objs","base:Timers"
                             break;
                         default:
                             playerElement.parentNode.append(element);
+                    }
+                }
+            },
+
+            /**
+             * Will toggle player controlbar
+             * @param show
+             * @param player
+             * @param isLinear
+             * @private
+             */
+            __togglePlayerControlBar: function(show, player, isLinear) {
+                show = show || false;
+                player = player || this._dyn;
+                isLinear = isLinear || this._isLinear;
+                if (player && typeof player.get === "function") {
+                    if (show) {
+                        if (player.get("hidecontrolbar")) {
+                            player.set("hidecontrolbar", !isLinear);
+                        }
+                    } else {
+                        if (!player.get("hidecontrolbar")) {
+                            player.set("hidecontrolbar", isLinear && !this._isInlinePlayer);
+                        }
                     }
                 }
             },
@@ -30493,304 +28758,6 @@ Scoped.define("module:IframeHelper", ["dynamics:Dynamic","base:Objs","base:Types
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.Adplayer", ["dynamics:Dynamic","base:TimeFormat","base:Timers","browser:Dom","media:Player.VideoPlayerWrapper","module:Assets"], function(Class, TimeFormat, Timers, Dom, VideoPlayerWrapper, Assets, scoped) {
-    return Class.extend({
-            scoped: scoped
-        }, function(inherited) {
-            return {
-
-                template: "<video class=\"{{css}}-video\" data-video=\"video\"></video>\n<div class=\"{{cssplayer}}-ad-dashboard\">\n    <div class=\"{{cssplayer}}-ad-click-tracker\" ba-click=\"{{ad_clicked()}}\"></div>\n    <div class=\"{{cssplayer}}-skipbutton-container\" ba-click=\"{{skip_linear_ad()}}\" ba-show=\"{{skipbuttonvisible}}\">\n        <p class=\"{{cssplayer}}-skipbutton\">{{lefttillskip > 0 ? string('can-skip-after').replace('%d', lefttillskip) : string('skip-ad')}}</p>\n    </div>\n\n    <div class=\"{{css}}-companion-ad-container\" ba-show=\"{{companionadvisible}}\">\n        <div class=\"{{css}}-close-companion-ad\" ba-click=\"{{skip_companion_ad()}}\">X</div>\n        <img class=\"{{css}}-companion-ad\" src=\"\"/>\n    </div>\n\n    <div class=\"{{cssplayer}}-ad-controlbar\">\n\n        <div class=\"{{cssplayer}}-ad-time-container\">\n            <div class=\"{{cssplayer}}-ad-time-value\" title=\"{{string('elapsed-time')}}\">{{string('ad-will-end-after').replace('%s', formatTime(adduration))}}</div>\n        </div>\n\n        <div class=\"{{cssplayer}}-ad-volumebar\">\n            <div data-selector=\"button-volume-bar\" class=\"{{cssplayer}}-ad-volumebar-inner\"\n                 onmousedown=\"{{startUpdateAdVolume(domEvent)}}\"\n                 onmouseup=\"{{stopUpdateAdVolume(domEvent)}}\"\n                 onmouseleave=\"{{stopUpdateAdVolume(domEvent)}}\"\n                 onmousemove=\"{{progressUpdateAdVolume(domEvent)}}\">\n                <div class=\"{{cssplayer}}-ad-volumebar-position\" ba-styles=\"{{{width: Math.min(100, Math.round(advolume * 100)) + '%'}}}\">\n                    <div class=\"{{cssplayer}}-ad-volumebar-button\" title=\"{{string('volume-button')}}\"></div>\n                </div>\n            </div>\n        </div>\n\n        <div data-selector=\"button-icon-volume\" class=\"{{cssplayer}}-ad-rightbutton-container\" ba-click=\"{{toggle_ad_volume()}}\" title=\"{{string(advolume > 0 ? 'volume-mute' : 'volume-unmute')}}\">\n            <div class=\"{{cssplayer}}-ad-button-inner\">\n                <i class=\"{{css + '-icon-volume-' + (advolume >= 0.5 ? 'up' : (advolume > 0 ? 'down' : 'off')) }}\"></i>\n            </div>\n        </div>\n\n    </div>\n</div>\n",
-
-                attrs: {
-                    "css": "ba-adplayer",
-                    "csscommon": "ba-commoncss",
-                    "cssplayer": "ba-player",
-                    "lefttillskip": -1,
-                    "adduration": 0,
-                    "duration": 0,
-                    "advolume": 1.0,
-                    "adplaying": false,
-                    "companionadvisible": false,
-                    "skipbuttonvisible": false,
-                    "canskip": false,
-                    "adskiped": false,
-                    "disablepause": false
-                },
-
-                functions: {
-
-                    formatTime: function(time) {
-                        time = Math.max(time || 0, 1);
-                        return TimeFormat.format(TimeFormat.ELAPSED_MINUTES_SECONDS, time * 1000);
-                    },
-
-                    startUpdateAdVolume: function(event) {
-                        event[0].preventDefault();
-                        this.set("_updateAdVolume", true);
-                        this.call("progressUpdateAdVolume", event);
-                    },
-
-                    progressUpdateAdVolume: function(event) {
-                        var ev = event[0];
-                        ev.preventDefault();
-                        if (!this.get("_updateAdVolume"))
-                            return;
-                        var clientX = ev.clientX;
-                        var target = ev.currentTarget;
-                        var offset = Dom.elementOffset(target);
-                        var dimensions = Dom.elementDimensions(target);
-                        this.set("advolume", (clientX - offset.left) / (dimensions.width || 1));
-                        this.trigger("advolume", this.get("advolume"));
-                    },
-
-                    stopUpdateAdVolume: function(event) {
-                        event[0].preventDefault();
-                        this.set("_updateVolume", false);
-                    },
-
-                    play_ad: function() {
-                        this.trigger("playad");
-                    },
-
-                    pause_ad: function() {
-                        this.trigger("pausead");
-                        this._pauseLinearAd();
-                    },
-
-                    toggle_ad_volume: function() {
-                        if (this.get("advolume") > 0) {
-                            this.__oldVolume = this.get("advolume");
-                            this.set("advolume", 0);
-                        } else
-                            this.set("advolume", this.__oldVolume || 1);
-                        this.trigger("advolume", this.get("advolume"));
-                    },
-
-                    skip_linear_ad: function() {
-                        if (!this.get("canskip") && this._vast)
-                            return;
-                        this.set("adskiped", true);
-                        this._vast.trigger("resumeplayer");
-                    },
-
-                    skip_companion_ad: function() {},
-
-                    ad_clicked: function() {
-                        if (this._vast.vastTracker) {
-                            this._vast.vastTracker.clickAd();
-                        }
-                    }
-                },
-
-                create: function() {
-                    this._vast.once("vastready", function() {
-                        this._adBehaviour();
-                    }, this);
-                    this._vast.once("adcanceled", function() {
-                        this._preroll._adSkipped();
-                    }, this);
-                },
-
-                _adBehaviour: function() {
-                    var _adElementHolder, _source, _duration, _volume;
-
-                    _adElementHolder = this.activeElement().querySelector("video");
-                    _duration = this._vast.vastTracker.assetDuration;
-                    _source = this._vast.sources[0];
-
-                    if (this._vast.skipAdAfter && this._vast.skipAdAfter > 0) {
-                        this.set("skipbuttonvisible", true);
-                        this.set("lefttillskip", this._vast.skipAdAfter);
-                    }
-
-                    this._attachLinearAd(_adElementHolder, _source, _duration);
-
-                    this._vast.on("resumeplayer", function() {
-
-                        this._stopLinearAd();
-
-                        this._timer.weakDestroy();
-
-                        if (this.get("adskiped")) {
-                            this._vast.vastTracker.skipAd();
-                            this._preroll._adSkipped();
-                        } else {
-                            this._vast.vastTracker.completeAd();
-                            this._preroll._adFinished();
-                        }
-
-                    }, this);
-
-                    this.on("pausead", function() {
-                        if (!this._timer || !this.__adPlayer)
-                            return;
-                        this._timer.stop();
-                        this.__adPlayer.pause();
-                        this.set("adplaying", false);
-                    });
-
-                    this.on("playad", function() {
-                        if (!this._timer || !this.__adPlayer)
-                            return;
-                        this._timer.start();
-                        this.__adPlayer.play();
-                        this.set("adplaying", true);
-                    });
-
-                    this.on("advolume", function() {
-                        if (!this.__adPlayer)
-                            return;
-                        _volume = Math.min(1.0, this.get("advolume"));
-                        this.__adPlayer.setVolume(_volume);
-                        this.__adPlayer.setMuted(_volume <= 0.0);
-                    });
-                },
-
-                _attachLinearAd: function(element, source, duration) {
-                    VideoPlayerWrapper.create({
-                        element: element,
-                        source: source.src,
-                        type: source.type
-                    }).error(function(err) {
-                        // trigger error related to loading video content
-                        this._vast.trigger("resumeplayer");
-                    }, this).success(function(instance) {
-                        this.__adPlayer = instance;
-                        duration = isNaN(duration) ? this.get("maxadduration") : duration;
-                        this.set("adduration", duration);
-
-
-                        this._playLinearAd();
-                        this._timer = new Timers.Timer({
-                            context: this,
-                            fire: this._timerFire,
-                            delay: 1000,
-                            start: true
-                        });
-                    }, this);
-                },
-
-                _timerFire: function() {
-                    var _timeLeft, _leftTillSkip;
-                    _timeLeft = this.get("adduration");
-                    _leftTillSkip = this.get("lefttillskip") || -1;
-
-                    this.set("adduration", --_timeLeft);
-
-                    if (_leftTillSkip >= 0) {
-                        this.set("skipbuttonvisible", true);
-                        this.set("lefttillskip", --_leftTillSkip);
-
-                        if (_leftTillSkip === 0)
-                            this.set("canskip", true);
-                    }
-
-                    this._vast.vastTracker.setAdProgress(_timeLeft);
-
-                    if (this.get("adduration") === 0) {
-                        this._vast.trigger("resumeplayer");
-                    }
-                },
-
-                _playLinearAd: function() {
-                    this.__adPlayer.play();
-                    this.set("adplaying", true);
-                    this._vast.trigger("adplaying");
-                },
-
-                _pauseLinearAd: function() {
-                    if (!this.get("adplaying")) {
-                        this.__adPlayer.pause();
-                        this.set("adplaying", false);
-                        this._vast.vastTracker.setAdPaused(true);
-                        this._vast.trigger("adpaused");
-                        this._vast.once("playad", function() {
-                            this._vast.vastTracker.setAdPaused(false);
-                        }, this);
-                    }
-                },
-
-                _stopLinearAd: function() {
-                    if (this.__adPlayer && this.get("adplaying")) {
-                        this.__adPlayer.pause();
-                        this.set("adplaying", false);
-                    }
-                },
-
-                skip_ad: function() {
-                    if (this.__adPlayer)
-                        this.trigger("resumeplayer");
-                }
-            };
-        })
-        .register("ba-videoplayer-adslot")
-        .registerFunctions({
-            /**/"css": function (obj) { return obj.css; }, "cssplayer": function (obj) { return obj.cssplayer; }, "ad_clicked()": function (obj) { return obj.ad_clicked(); }, "skip_linear_ad()": function (obj) { return obj.skip_linear_ad(); }, "skipbuttonvisible": function (obj) { return obj.skipbuttonvisible; }, "lefttillskip > 0 ? string('can-skip-after').replace('%d', lefttillskip) : string('skip-ad')": function (obj) { return obj.lefttillskip > 0 ? obj.string('can-skip-after').replace('%d', obj.lefttillskip) : obj.string('skip-ad'); }, "companionadvisible": function (obj) { return obj.companionadvisible; }, "skip_companion_ad()": function (obj) { return obj.skip_companion_ad(); }, "string('elapsed-time')": function (obj) { return obj.string('elapsed-time'); }, "string('ad-will-end-after').replace('%s', formatTime(adduration))": function (obj) { return obj.string('ad-will-end-after').replace('%s', obj.formatTime(obj.adduration)); }, "startUpdateAdVolume(domEvent)": function (obj) { return obj.startUpdateAdVolume(obj.domEvent); }, "stopUpdateAdVolume(domEvent)": function (obj) { return obj.stopUpdateAdVolume(obj.domEvent); }, "progressUpdateAdVolume(domEvent)": function (obj) { return obj.progressUpdateAdVolume(obj.domEvent); }, "{width: Math.min(100, Math.round(advolume * 100)) + '%'}": function (obj) { return {width: Math.min(100, Math.round(obj.advolume * 100)) + '%'}; }, "string('volume-button')": function (obj) { return obj.string('volume-button'); }, "toggle_ad_volume()": function (obj) { return obj.toggle_ad_volume(); }, "string(advolume > 0 ? 'volume-mute' : 'volume-unmute')": function (obj) { return obj.string(obj.advolume > 0 ? 'volume-mute' : 'volume-unmute'); }, "css + '-icon-volume-' + (advolume >= 0.5 ? 'up' : (advolume > 0 ? 'down' : 'off'))": function (obj) { return obj.css + '-icon-volume-' + (obj.advolume >= 0.5 ? 'up' : (obj.advolume > 0 ? 'down' : 'off')); }/**/
-        })
-        .attachStringTable(Assets.strings)
-        .addStrings({
-            "elapsed-time": "Elapsed time",
-            "volume-button": "Set volume",
-            "volume-mute": "Mute sound",
-            "volume-unmute": "Unmute sound",
-            "ad-will-end-after": "Ad will end after %s",
-            "can-skip-after": "Skip after %d",
-            "skip-ad": "Skip ad"
-        });
-});
-
-Scoped.define("module:Ads.VastPrerollAd", ["module:Ads.AbstractPrerollAd","module:Ads.VAST.VAST","module:VideoPlayer.Dynamics.Adplayer"], function(AbstractVideoPrerollAd, VAST, Adplayer, scoped) {
-    return AbstractVideoPrerollAd.extend({
-        scoped: scoped
-    }, function(inherited) {
-        return {
-
-            constructor: function(provider, options) {
-                inherited.constructor.call(this, provider, options);
-                this._vast = new VAST(this._provider.options(), {});
-                this._vast.once("adresponseerror", function(err) {
-                    // some error actions, no respond from ad server
-                }, this);
-            },
-
-            _executeAd: function(options) {
-                this._adplayer = new Adplayer({
-                    element: this._options.adElement,
-                    attrs: {
-                        css: this._options.dynamic.get("css")
-                    }
-                });
-                this._adplayer._vast = this._vast;
-                this._adplayer._preroll = this;
-                this._adplayer.activate();
-            },
-
-            _adFinished: function() {
-                this._options.adElement.style.display = "none";
-                this.trigger("adfinished");
-            },
-
-            _adSkipped: function() {
-                this._options.adElement.style.display = "none";
-                this.trigger("adskipped");
-            }
-
-        };
-    });
-});
-
-Scoped.define("module:Ads.VastVideoAdProvider", ["module:Ads.AbstractVideoAdProvider","module:Ads.VastPrerollAd"], function(AbstractVideoAdProvider, VastPrerollAd, scoped) {
-        return AbstractVideoAdProvider.extend({
-            scoped: scoped
-        }, {
-
-            _newPrerollAd: function(options) {
-                return new VastPrerollAd(this, options);
-            }
-
-        });
-    });
-
 Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","base:TimeFormat","base:Comparators","base:Maths","base:Objs","browser:Dom","module:Assets","browser:Info","media:Player.Support","base:Async","base:Timers.Timer","browser:Events"], ["dynamics:Partials.StylesPartial","dynamics:Partials.ShowPartial","dynamics:Partials.IfPartial","dynamics:Partials.ClickPartial","dynamics:Partials.RepeatElementPartial"], function(Class, TimeFormat, Comparators, Maths, Objs, Dom, Assets, Info, PlayerSupport, Async, Timer, DomEvents, scoped) {
     return Class.extend({
             scoped: scoped
@@ -30867,7 +28834,11 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
 
                     startUpdatePosition: function(event) {
                         if (this.get("disableseeking")) return;
-                        event[0].preventDefault();
+                        // https://chromestatus.com/feature/5093566007214080
+                        // touchstart and touchmove listeners added to the document will default to passive:true
+                        if (event[0] && event[0].type.indexOf("touch") === -1)
+                            event[0].preventDefault();
+
                         if (!this.__parent.get("playing") && this.__parent.player && !this.get("manuallypaused"))
                             this.__parent.player.play();
 
@@ -30879,11 +28850,13 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
 
                         var events = this.get("events");
                         events.on(document, "mousemove touchmove", function(e) {
-                            e.preventDefault();
+                            if (e.type.indexOf("touch") === -1)
+                                e.preventDefault();
                             this.call("progressUpdatePosition", e);
                         }, this);
                         events.on(document, "mouseup touchend", function(e) {
-                            e.preventDefault();
+                            if (e.type.indexOf("touch") === -1)
+                                e.preventDefault();
                             this.call("stopUpdatePosition");
                             events.off(document, "mouseup touchend mousemove touchmove");
                         }, this);
@@ -31014,13 +28987,13 @@ Scoped.define("module:VideoPlayer.Dynamics.Controlbar", ["dynamics:Dynamic","bas
                     },
 
                     toggle_volume: function() {
+                        if (this.get("unmuteonclick")) return;
                         if (this.get("volume") > 0) {
                             this.__oldVolume = this.get("volume");
                             this.set("volume", 0);
                         } else {
                             this.set("volume", this.__oldVolume || 1);
                         }
-
                         this.trigger("volume", this.get("volume"));
                     },
 
@@ -31477,11 +29450,10 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.State", ["base:States.St
             var adInstance = this.dyn[instanceKey];
             if (!adInstance) return this.next(next);
             this.dyn._adsRoll = adInstance;
-
             adInstance.once("adloaded", function(ad) {
                 if (typeof ad !== "undefined") {
                     // If ad type is non-linear like image banner needs to load video
-                    if (!ad.isLinear()) {
+                    if (!ad && ad.isLinear()) {
                         this.next(next);
                     }
                 }
@@ -31490,7 +29462,9 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.State", ["base:States.St
             adInstance.on("adfinished", function(dyn) {
                 dyn = this.dyn || dyn;
                 if (dyn) {
-                    if (typeof dyn._adsRoll.__cid !== "undefined") dyn._adsRoll.weakDestroy();
+                    if (dyn._adsRoll && typeof dyn._adsRoll.__cid !== "undefined") {
+                        dyn._adsRoll.weakDestroy();
+                    }
                     dyn._adsRoll = null;
                     if (dyn[instanceKey]) {
                         if (adInstance) adInstance.weakDestroy();
@@ -31749,7 +29723,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.LoadError", ["module:Vid
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterReady", ["module:VideoPlayer.Dynamics.PlayerStates.State","module:PopupHelper","base:Objs","base:Types"], function(State, PopupHelper, Objs, Types, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterReady", ["module:VideoPlayer.Dynamics.PlayerStates.State","module:PopupHelper","base:Objs","base:Types","browser:Dom"], function(State, PopupHelper, Objs, Types, Dom, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -31771,7 +29745,15 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PosterReady", ["module:V
             if (this.dyn && ((this.dyn.get("skipinitial") && !this.dyn.get("autoplay")) || this.dyn.get("play-next"))) {
                 this.play();
             }
-            if (this.dyn && this.dyn.get("autoplay")) this.runAutoplay();
+            if (this.dyn && this.dyn.get("autoplay")) {
+                if (this.dyn.get("autoplaywhenvisible")) {
+                    Dom.onScrollIntoView(this.dyn.activeElement(), this.dyn.get("visibilityfraction"), function() {
+                        if (!this.destroyed())
+                            this.runAutoplay();
+                    }, this);
+                } else
+                    this.runAutoplay();
+            }
         },
 
         play: function() {
@@ -31839,6 +29821,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.Preroll", ["module:Video
                 else {
                     if (!this.dyn.videoAttached()) this.dyn.reattachVideo();
                     this.executeAd('_prerollAd', "LoadVideo");
+                    if (this.dyn.get("sticky")) this.dyn.stickyHandler.start();
                 }
             } else {
                 this.next("LoadVideo");
@@ -31941,7 +29924,7 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.ErrorVideo", ["module:Vi
     });
 });
 
-Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PlayVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State"], function(State, scoped) {
+Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PlayVideo", ["module:VideoPlayer.Dynamics.PlayerStates.State","base:Objs"], function(State, Objs, scoped) {
     return State.extend({
         scoped: scoped
     }, {
@@ -31961,10 +29944,22 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.PlayVideo", ["module:Vid
             }, this);
             this.listenOn(this.dyn, "ended", function() {
                 this.dyn.set("autoseek", null);
-                if (this.dyn._postrollAd)
-                    this.executeAd("_postrollAd", "NextVideo");
-                else
+                // stop any rolls before start post-roll, especially nonLinear
+
+                Objs.iter(['_prerollAd', '_adsRoll'], function(key) {
+                    var adsRoll = this.dyn && this.dyn[key];
+                    if (adsRoll && !adsRoll.destroyed()) {
+                        if (typeof adsRoll.manuallyEndAd === "function" && !adsRoll.isLinear)
+                            adsRoll.manuallyEndAd();
+                        adsRoll.weakDestroy();
+                        this.dyn[key] = null;
+                    }
+                }, this);
+                if (this.dyn._postrollAd) {
+                    this.executeAd("_postrollAd", this.dyn.get("next") ? "NextVideo" : "LoadVideo");
+                } else {
                     this.next("NextVideo");
+                }
             }, this);
             this.listenOn(this.dyn, "change:buffering", function() {
                 this.dyn.set("loader_active", this.dyn.get("buffering"));
@@ -32033,7 +30028,13 @@ Scoped.define("module:VideoPlayer.Dynamics.PlayerStates.NextVideo", ["module:Vid
                     this.dyn.reattachVideo();
                 }
             }
-            this.next("PosterReady");
+
+            if (this.dyn.get("adprovider")) {
+                this.dyn.initAdProvider();
+                this.executeAd("_prerollAd", "LoadVideo");
+            } else {
+                this.next("PosterReady");
+            }
         },
 
         /**
@@ -32234,11 +30235,15 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
         }, [StylesMixin, function(inherited) {
             return {
 
-                template: "<div itemscope itemtype=\"http://schema.org/VideoObject\"\n     class=\"{{css}}-container {{cssplayer}}-size-{{csssize}} {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{csstheme}}\n     {{cssplayer}}-{{fullscreened ? 'fullscreen' : 'normal'}}-view {{cssplayer}}-{{firefox ? 'firefox' : 'common'}}-browser\n     {{cssplayer}}-{{themecolor}}-color {{cssplayer}}-device-type-{{mobileview ? 'mobile' : 'desktop'}}\n     {{csscommon}}-full-width\n     {{cssplayer + (((activity_delta > hidebarafter) && hideoninactivity) ? '-controlbar-hidden' : '-controlbar-visible')}}\"\n     ba-on:mousemove=\"{{user_activity()}}\"\n     ba-on:mousedown=\"{{user_activity(true)}}\"\n     ba-on:touchstart=\"{{user_activity(true)}}\"\n     ba-styles=\"{{containerSizingStyles}}\"\n>\n    <meta itemprop=\"name\" content=\"{{title || 'Video Player'}}\" />\n    <meta itemprop=\"description\" content=\"{{description || 'Video Player'}}\" />\n    <meta itemprop=\"uploadDate\" content=\"{{uploaddate}}\" />\n    <div ba-show=\"{{(videoelement_active || !imageelement_active) && !silent_attach}}\" class=\"{{css}}-video-container\">\n        <video tabindex=\"-1\" class=\"{{css}}-video {{csscommon}}-{{videofitstrategy}}-fit\" data-video=\"video\"\n               preload=\"{{preload ? 'auto' : 'metadata'}}\"\n               ba-toggle:playsinline=\"{{!playfullscreenonmobile}}\"\n        ></video>\n    </div>\n    <div ba-show=\"{{(imageelement_active && !videoelement_active) || silent_attach}}\" class=\"{{css}}-poster-container\">\n        <img tabindex=\"-1\" data-image=\"image\" alt=\"{{posteralt}}\" class=\"{{csscommon}}-{{posterfitstrategy}}-fit\"/>\n    </div>\n    <div class=\"{{css}}-overlay {{hasplaceholderstyle ? (css + '-overlay-with-placeholder') : ''}}\"\n         ba-show=\"{{!showbuiltincontroller}}\" style=\"{{placeholderstyle}}\"\n    >\n        <div tabindex=\"-1\" class=\"{{css}}-player-toggle-overlay\" data-selector=\"player-toggle-overlay\"\n             ba-hotkey:right=\"{{seek(position + skipseconds)}}\" ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n             ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\" ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n             ba-hotkey:up=\"{{set_volume(volume + 0.1)}}\" ba-hotkey:down=\"{{set_volume(volume - 0.1)}}\"\n             ba-hotkey:space^enter=\"{{toggle_player()}}\"\n             ba-on:mouseup=\"{{toggle_player()}}\"\n             ba-on:touchend=\"{{toggle_player()}}\"\n        ></div>\n        <ba-{{dyntrimmer}}\n            ba-if=\"{{trimmingmode && videoelement_active}}\"\n            ba-playing=\"{{playing}}\"\n            ba-startposition=\"{{=starttime}}\"\n            ba-position=\"{{position}}\"\n            ba-endposition=\"{{=endtime}}\"\n            ba-minduration=\"{{timeminlimit}}\"\n            ba-duration=\"{{duration}}\"\n            ba-source=\"{{source}}\"\n            ba-event:play=\"play\"\n            ba-event:pause=\"pause\"\n            ba-event:seek=\"seek\"\n        ></ba-{{dyntrimmer}}>\n        <ba-{{dyncontrolbar}}\n            ba-css=\"{{csscontrolbar || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-logo=\"{{controlbar_logo}}\"\n            ba-themecolor=\"{{themecolor}}\"\n            ba-template=\"{{tmplcontrolbar}}\"\n            ba-show=\"{{controlbar_active && !hidecontrolbar}}\"\n            ba-playing=\"{{playing}}\"\n            ba-playwhenvisible=\"{{playwhenvisible}}\"\n            ba-playerspeeds=\"{{playerspeeds}}\"\n            ba-playercurrentspeed=\"{{playercurrentspeed}}\"\n            ba-playlist=\"{{playlist}}\"\n            ba-airplay=\"{{airplay}}\"\n            ba-airplaybuttonvisible=\"{{airplaybuttonvisible}}\"\n            ba-chromecast=\"{{chromecast}}\"\n            ba-castbuttonvisble=\"{{castbuttonvisble}}\"\n            ba-event:rerecord=\"rerecord\"\n            ba-event:submit=\"submit\"\n            ba-event:play=\"play\"\n            ba-event:pause=\"pause\"\n            ba-event:position=\"seek\"\n            ba-event:volume=\"set_volume\"\n            ba-event:set_speed=\"set_speed\"\n            ba-event:settings_menu=\"toggle_settings_menu\"\n            ba-event:fullscreen=\"toggle_fullscreen\"\n            ba-event:toggle_player=\"toggle_player\"\n            ba-event:tab_index_move=\"tab_index_move\"\n            ba-event:seek=\"seek\"\n            ba-event:set_volume=\"set_volume\"\n            ba-event:toggle_tracks=\"toggle_tracks\"\n            ba-tabindex=\"{{tabindex}}\"\n            ba-showchaptertext=\"{{showchaptertext}}\"\n            ba-chapterslist=\"{{chapterslist}}\"\n            ba-tracktextvisible=\"{{tracktextvisible}}\"\n            ba-tracktags=\"{{tracktags}}\"\n            ba-showsubtitlebutton=\"{{hassubtitles && tracktagssupport}}\"\n            ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n            ba-tracksshowselection=\"{{tracksshowselection}}\"\n            ba-volume=\"{{volume}}\"\n            ba-duration=\"{{duration}}\"\n            ba-cached=\"{{buffered}}\"\n            ba-title=\"{{title}}\"\n            ba-prominent_title=\"{{prominent_title}}\"\n            ba-closeable_title=\"{{closeable_title}}\"\n            ba-position=\"{{position}}\"\n            ba-activitydelta=\"{{activity_delta}}\"\n            ba-hasnext=\"{{hasnext}}\"\n            ba-hideoninactivity=\"{{hideoninactivity}}\"\n            ba-hidebarafter=\"{{hidebarafter}}\"\n            ba-rerecordable=\"{{rerecordable}}\"\n            ba-submittable=\"{{submittable}}\"\n            ba-frameselectionmode=\"{{frameselectionmode}}\"\n            ba-timeminlimit=\"{{timeminlimit}}\"\n            ba-streams=\"{{streams}}\"\n            ba-currentstream=\"{{=currentstream}}\"\n            ba-fullscreen=\"{{fullscreensupport && !nofullscreen}}\"\n            ba-fullscreened=\"{{fullscreened}}\"\n            ba-source=\"{{source}}\"\n            ba-disablepause=\"{{disablepause}}\"\n            ba-disableseeking=\"{{disableseeking}}\"\n            ba-skipseconds=\"{{skipseconds}}\"\n            ba-skipinitial=\"{{skipinitial}}\"\n            ba-settingsmenubutton=\"{{showsettingsmenu}}\"\n            ba-settingsmenuactive=\"{{settingsmenu_active}}\"\n            ba-hidevolumebar=\"{{hidevolumebar}}\"\n            ba-manuallypaused=\"{{manuallypaused}}\"\n        ></ba-{{dyncontrolbar}}>\n\n        <ba-{{dyntracks}}\n            ba-css=\"{{csstracks || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-show=\"{{tracktagssupport || allowtexttrackupload}}\"\n            ba-tracksshowselection=\"{{tracksshowselection}}\"\n            ba-trackselectorhovered=\"{{trackselectorhovered}}\"\n            ba-tracktags=\"{{tracktags}}\"\n            ba-hidebarafter=\"{{hidebarafter}}\"\n            ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n            ba-trackcuetext=\"{{trackcuetext}}\"\n            ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n            ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n            ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n            ba-uploadlocales=\"{{uploadlocales}}\"\n            ba-activitydelta=\"{{activity_delta}}\"\n            ba-hideoninactivity=\"{{hideoninactivity}}\"\n            ba-event:selected_label_value=\"selected_label_value\"\n            ba-event:upload-text-tracks=\"upload_text_tracks\"\n            ba-event:move_to_option=\"move_to_option\"\n        ></ba-{{dyntracks}}>\n\n        <ba-{{dynsettingsmenu}}\n            ba-css=\"{{css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-show=\"{{settingsmenu_active}}\"\n            ba-template=\"{{tmplsettingsmenu}}\"\n            ba-toggle_settings_menu=\"{{toggle_settings_menu}}\"\n            ba-toggle_share=\"{{toggle_share}}\"\n        ></ba-{{dynsettingsmenu}}>\n\n        <ba-{{dynplaybutton}}\n            ba-css=\"{{cssplaybutton || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplplaybutton}}\"\n            ba-show=\"{{playbutton_active}}\"\n            ba-rerecordable=\"{{rerecordable}}\"\n            ba-submittable=\"{{submittable}}\"\n            ba-trimmingmode=\"{{trimmingmode}}\"\n            ba-showduration=\"{{showduration}}\"\n            ba-duration=\"{{duration}}\"\n            ba-event:play=\"playbutton_click\"\n            ba-event:rerecord=\"rerecord\"\n            ba-event:submit=\"submit\"\n            ba-event:tab_index_move=\"tab_index_move\"\n        ></ba-{{dynplaybutton}}>\n\n        <ba-{{dynloader}}\n            ba-css=\"{{cssloader || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplloader}}\"\n            ba-playwhenvisible=\"{{playwhenvisible}}\"\n            ba-show=\"{{loader_active}}\"\n        ></ba-{{dynloader}}>\n\n        <ba-{{dynshare}}\n            ba-css=\"{{cssshare || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplshare}}\"\n            ba-show=\"{{sharevideourl && sharevideo.length > 0 && share_active}}\"\n            ba-visible=\"{{=share_active}}\"\n            ba-url=\"{{sharevideourl}}\"\n            ba-shares=\"{{sharevideo}}\"\n        ></ba-{{dynshare}}>\n\n        <ba-{{dynmessage}}\n            ba-css=\"{{cssmessage || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplmessage}}\"\n            ba-show=\"{{message_active}}\"\n            ba-message=\"{{message}}\"\n            ba-event:click=\"message_click\"\n        ></ba-{{dynmessage}}>\n\n        <ba-{{dyntopmessage}}\n            ba-css=\"{{csstopmessage || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmpltopmessage}}\"\n            ba-show=\"{{topmessage}}\"\n            ba-topmessage=\"{{topmessage}}\"\n        ></ba-{{dyntopmessage}}>\n\n        <meta itemprop=\"caption\" content=\"{{title}}\" />\n        <meta itemprop=\"thumbnailUrl\" content=\"{{thumbnailurl}}\" />\n        <meta itemprop=\"contentUrl\" content=\"{{contenturl}}\" />\n    </div>\n    <div class=\"{{linearadplayer ? css + '-overlay' : ''}}\" data-video=\"ad\" style=\"display:none\">\n        <div ba-if=\"{{linearadplayer || customnonlinear}}\" data-ads=\"controlbar\"></div>\n        <div ba-if=\"{{linearadplayer || !customnonlinear}}\"\n             class=\"{{linearadplayer ? cssplayer + '-linear-ad-container' : cssplayer + '-non-linear-ad-container'}}\"\n             data-video=\"ima-ad-container\"\n        ></div>\n    </div>\n    <div ba-show=\"{{useAspectRatioFallback}}\" ba-styles=\"{{aspectRatioFallback}}\"></div>\n</div>\n",
+                template: "<div itemscope itemtype=\"http://schema.org/VideoObject\"\n     class=\"{{css}}-container {{cssplayer}}-size-{{csssize}} {{iecss}}-{{ie8 ? 'ie8' : 'noie8'}} {{csstheme}}\n     {{cssplayer}}-{{fullscreened ? 'fullscreen' : 'normal'}}-view {{cssplayer}}-{{firefox ? 'firefox' : 'common'}}-browser\n     {{cssplayer}}-{{themecolor}}-color {{cssplayer}}-device-type-{{mobileview ? 'mobile' : 'desktop'}}\n     {{csscommon}}-full-width\n     {{cssplayer + (((activity_delta > hidebarafter) && hideoninactivity) ? '-controlbar-hidden' : '-controlbar-visible')}}\"\n     ba-on:mousemove=\"{{user_activity()}}\"\n     ba-on:mousedown=\"{{user_activity(true)}}\"\n     ba-on:touchstart=\"{{user_activity(true)}}\"\n     ba-styles=\"{{containerSizingStyles}}\"\n>\n    <meta itemprop=\"name\" content=\"{{title || 'Video Player'}}\" />\n    <meta itemprop=\"description\" content=\"{{description || 'Video Player'}}\" />\n    <meta itemprop=\"uploadDate\" content=\"{{uploaddate}}\" />\n    <div ba-show=\"{{(videoelement_active || !imageelement_active) && !silent_attach}}\" class=\"{{css}}-video-container\">\n        <video tabindex=\"-1\" class=\"{{css}}-video {{csscommon}}-{{videofitstrategy}}-fit\" data-video=\"video\"\n               preload=\"{{preload ? 'auto' : 'metadata'}}\"\n               ba-toggle:playsinline=\"{{!playfullscreenonmobile}}\"\n        ></video>\n    </div>\n    <div ba-show=\"{{(imageelement_active && !videoelement_active) || silent_attach}}\" class=\"{{css}}-poster-container\">\n        <img tabindex=\"-1\" data-image=\"image\" alt=\"{{posteralt}}\" class=\"{{csscommon}}-{{posterfitstrategy}}-fit\"/>\n    </div>\n    <div class=\"{{css}}-overlay {{hasplaceholderstyle ? (css + '-overlay-with-placeholder') : ''}}\"\n         ba-show=\"{{!showbuiltincontroller}}\" style=\"{{placeholderstyle}}\"\n    >\n        <div tabindex=\"-1\" class=\"{{css}}-player-toggle-overlay\" data-selector=\"player-toggle-overlay\"\n             ba-hotkey:right=\"{{seek(position + skipseconds)}}\" ba-hotkey:left=\"{{seek(position - skipseconds)}}\"\n             ba-hotkey:alt+right=\"{{seek(position + skipseconds * 3)}}\" ba-hotkey:alt+left=\"{{seek(position - skipseconds * 3)}}\"\n             ba-hotkey:up=\"{{set_volume(volume + 0.1)}}\" ba-hotkey:down=\"{{set_volume(volume - 0.1)}}\"\n             ba-hotkey:space^enter=\"{{toggle_player()}}\"\n             ba-on:mouseup=\"{{toggle_player()}}\"\n             ba-on:touchend=\"{{toggle_player()}}\"\n        ></div>\n        <ba-{{dyntrimmer}}\n            ba-if=\"{{trimmingmode && videoelement_active}}\"\n            ba-playing=\"{{playing}}\"\n            ba-startposition=\"{{=starttime}}\"\n            ba-position=\"{{position}}\"\n            ba-endposition=\"{{=endtime}}\"\n            ba-minduration=\"{{timeminlimit}}\"\n            ba-duration=\"{{duration}}\"\n            ba-source=\"{{source}}\"\n            ba-event:play=\"play\"\n            ba-event:pause=\"pause\"\n            ba-event:seek=\"seek\"\n        ></ba-{{dyntrimmer}}>\n        <ba-{{dyncontrolbar}}\n            ba-css=\"{{csscontrolbar || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-logo=\"{{controlbar_logo}}\"\n            ba-themecolor=\"{{themecolor}}\"\n            ba-template=\"{{tmplcontrolbar}}\"\n            ba-show=\"{{controlbar_active && !hidecontrolbar}}\"\n            ba-playing=\"{{playing}}\"\n            ba-playwhenvisible=\"{{playwhenvisible}}\"\n            ba-playerspeeds=\"{{playerspeeds}}\"\n            ba-playercurrentspeed=\"{{playercurrentspeed}}\"\n            ba-playlist=\"{{playlist}}\"\n            ba-airplay=\"{{airplay}}\"\n            ba-airplaybuttonvisible=\"{{airplaybuttonvisible}}\"\n            ba-chromecast=\"{{chromecast}}\"\n            ba-castbuttonvisble=\"{{castbuttonvisble}}\"\n            ba-event:rerecord=\"rerecord\"\n            ba-event:submit=\"submit\"\n            ba-event:play=\"play\"\n            ba-event:pause=\"pause\"\n            ba-event:position=\"seek\"\n            ba-event:volume=\"set_volume\"\n            ba-event:set_speed=\"set_speed\"\n            ba-event:settings_menu=\"toggle_settings_menu\"\n            ba-event:fullscreen=\"toggle_fullscreen\"\n            ba-event:toggle_player=\"toggle_player\"\n            ba-event:tab_index_move=\"tab_index_move\"\n            ba-event:seek=\"seek\"\n            ba-event:set_volume=\"set_volume\"\n            ba-event:toggle_tracks=\"toggle_tracks\"\n            ba-tabindex=\"{{tabindex}}\"\n            ba-showchaptertext=\"{{showchaptertext}}\"\n            ba-chapterslist=\"{{chapterslist}}\"\n            ba-tracktextvisible=\"{{tracktextvisible}}\"\n            ba-tracktags=\"{{tracktags}}\"\n            ba-showsubtitlebutton=\"{{hassubtitles && tracktagssupport}}\"\n            ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n            ba-tracksshowselection=\"{{tracksshowselection}}\"\n            ba-volume=\"{{volume}}\"\n            ba-muted=\"{{muted}}\"\n            ba-unmuteonclick=\"{{unmuteonclick}}\"\n            ba-duration=\"{{duration}}\"\n            ba-cached=\"{{buffered}}\"\n            ba-title=\"{{title}}\"\n            ba-prominent_title=\"{{prominent_title}}\"\n            ba-closeable_title=\"{{closeable_title}}\"\n            ba-position=\"{{position}}\"\n            ba-activitydelta=\"{{activity_delta}}\"\n            ba-hasnext=\"{{hasnext}}\"\n            ba-hideoninactivity=\"{{hideoninactivity}}\"\n            ba-hidebarafter=\"{{hidebarafter}}\"\n            ba-rerecordable=\"{{rerecordable}}\"\n            ba-submittable=\"{{submittable}}\"\n            ba-frameselectionmode=\"{{frameselectionmode}}\"\n            ba-timeminlimit=\"{{timeminlimit}}\"\n            ba-streams=\"{{streams}}\"\n            ba-currentstream=\"{{=currentstream}}\"\n            ba-fullscreen=\"{{fullscreensupport && !nofullscreen}}\"\n            ba-fullscreened=\"{{fullscreened}}\"\n            ba-source=\"{{source}}\"\n            ba-disablepause=\"{{disablepause}}\"\n            ba-disableseeking=\"{{disableseeking}}\"\n            ba-skipseconds=\"{{skipseconds}}\"\n            ba-skipinitial=\"{{skipinitial}}\"\n            ba-settingsmenubutton=\"{{showsettingsmenu}}\"\n            ba-settingsmenuactive=\"{{settingsmenu_active}}\"\n            ba-hidevolumebar=\"{{hidevolumebar}}\"\n            ba-manuallypaused=\"{{manuallypaused}}\"\n        ></ba-{{dyncontrolbar}}>\n\n        <ba-{{dyntracks}}\n            ba-css=\"{{csstracks || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-show=\"{{tracktagssupport || allowtexttrackupload}}\"\n            ba-tracksshowselection=\"{{tracksshowselection}}\"\n            ba-trackselectorhovered=\"{{trackselectorhovered}}\"\n            ba-tracktags=\"{{tracktags}}\"\n            ba-hidebarafter=\"{{hidebarafter}}\"\n            ba-tracktagsstyled=\"{{tracktagsstyled}}\"\n            ba-trackcuetext=\"{{trackcuetext}}\"\n            ba-allowtexttrackupload=\"{{allowtexttrackupload}}\"\n            ba-uploadtexttracksvisible=\"{{uploadtexttracksvisible}}\"\n            ba-acceptedtracktexts=\"{{acceptedtracktexts}}\"\n            ba-uploadlocales=\"{{uploadlocales}}\"\n            ba-activitydelta=\"{{activity_delta}}\"\n            ba-hideoninactivity=\"{{hideoninactivity}}\"\n            ba-event:selected_label_value=\"selected_label_value\"\n            ba-event:upload-text-tracks=\"upload_text_tracks\"\n            ba-event:move_to_option=\"move_to_option\"\n        ></ba-{{dyntracks}}>\n\n        <ba-{{dynsettingsmenu}}\n            ba-css=\"{{css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-show=\"{{settingsmenu_active}}\"\n            ba-template=\"{{tmplsettingsmenu}}\"\n            ba-toggle_settings_menu=\"{{toggle_settings_menu}}\"\n            ba-toggle_share=\"{{toggle_share}}\"\n        ></ba-{{dynsettingsmenu}}>\n\n        <ba-{{dynplaybutton}}\n            ba-css=\"{{cssplaybutton || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplplaybutton}}\"\n            ba-show=\"{{playbutton_active}}\"\n            ba-rerecordable=\"{{rerecordable}}\"\n            ba-submittable=\"{{submittable}}\"\n            ba-trimmingmode=\"{{trimmingmode}}\"\n            ba-showduration=\"{{showduration}}\"\n            ba-duration=\"{{duration}}\"\n            ba-event:play=\"playbutton_click\"\n            ba-event:rerecord=\"rerecord\"\n            ba-event:submit=\"submit\"\n            ba-event:tab_index_move=\"tab_index_move\"\n        ></ba-{{dynplaybutton}}>\n\n        <ba-{{dynloader}}\n            ba-css=\"{{cssloader || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplloader}}\"\n            ba-playwhenvisible=\"{{playwhenvisible}}\"\n            ba-show=\"{{loader_active}}\"\n        ></ba-{{dynloader}}>\n\n        <ba-{{dynshare}}\n            ba-css=\"{{cssshare || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplshare}}\"\n            ba-show=\"{{sharevideourl && sharevideo.length > 0 && share_active}}\"\n            ba-visible=\"{{=share_active}}\"\n            ba-url=\"{{sharevideourl}}\"\n            ba-shares=\"{{sharevideo}}\"\n        ></ba-{{dynshare}}>\n\n        <ba-{{dynmessage}}\n            ba-css=\"{{cssmessage || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmplmessage}}\"\n            ba-show=\"{{message_active}}\"\n            ba-message=\"{{message}}\"\n            ba-event:click=\"message_click\"\n        ></ba-{{dynmessage}}>\n\n        <ba-{{dyntopmessage}}\n            ba-css=\"{{csstopmessage || css}}\"\n            ba-csstheme=\"{{csstheme || css}}\"\n            ba-cssplayer=\"{{cssplayer || css}}\"\n            ba-theme-color=\"{{themecolor}}\"\n            ba-template=\"{{tmpltopmessage}}\"\n            ba-show=\"{{topmessage}}\"\n            ba-topmessage=\"{{topmessage}}\"\n        ></ba-{{dyntopmessage}}>\n\n        <meta itemprop=\"caption\" content=\"{{title}}\" />\n        <meta itemprop=\"thumbnailUrl\" content=\"{{thumbnailurl}}\" />\n        <meta itemprop=\"contentUrl\" content=\"{{contenturl}}\" />\n    </div>\n    <div class=\"{{linearadplayer ? css + '-overlay' : ''}}\" data-video=\"ad\" style=\"display:none\">\n        <div ba-if=\"{{linearadplayer || customnonlinear}}\" data-ads=\"controlbar\"></div>\n        <div ba-if=\"{{linearadplayer || !customnonlinear}}\"\n             class=\"{{linearadplayer ? cssplayer + '-linear-ad-container' : cssplayer + '-non-linear-ad-container'}}\"\n             data-video=\"ima-ad-container\"\n        ></div>\n    </div>\n    <div ba-show=\"{{useAspectRatioFallback}}\" ba-styles=\"{{aspectRatioFallback}}\"></div>\n</div>\n",
 
                 attrs: function() {
                     return {
                         /* CSS */
+                        brightness: 0,
+                        sample_brightness: false,
+                        sample_brightness_rate: 10, // times per second
+                        sample_brightness_sample_size: 250,
                         "css": "ba-videoplayer",
                         "csscommon": "ba-commoncss",
                         "cssplayer": "ba-player",
@@ -32305,6 +30310,8 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         "reloadonplay": false,
                         "playonclick": true,
                         "pauseonclick": true,
+                        "unmuteonclick": false,
+                        "muted": false,
 
                         /* Ads */
                         "adprovider": null,
@@ -32324,6 +30331,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         "rerecordable": false,
                         "submittable": false,
                         "autoplay": false,
+                        "autoplaywhenvisible": false,
                         "preload": false,
                         "loop": false,
                         "loopall": false,
@@ -32429,10 +30437,13 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     "allowpip": "boolean",
                     "hasnext": "boolean",
                     "hidecontrolbar": "boolean",
+                    "muted": "boolean",
+                    "unmuteonclick": "boolean",
                     "rerecordable": "boolean",
                     "loop": "boolean",
                     "loopall": "boolean",
                     "autoplay": "boolean",
+                    "autoplaywhenvisible": "boolean",
                     "preload": "boolean",
                     "ready": "boolean",
                     "nofullscreen": "boolean",
@@ -32560,7 +30571,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             aspectRatio: aspectRatio
                         };
                         if (height) styles.height = typeof height === "string" && height[height.length - 1] === "%" ? height : height + "px";
-                        if (width) styles.width = typeof width === "string" && width[width.length - 1] === "%" ? width : width + "px";
+                        if (width && width !== "100%") styles.width = typeof width === "string" && width[width.length - 1] === "%" ? width : width + "px";
                         if (this.activeElement()) {
                             this._applyStyles(this.activeElement(), styles, this.__lastContainerSizingStyles);
                         }
@@ -32593,6 +30604,21 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         volumelevel: this.get("volume"),
                         autoplay: this.get("autoplay")
                     }));
+                    if (this.get("sample_brightness")) {
+                        this.__brightnessSampler = this.auto_destroy(new Timers.Timer({
+                            delay: 1000 / (this.get("sample_brightness_rate") || 10),
+                            fire: function() {
+                                if (!this.player) return;
+                                var lightLevel = this.player.lightLevel(this.get("sample_brightness_sample_size"), this.get("sample_brightness_sample_areas"));
+                                if (Array.isArray(lightLevel)) lightLevel = lightLevel.map(function(level) {
+                                    return level * 100 / 255;
+                                });
+                                else lightLevel = lightLevel * 100 / 255;
+                                this.set("brightness", lightLevel);
+                            }.bind(this),
+                            start: false
+                        }));
+                    }
                     if (this.get("fullscreenmandatory")) {
                         if (!(document.fullscreenEnabled || document.mozFullscreenEnabled ||
                                 document.webkitFullscreenEnabled || document.msFullscreenEnabled)) {
@@ -32663,6 +30689,8 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     this.set("message", "");
                     this.set("fullscreensupport", false);
                     this.set("csssize", "normal");
+                    if (this.get("autoplaywhenvisible"))
+                        this.set("autoplay", true);
 
                     // this.set("loader_active", false);
                     // this.set("playbutton_active", false);
@@ -32735,13 +30763,11 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                 adContainer: this.activeElement().querySelector("[data-video='ima-ad-container']"),
                                 dynamic: this
                             };
-
                             if (this.get("preroll")) {
                                 this._prerollAd = this._adProvider.newPrerollAd(adInitOptions);
                                 this.set("ad-provider-ready", true);
                             }
                         }
-
 
                         if ((this.get("adprovider") === 'ima' || this.get("adprovider").__IMA_PRE_ROLL) && (this.get("linear") || this.get("non-linear"))) {
                             var schedules = [],
@@ -32987,7 +31013,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     this.set("videoelement_active", true);
                     var video = this.activeElement().querySelector("[data-video='video']");
                     this._clearError();
-                    // Just in case be sure that player's controllers will be hidden
+                    // Just in case, be sure that player's controllers will be hidden
                     video.controls = this.get("showbuiltincontroller");
                     if (!this.get("allowpip"))
                         video.disablePictureInPicture = true;
@@ -33009,7 +31035,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         this.player = instance;
                         this.__video = video;
                         // On autoplay video, silent attach should be false
-                        this.set("silent_attach", (silent && !this.get("autoplay")) || false);
+                        this.set("silent_attach", (silent && !this.get("autoplay")) || this._prerollAd || false);
 
                         if (this.get("chromecast")) {
                             if (!this.get("skipinitial")) this.set("skipinitial", true);
@@ -33110,6 +31136,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             this._error("poster");
                         }, this);
                         this.player.on("playing", function() {
+                            if (this.get("sample_brightness")) this.__brightnessSampler.start();
                             if (this.get("sticky")) this.stickyHandler.start();
                             this.set("playing", true);
                             this.trigger("playing");
@@ -33119,16 +31146,21 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                 this.set("playbackcount", this.get("playbackended") + 1);
                             }
                         }, this);
+                        this.player.on("loaded", function() {
+                            if (this.get("sample_brightness")) this.__brightnessSampler.fire();
+                        }, this);
                         this.player.on("error", function(e) {
                             this._error("video", e);
                         }, this);
                         if (this.player.error())
                             this.player.trigger("error", this.player.error());
                         this.player.on("paused", function() {
+                            if (this.get("sample_brightness")) this.__brightnessSampler.stop();
                             this.set("playing", false);
                             this.trigger("paused");
                         }, this);
                         this.player.on("ended", function() {
+                            if (this.get("sample_brightness")) this.__brightnessSampler.stop();
                             this.set("playing", false);
                             this.set('playedonce', true);
                             this.set("playbackended", this.get('playbackended') + 1);
@@ -33164,7 +31196,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                         this.player.once("loaded", function() {
                             var volume = Math.min(1.0, this.get("volume"));
                             this.player.setVolume(volume);
-                            this.player.setMuted(volume <= 0.0);
+                            this.player.setMuted(this.get("muted") || volume <= 0.0);
                             if (!this.__trackTags && this.get("tracktags").length)
                                 this.__trackTags = new TrackTags({}, this);
                             if (this.get("totalduration") || this.player.duration() < Infinity)
@@ -33345,7 +31377,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                 _keyDownActivity: function(element, ev) {
                     if (this.get("preventinteractionstatus")) return;
                     var _keyCode = ev.which || ev.keyCode;
-                    // Prevent whitespace browser center scroll and arrow buttons behaviours
+                    // Prevent white-space browser center scroll and arrow buttons behaviours
                     if (_keyCode === 32 || _keyCode === 37 || _keyCode === 38 || _keyCode === 39 || _keyCode === 40) ev.preventDefault();
 
                     if (_keyCode === 32 || _keyCode === 13 || _keyCode === 9) {
@@ -33429,9 +31461,19 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
 
                     user_activity: function(strong) {
                         if (strong && !this.get("volumeafterinteraction")) {
+                            if (this.get("muted") && this.get("unmuteonclick")) {
+                                this.set("muted", false);
+                                this.auto_destroy(new Timers.Timer({ // This is being fired right before toggle_player
+                                    delay: 500,
+                                    fire: function() {
+                                        this.set("unmuteonclick", false);
+                                    }.bind(this),
+                                    once: true
+                                }));
+                            }
                             // User interacted with player, and set player's volume level/un-mute
                             // So we will play voice as soon as player visible for user
-                            this.set_volume(this.get("initialoptions").volumelevel);
+                            if (!this.get("muted")) this.set_volume(this.get("initialoptions").volumelevel);
                             this.set("volumeafterinteraction", true);
                             if (this.get("forciblymuted")) this.set("forciblymuted", false);
                         }
@@ -33609,7 +31651,13 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             this._delegatedPlayer.execute("toggle_player");
                             return;
                         }
-                        if (this.get("playing") && this.get("pauseonclick")) {
+                        if (this.get("unmuteonclick")) {
+                            if (this.get("muted")) {
+                                this.player.setMuted(false);
+                                this.set("muted", false);
+                            }
+                            this.set("unmuteonclick", false);
+                        } else if (this.get("playing") && this.get("pauseonclick")) {
                             this.pause();
                         } else if (!this.get("playing") && this.get("playonclick")) {
                             this.play();
@@ -33750,9 +31798,17 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                             if (new_position !== this.get("position") || this.get("last_position_change"))
                                 this.set("last_position_change", _now);
 
+                            // var midPreAdRolls = (this._adsRoll || this._prerollAd);
+                            // // Check in the last 3 seconds if nonLinear is showing and disable it
+                            // if ((this.get("duration") > 0 && new_position > 10) && (this.get("duration") - new_position) > 3) {
+                            //     if (midPreAdRolls && typeof midPreAdRolls.manuallyEndAd === "function" && !midPreAdRolls._isLinear) {
+                            //         midPreAdRolls.manuallyEndAd();
+                            //     }
+                            // }
                             // If play action will not set the silent_attach to false.
-                            if (new_position > 0.0 && this.get("silent_attach"))
+                            if (new_position > 0.0 && this.get("silent_attach")) {
                                 this.set("silent_attach", false);
+                            }
                             // In case if prevent interaction with controller set to true
                             if (this.get('preventinteraction')) {
                                 // set timer since player started to play
@@ -34031,7 +32087,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                 this._nextRollPosition = null;
                                 // as soon as is loaded will reset next position data and find a new
                                 this._adsRoll.once("adloaded", function(ad) {
-                                    if (!ad.isLinear()) {
+                                    if (!ad && ad.isLinear()) {
                                         var _suggestedSeconds = (ad.getMinSuggestedDuration() || this.get("non-linear-min-duration")) + 1;
                                         var _nextPossible = _startedPosition + _suggestedSeconds;
 
@@ -34057,7 +32113,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                 this._adsRoll.once("adendmanually", function(ad) {
                                     if (this._adsRoll) this._adsRoll.weakDestroy();
                                     this._adsRoll = null;
-                                    if (!this.get("playing") && !this.get("manuallypaused") && ad.isLinear()) {
+                                    if (!this.get("playing") && !this.get("manuallypaused") && (ad && ad.isLinear())) {
                                         this.player.play();
                                     }
                                 }, this);
@@ -34066,7 +32122,6 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                                     if (this._adsRoll) this._adsRoll.weakDestroy();
                                     this._adsRoll = null;
                                     if (!this.get("playing") && !this.get("manuallypaused")) {
-                                        console.warn("adfinished PLAY ll ");
                                         this.player.play();
                                     }
                                 }, this);
@@ -34162,16 +32217,14 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
                     video = video || this.__video;
                     if (!video) return;
                     if (this.get("autoplay-requires-muted") || this.get("autoplay-requires-playsinline") || this.get("wait-user-interaction") || this.get("forciblymuted")) {
-                        if (this.get("autoplay-requires-muted") || this.get("forciblymuted"))
-                            video.muted = true;
+                        if (this.get("autoplay-requires-muted") || this.get("forciblymuted")) video.muted = true;
                         if (this.get("autoplay-requires-playsinline"))
                             video.playsinline = true;
                         Dom.userInteraction(function() {
                             var _initialVolume = this.get("initialoptions").volumelevel > 1 ? 1 : this.get("initialoptions").volumelevel;
-                            this.set_volume(_initialVolume);
+                            if (!this.get("muted")) this.set_volume(_initialVolume);
                             this.set("autoplay", this.get("initialoptions").autoplay);
-                            if (this.get("volume") > 0.00)
-                                video.muted = false;
+                            if (!this.get("muted") && this.get("volume") > 0.00) video.muted = false;
                             this.set("forciblymuted", false);
                             if (this.get("autoplay-requires-muted") && (this._prerollAd || this._adsRoll)) {
                                 var _adsManager = (this._prerollAd || this._adsRoll)._adsManager;
@@ -34354,7 +32407,7 @@ Scoped.define("module:VideoPlayer.Dynamics.Player", ["dynamics:Dynamic","module:
 
         }).register("ba-videoplayer")
         .registerFunctions({
-            /**/"css": function (obj) { return obj.css; }, "cssplayer": function (obj) { return obj.cssplayer; }, "csssize": function (obj) { return obj.csssize; }, "iecss": function (obj) { return obj.iecss; }, "ie8 ? 'ie8' : 'noie8'": function (obj) { return obj.ie8 ? 'ie8' : 'noie8'; }, "csstheme": function (obj) { return obj.csstheme; }, "fullscreened ? 'fullscreen' : 'normal'": function (obj) { return obj.fullscreened ? 'fullscreen' : 'normal'; }, "firefox ? 'firefox' : 'common'": function (obj) { return obj.firefox ? 'firefox' : 'common'; }, "themecolor": function (obj) { return obj.themecolor; }, "mobileview ? 'mobile' : 'desktop'": function (obj) { return obj.mobileview ? 'mobile' : 'desktop'; }, "csscommon": function (obj) { return obj.csscommon; }, "cssplayer + (((activity_delta > hidebarafter) && hideoninactivity) ? '-controlbar-hidden' : '-controlbar-visible')": function (obj) { return obj.cssplayer + (((obj.activity_delta > obj.hidebarafter) && obj.hideoninactivity) ? '-controlbar-hidden' : '-controlbar-visible'); }, "user_activity()": function (obj) { return obj.user_activity(); }, "user_activity(true)": function (obj) { return obj.user_activity(true); }, "containerSizingStyles": function (obj) { return obj.containerSizingStyles; }, "title || 'Video Player'": function (obj) { return obj.title || 'Video Player'; }, "description || 'Video Player'": function (obj) { return obj.description || 'Video Player'; }, "uploaddate": function (obj) { return obj.uploaddate; }, "(videoelement_active || !imageelement_active) && !silent_attach": function (obj) { return (obj.videoelement_active || !obj.imageelement_active) && !obj.silent_attach; }, "videofitstrategy": function (obj) { return obj.videofitstrategy; }, "preload ? 'auto' : 'metadata'": function (obj) { return obj.preload ? 'auto' : 'metadata'; }, "!playfullscreenonmobile": function (obj) { return !obj.playfullscreenonmobile; }, "(imageelement_active && !videoelement_active) || silent_attach": function (obj) { return (obj.imageelement_active && !obj.videoelement_active) || obj.silent_attach; }, "posteralt": function (obj) { return obj.posteralt; }, "posterfitstrategy": function (obj) { return obj.posterfitstrategy; }, "hasplaceholderstyle ? (css + '-overlay-with-placeholder') : ''": function (obj) { return obj.hasplaceholderstyle ? (obj.css + '-overlay-with-placeholder') : ''; }, "!showbuiltincontroller": function (obj) { return !obj.showbuiltincontroller; }, "placeholderstyle": function (obj) { return obj.placeholderstyle; }, "seek(position + skipseconds)": function (obj) { return obj.seek(obj.position + obj.skipseconds); }, "seek(position - skipseconds)": function (obj) { return obj.seek(obj.position - obj.skipseconds); }, "seek(position + skipseconds * 3)": function (obj) { return obj.seek(obj.position + obj.skipseconds * 3); }, "seek(position - skipseconds * 3)": function (obj) { return obj.seek(obj.position - obj.skipseconds * 3); }, "set_volume(volume + 0.1)": function (obj) { return obj.set_volume(obj.volume + 0.1); }, "set_volume(volume - 0.1)": function (obj) { return obj.set_volume(obj.volume - 0.1); }, "toggle_player()": function (obj) { return obj.toggle_player(); }, "dyntrimmer": function (obj) { return obj.dyntrimmer; }, "trimmingmode && videoelement_active": function (obj) { return obj.trimmingmode && obj.videoelement_active; }, "playing": function (obj) { return obj.playing; }, "starttime": function (obj) { return obj.starttime; }, "position": function (obj) { return obj.position; }, "endtime": function (obj) { return obj.endtime; }, "timeminlimit": function (obj) { return obj.timeminlimit; }, "duration": function (obj) { return obj.duration; }, "source": function (obj) { return obj.source; }, "dyncontrolbar": function (obj) { return obj.dyncontrolbar; }, "csscontrolbar || css": function (obj) { return obj.csscontrolbar || obj.css; }, "cssplayer || css": function (obj) { return obj.cssplayer || obj.css; }, "csstheme || css": function (obj) { return obj.csstheme || obj.css; }, "controlbar_logo": function (obj) { return obj.controlbar_logo; }, "tmplcontrolbar": function (obj) { return obj.tmplcontrolbar; }, "controlbar_active && !hidecontrolbar": function (obj) { return obj.controlbar_active && !obj.hidecontrolbar; }, "playwhenvisible": function (obj) { return obj.playwhenvisible; }, "playerspeeds": function (obj) { return obj.playerspeeds; }, "playercurrentspeed": function (obj) { return obj.playercurrentspeed; }, "playlist": function (obj) { return obj.playlist; }, "airplay": function (obj) { return obj.airplay; }, "airplaybuttonvisible": function (obj) { return obj.airplaybuttonvisible; }, "chromecast": function (obj) { return obj.chromecast; }, "castbuttonvisble": function (obj) { return obj.castbuttonvisble; }, "tabindex": function (obj) { return obj.tabindex; }, "showchaptertext": function (obj) { return obj.showchaptertext; }, "chapterslist": function (obj) { return obj.chapterslist; }, "tracktextvisible": function (obj) { return obj.tracktextvisible; }, "tracktags": function (obj) { return obj.tracktags; }, "hassubtitles && tracktagssupport": function (obj) { return obj.hassubtitles && obj.tracktagssupport; }, "allowtexttrackupload": function (obj) { return obj.allowtexttrackupload; }, "tracksshowselection": function (obj) { return obj.tracksshowselection; }, "volume": function (obj) { return obj.volume; }, "buffered": function (obj) { return obj.buffered; }, "title": function (obj) { return obj.title; }, "prominent_title": function (obj) { return obj.prominent_title; }, "closeable_title": function (obj) { return obj.closeable_title; }, "activity_delta": function (obj) { return obj.activity_delta; }, "hasnext": function (obj) { return obj.hasnext; }, "hideoninactivity": function (obj) { return obj.hideoninactivity; }, "hidebarafter": function (obj) { return obj.hidebarafter; }, "rerecordable": function (obj) { return obj.rerecordable; }, "submittable": function (obj) { return obj.submittable; }, "frameselectionmode": function (obj) { return obj.frameselectionmode; }, "streams": function (obj) { return obj.streams; }, "currentstream": function (obj) { return obj.currentstream; }, "fullscreensupport && !nofullscreen": function (obj) { return obj.fullscreensupport && !obj.nofullscreen; }, "fullscreened": function (obj) { return obj.fullscreened; }, "disablepause": function (obj) { return obj.disablepause; }, "disableseeking": function (obj) { return obj.disableseeking; }, "skipseconds": function (obj) { return obj.skipseconds; }, "skipinitial": function (obj) { return obj.skipinitial; }, "showsettingsmenu": function (obj) { return obj.showsettingsmenu; }, "settingsmenu_active": function (obj) { return obj.settingsmenu_active; }, "hidevolumebar": function (obj) { return obj.hidevolumebar; }, "manuallypaused": function (obj) { return obj.manuallypaused; }, "dyntracks": function (obj) { return obj.dyntracks; }, "csstracks || css": function (obj) { return obj.csstracks || obj.css; }, "tracktagssupport || allowtexttrackupload": function (obj) { return obj.tracktagssupport || obj.allowtexttrackupload; }, "trackselectorhovered": function (obj) { return obj.trackselectorhovered; }, "tracktagsstyled": function (obj) { return obj.tracktagsstyled; }, "trackcuetext": function (obj) { return obj.trackcuetext; }, "uploadtexttracksvisible": function (obj) { return obj.uploadtexttracksvisible; }, "acceptedtracktexts": function (obj) { return obj.acceptedtracktexts; }, "uploadlocales": function (obj) { return obj.uploadlocales; }, "dynsettingsmenu": function (obj) { return obj.dynsettingsmenu; }, "tmplsettingsmenu": function (obj) { return obj.tmplsettingsmenu; }, "toggle_settings_menu": function (obj) { return obj.toggle_settings_menu; }, "toggle_share": function (obj) { return obj.toggle_share; }, "dynplaybutton": function (obj) { return obj.dynplaybutton; }, "cssplaybutton || css": function (obj) { return obj.cssplaybutton || obj.css; }, "tmplplaybutton": function (obj) { return obj.tmplplaybutton; }, "playbutton_active": function (obj) { return obj.playbutton_active; }, "trimmingmode": function (obj) { return obj.trimmingmode; }, "showduration": function (obj) { return obj.showduration; }, "dynloader": function (obj) { return obj.dynloader; }, "cssloader || css": function (obj) { return obj.cssloader || obj.css; }, "tmplloader": function (obj) { return obj.tmplloader; }, "loader_active": function (obj) { return obj.loader_active; }, "dynshare": function (obj) { return obj.dynshare; }, "cssshare || css": function (obj) { return obj.cssshare || obj.css; }, "tmplshare": function (obj) { return obj.tmplshare; }, "sharevideourl && sharevideo.length > 0 && share_active": function (obj) { return obj.sharevideourl && obj.sharevideo.length > 0 && obj.share_active; }, "share_active": function (obj) { return obj.share_active; }, "sharevideourl": function (obj) { return obj.sharevideourl; }, "sharevideo": function (obj) { return obj.sharevideo; }, "dynmessage": function (obj) { return obj.dynmessage; }, "cssmessage || css": function (obj) { return obj.cssmessage || obj.css; }, "tmplmessage": function (obj) { return obj.tmplmessage; }, "message_active": function (obj) { return obj.message_active; }, "message": function (obj) { return obj.message; }, "dyntopmessage": function (obj) { return obj.dyntopmessage; }, "csstopmessage || css": function (obj) { return obj.csstopmessage || obj.css; }, "tmpltopmessage": function (obj) { return obj.tmpltopmessage; }, "topmessage": function (obj) { return obj.topmessage; }, "thumbnailurl": function (obj) { return obj.thumbnailurl; }, "contenturl": function (obj) { return obj.contenturl; }, "linearadplayer ? css + '-overlay' : ''": function (obj) { return obj.linearadplayer ? obj.css + '-overlay' : ''; }, "linearadplayer || customnonlinear": function (obj) { return obj.linearadplayer || obj.customnonlinear; }, "linearadplayer || !customnonlinear": function (obj) { return obj.linearadplayer || !obj.customnonlinear; }, "linearadplayer ? cssplayer + '-linear-ad-container' : cssplayer + '-non-linear-ad-container'": function (obj) { return obj.linearadplayer ? obj.cssplayer + '-linear-ad-container' : obj.cssplayer + '-non-linear-ad-container'; }, "useAspectRatioFallback": function (obj) { return obj.useAspectRatioFallback; }, "aspectRatioFallback": function (obj) { return obj.aspectRatioFallback; }/**/
+            /**/"css": function (obj) { return obj.css; }, "cssplayer": function (obj) { return obj.cssplayer; }, "csssize": function (obj) { return obj.csssize; }, "iecss": function (obj) { return obj.iecss; }, "ie8 ? 'ie8' : 'noie8'": function (obj) { return obj.ie8 ? 'ie8' : 'noie8'; }, "csstheme": function (obj) { return obj.csstheme; }, "fullscreened ? 'fullscreen' : 'normal'": function (obj) { return obj.fullscreened ? 'fullscreen' : 'normal'; }, "firefox ? 'firefox' : 'common'": function (obj) { return obj.firefox ? 'firefox' : 'common'; }, "themecolor": function (obj) { return obj.themecolor; }, "mobileview ? 'mobile' : 'desktop'": function (obj) { return obj.mobileview ? 'mobile' : 'desktop'; }, "csscommon": function (obj) { return obj.csscommon; }, "cssplayer + (((activity_delta > hidebarafter) && hideoninactivity) ? '-controlbar-hidden' : '-controlbar-visible')": function (obj) { return obj.cssplayer + (((obj.activity_delta > obj.hidebarafter) && obj.hideoninactivity) ? '-controlbar-hidden' : '-controlbar-visible'); }, "user_activity()": function (obj) { return obj.user_activity(); }, "user_activity(true)": function (obj) { return obj.user_activity(true); }, "containerSizingStyles": function (obj) { return obj.containerSizingStyles; }, "title || 'Video Player'": function (obj) { return obj.title || 'Video Player'; }, "description || 'Video Player'": function (obj) { return obj.description || 'Video Player'; }, "uploaddate": function (obj) { return obj.uploaddate; }, "(videoelement_active || !imageelement_active) && !silent_attach": function (obj) { return (obj.videoelement_active || !obj.imageelement_active) && !obj.silent_attach; }, "videofitstrategy": function (obj) { return obj.videofitstrategy; }, "preload ? 'auto' : 'metadata'": function (obj) { return obj.preload ? 'auto' : 'metadata'; }, "!playfullscreenonmobile": function (obj) { return !obj.playfullscreenonmobile; }, "(imageelement_active && !videoelement_active) || silent_attach": function (obj) { return (obj.imageelement_active && !obj.videoelement_active) || obj.silent_attach; }, "posteralt": function (obj) { return obj.posteralt; }, "posterfitstrategy": function (obj) { return obj.posterfitstrategy; }, "hasplaceholderstyle ? (css + '-overlay-with-placeholder') : ''": function (obj) { return obj.hasplaceholderstyle ? (obj.css + '-overlay-with-placeholder') : ''; }, "!showbuiltincontroller": function (obj) { return !obj.showbuiltincontroller; }, "placeholderstyle": function (obj) { return obj.placeholderstyle; }, "seek(position + skipseconds)": function (obj) { return obj.seek(obj.position + obj.skipseconds); }, "seek(position - skipseconds)": function (obj) { return obj.seek(obj.position - obj.skipseconds); }, "seek(position + skipseconds * 3)": function (obj) { return obj.seek(obj.position + obj.skipseconds * 3); }, "seek(position - skipseconds * 3)": function (obj) { return obj.seek(obj.position - obj.skipseconds * 3); }, "set_volume(volume + 0.1)": function (obj) { return obj.set_volume(obj.volume + 0.1); }, "set_volume(volume - 0.1)": function (obj) { return obj.set_volume(obj.volume - 0.1); }, "toggle_player()": function (obj) { return obj.toggle_player(); }, "dyntrimmer": function (obj) { return obj.dyntrimmer; }, "trimmingmode && videoelement_active": function (obj) { return obj.trimmingmode && obj.videoelement_active; }, "playing": function (obj) { return obj.playing; }, "starttime": function (obj) { return obj.starttime; }, "position": function (obj) { return obj.position; }, "endtime": function (obj) { return obj.endtime; }, "timeminlimit": function (obj) { return obj.timeminlimit; }, "duration": function (obj) { return obj.duration; }, "source": function (obj) { return obj.source; }, "dyncontrolbar": function (obj) { return obj.dyncontrolbar; }, "csscontrolbar || css": function (obj) { return obj.csscontrolbar || obj.css; }, "cssplayer || css": function (obj) { return obj.cssplayer || obj.css; }, "csstheme || css": function (obj) { return obj.csstheme || obj.css; }, "controlbar_logo": function (obj) { return obj.controlbar_logo; }, "tmplcontrolbar": function (obj) { return obj.tmplcontrolbar; }, "controlbar_active && !hidecontrolbar": function (obj) { return obj.controlbar_active && !obj.hidecontrolbar; }, "playwhenvisible": function (obj) { return obj.playwhenvisible; }, "playerspeeds": function (obj) { return obj.playerspeeds; }, "playercurrentspeed": function (obj) { return obj.playercurrentspeed; }, "playlist": function (obj) { return obj.playlist; }, "airplay": function (obj) { return obj.airplay; }, "airplaybuttonvisible": function (obj) { return obj.airplaybuttonvisible; }, "chromecast": function (obj) { return obj.chromecast; }, "castbuttonvisble": function (obj) { return obj.castbuttonvisble; }, "tabindex": function (obj) { return obj.tabindex; }, "showchaptertext": function (obj) { return obj.showchaptertext; }, "chapterslist": function (obj) { return obj.chapterslist; }, "tracktextvisible": function (obj) { return obj.tracktextvisible; }, "tracktags": function (obj) { return obj.tracktags; }, "hassubtitles && tracktagssupport": function (obj) { return obj.hassubtitles && obj.tracktagssupport; }, "allowtexttrackupload": function (obj) { return obj.allowtexttrackupload; }, "tracksshowselection": function (obj) { return obj.tracksshowselection; }, "volume": function (obj) { return obj.volume; }, "muted": function (obj) { return obj.muted; }, "unmuteonclick": function (obj) { return obj.unmuteonclick; }, "buffered": function (obj) { return obj.buffered; }, "title": function (obj) { return obj.title; }, "prominent_title": function (obj) { return obj.prominent_title; }, "closeable_title": function (obj) { return obj.closeable_title; }, "activity_delta": function (obj) { return obj.activity_delta; }, "hasnext": function (obj) { return obj.hasnext; }, "hideoninactivity": function (obj) { return obj.hideoninactivity; }, "hidebarafter": function (obj) { return obj.hidebarafter; }, "rerecordable": function (obj) { return obj.rerecordable; }, "submittable": function (obj) { return obj.submittable; }, "frameselectionmode": function (obj) { return obj.frameselectionmode; }, "streams": function (obj) { return obj.streams; }, "currentstream": function (obj) { return obj.currentstream; }, "fullscreensupport && !nofullscreen": function (obj) { return obj.fullscreensupport && !obj.nofullscreen; }, "fullscreened": function (obj) { return obj.fullscreened; }, "disablepause": function (obj) { return obj.disablepause; }, "disableseeking": function (obj) { return obj.disableseeking; }, "skipseconds": function (obj) { return obj.skipseconds; }, "skipinitial": function (obj) { return obj.skipinitial; }, "showsettingsmenu": function (obj) { return obj.showsettingsmenu; }, "settingsmenu_active": function (obj) { return obj.settingsmenu_active; }, "hidevolumebar": function (obj) { return obj.hidevolumebar; }, "manuallypaused": function (obj) { return obj.manuallypaused; }, "dyntracks": function (obj) { return obj.dyntracks; }, "csstracks || css": function (obj) { return obj.csstracks || obj.css; }, "tracktagssupport || allowtexttrackupload": function (obj) { return obj.tracktagssupport || obj.allowtexttrackupload; }, "trackselectorhovered": function (obj) { return obj.trackselectorhovered; }, "tracktagsstyled": function (obj) { return obj.tracktagsstyled; }, "trackcuetext": function (obj) { return obj.trackcuetext; }, "uploadtexttracksvisible": function (obj) { return obj.uploadtexttracksvisible; }, "acceptedtracktexts": function (obj) { return obj.acceptedtracktexts; }, "uploadlocales": function (obj) { return obj.uploadlocales; }, "dynsettingsmenu": function (obj) { return obj.dynsettingsmenu; }, "tmplsettingsmenu": function (obj) { return obj.tmplsettingsmenu; }, "toggle_settings_menu": function (obj) { return obj.toggle_settings_menu; }, "toggle_share": function (obj) { return obj.toggle_share; }, "dynplaybutton": function (obj) { return obj.dynplaybutton; }, "cssplaybutton || css": function (obj) { return obj.cssplaybutton || obj.css; }, "tmplplaybutton": function (obj) { return obj.tmplplaybutton; }, "playbutton_active": function (obj) { return obj.playbutton_active; }, "trimmingmode": function (obj) { return obj.trimmingmode; }, "showduration": function (obj) { return obj.showduration; }, "dynloader": function (obj) { return obj.dynloader; }, "cssloader || css": function (obj) { return obj.cssloader || obj.css; }, "tmplloader": function (obj) { return obj.tmplloader; }, "loader_active": function (obj) { return obj.loader_active; }, "dynshare": function (obj) { return obj.dynshare; }, "cssshare || css": function (obj) { return obj.cssshare || obj.css; }, "tmplshare": function (obj) { return obj.tmplshare; }, "sharevideourl && sharevideo.length > 0 && share_active": function (obj) { return obj.sharevideourl && obj.sharevideo.length > 0 && obj.share_active; }, "share_active": function (obj) { return obj.share_active; }, "sharevideourl": function (obj) { return obj.sharevideourl; }, "sharevideo": function (obj) { return obj.sharevideo; }, "dynmessage": function (obj) { return obj.dynmessage; }, "cssmessage || css": function (obj) { return obj.cssmessage || obj.css; }, "tmplmessage": function (obj) { return obj.tmplmessage; }, "message_active": function (obj) { return obj.message_active; }, "message": function (obj) { return obj.message; }, "dyntopmessage": function (obj) { return obj.dyntopmessage; }, "csstopmessage || css": function (obj) { return obj.csstopmessage || obj.css; }, "tmpltopmessage": function (obj) { return obj.tmpltopmessage; }, "topmessage": function (obj) { return obj.topmessage; }, "thumbnailurl": function (obj) { return obj.thumbnailurl; }, "contenturl": function (obj) { return obj.contenturl; }, "linearadplayer ? css + '-overlay' : ''": function (obj) { return obj.linearadplayer ? obj.css + '-overlay' : ''; }, "linearadplayer || customnonlinear": function (obj) { return obj.linearadplayer || obj.customnonlinear; }, "linearadplayer || !customnonlinear": function (obj) { return obj.linearadplayer || !obj.customnonlinear; }, "linearadplayer ? cssplayer + '-linear-ad-container' : cssplayer + '-non-linear-ad-container'": function (obj) { return obj.linearadplayer ? obj.cssplayer + '-linear-ad-container' : obj.cssplayer + '-non-linear-ad-container'; }, "useAspectRatioFallback": function (obj) { return obj.useAspectRatioFallback; }, "aspectRatioFallback": function (obj) { return obj.aspectRatioFallback; }/**/
         })
         .attachStringTable(Assets.strings)
         .addStrings({
@@ -44418,8 +42471,6 @@ Scoped.define("private:Environment", ["private:Logger","private:Core","browser:I
 Scoped.define("private:Application.Urls", ["base:Class","base:Objs","base:Sort","base:Types","base:Comparators","base:Net.Uri","base:Async","browser:Info","media:WebRTC.RecorderWrapper","private:Environment"], function(e,i,a,t,s,n,r,o,c,d,l){return e.extend({scoped:l},function(t){return{constructor:function(e){t.constructor.call(this),this.application=e,this.__servers=d.serversByToken(this.application.data.get("token"))},httpApiBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["embed.api.server.public.domain"]},httpStreamingBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["embed-cdn.api.server.public.domain"]},apiStreamingBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["media-cdn.api.server.public.domain"]},webrtcStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.app"]+(e||"")},wssUrl:function(){return this.__servers["wowza.api.record.webrtc.wssurl"]},webrtcAudioStreamingApp:function(e){return this.__servers["wowza.api.record.webrtc.audioapp"]+(e||"")},httpApiAppUrl:function(){return this.httpApiBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiBaseUrl:function(){return(d.isLocal?"http":"https")+"://"+this.__servers["server.js-api.server.public.domain"]},apiAppUrl:function(){return this.apiBaseUrl()+"/embed/v1/applications/"+this.application.data.get("token")},apiResourceUrl:function(e,t){return this.resourceUrl(this.apiAppUrl(),e,i.extend({auth:!0},t))},httpApiResourceUrl:function(e,t){return this.resourceUrl(this.httpApiAppUrl(),e,i.extend({auth:!0},t))},httpStreamingAppUrl:function(){return this.httpStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},httpStreamingResourceUrl:function(e,t){return this.resourceUrl(this.httpStreamingAppUrl(),e,t)},apiStreamingAppUrl:function(){return this.apiStreamingBaseUrl()+"/v1/applications/"+this.application.data.get("token")},apiStreamingResourceUrl:function(e,t){return this.resourceUrl(this.apiStreamingAppUrl(),e,t)},urlParams:function(e){e=e||{};var t=i.extend({},i.filter(e.params,function(e,t){return null!==e&&""!==e}));return e.auth&&this.application.data.get("auth")&&((t=i.extend(t,i.filter(e.auth,function(e,t){return null!==e&&""!==e})))[this.application.data.get("cookie_key")]=this.application.data.get("cookie_value")),a.sort_object(t,s.byValue)},hostedBaseUrl:function(){return(d.sslRequired?"https":"http")+"://"+this.__servers["hosted.pages.server.public.domain"]},hostedUrl:function(e){return this.hostedBaseUrl()+e},resourceUrl:function(e,t,i){return n.appendUriParams(e+(t&&0!==t.indexOf("/")?"/":"")+t,this.urlParams(i))},liveCallsSignUrl:function(e){return this.apiResourceUrl("",e)+"/live-calls-sign-request"}}})});
 
 Scoped.define("module:Config", ["private:Environment","base:Properties.Properties","base:Functions"], function(e,t,i){var a=new t;return{set:i.as_method(a.set,a),get:i.as_method(a.get,a)}});
-
-Scoped.define("module:Ads", ["mediacomponents:Ads.AdSenseVideoAdProvider","mediacomponents:Ads.VastVideoAdProvider"], function(e,t){return{AdSenseVideoAdProvider:e,VastVideoAdProvider:t}});
 
 Scoped.define("private:S3.Config", [], function(){return{chunkSize:5242880,numberOfUrlsPerRequest:1e3,minNumberOfUrls:5}});
 
