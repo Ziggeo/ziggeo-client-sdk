@@ -46097,7 +46097,7 @@ Scoped.define("module:PlayerStates.VideoProcessing", ["mediacomponents:VideoPlay
 
 Scoped.define("module:PlayerStates.LoadVideo", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.LoadVideo"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){this.dyn.loadDataFromCache(),e._started.call(this)}}})});
 
-Scoped.define("module:PlayerStates.PlayVideo", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.PlayVideo"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("play_start")}}})});
+Scoped.define("module:PlayerStates.PlayVideo", ["mediacomponents:VideoPlayer.Dynamics.PlayerStates.PlayVideo"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn.set("loader_active",!this.dyn.get("playing")),this.listenOn(this.dyn,"playing",function(){this.dyn.set("loader_active",!1)},this),this.dyn._track("play_start")}}})});
 
 Scoped.define("module:RecorderStates.Recording", ["mediacomponents:VideoRecorder.Dynamics.RecorderStates.Recording"], function(e,t){return e.extend({scoped:t},function(e){return{_started:function(){e._started.call(this),this.dyn._track("record_start")},_hasStopped:function(){this.dyn._requiresDeviceOrientation&&(this.dyn._rotation=this.dyn._readDeviceOrientation()),e._hasStopped.call(this),this.dyn._track("record_end",{media_time:this.dyn.get("duration")})}}})});
 
