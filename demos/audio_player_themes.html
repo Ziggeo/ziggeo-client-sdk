@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Audio Player Themes Demo</title>
+        <link rel="stylesheet" href="../build/ziggeo.css" />
+        <script src="credentials.js"></script>
+        <script src="../build/ziggeo.js"></script>
+        <script src="header.js"></script>
+        <style>
+            body {
+                margin: 24px;
+                font-family: Arial, sans-serif;
+                background: #f3f3f3;
+            }
+
+            .theme-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+                gap: 18px;
+                max-width: 1200px;
+            }
+
+            .theme-card {
+                background: #fff;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 14px;
+            }
+
+            .theme-label {
+                font-weight: bold;
+                margin: 0 0 10px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>Audio Player Theme Test</h2>
+        <div class="theme-grid">
+            <div class="theme-card">
+                <p class="theme-label">default (no theme attr)</p>
+                <ziggeoaudioplayer ziggeo-audio="{{ZiggeoDemoAudio}}" ziggeo-width="480"></ziggeoaudioplayer>
+            </div>
+
+            <div class="theme-card">
+                <p class="theme-label">modern</p>
+                <ziggeoaudioplayer ziggeo-audio="{{ZiggeoDemoAudio}}" ziggeo-width="480" ziggeo-theme="modern"></ziggeoaudioplayer>
+            </div>
+
+            <div class="theme-card">
+                <p class="theme-label">theatre</p>
+                <ziggeoaudioplayer ziggeo-audio="{{ZiggeoDemoAudio}}" ziggeo-width="480" ziggeo-theme="theatre"></ziggeoaudioplayer>
+            </div>
+
+            <div class="theme-card">
+                <p class="theme-label">space</p>
+                <ziggeoaudioplayer ziggeo-audio="{{ZiggeoDemoAudio}}" ziggeo-width="480" ziggeo-theme="space"></ziggeoaudioplayer>
+            </div>
+
+            <div class="theme-card">
+                <p class="theme-label">minimalist</p>
+                <ziggeoaudioplayer ziggeo-audio="{{ZiggeoDemoAudio}}" ziggeo-width="480" ziggeo-theme="minimalist"></ziggeoaudioplayer>
+            </div>
+
+            <div class="theme-card">
+                <p class="theme-label">cube</p>
+                <ziggeoaudioplayer ziggeo-audio="{{ZiggeoDemoAudio}}" ziggeo-width="480" ziggeo-theme="cube"></ziggeoaudioplayer>
+            </div>
+
+            <div class="theme-card">
+                <p class="theme-label">elevate</p>
+                <ziggeoaudioplayer ziggeo-audio="{{ZiggeoDemoAudio}}" ziggeo-width="480" ziggeo-theme="elevate"></ziggeoaudioplayer>
+            </div>
+        </div>
+    </body>
+</html>
